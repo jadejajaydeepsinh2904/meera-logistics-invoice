@@ -36,7 +36,7 @@ async function ensureDatabase(env){
     // statements on every Worker cold start.
     try{
       const ready=await first(env,`SELECT value FROM app_meta WHERE key='schema_version'`);
-      if(ready?.value==='6')return;
+      if(ready?.value==='12')return;
     }catch(_){/* first deployment: tables do not exist yet */}
 
     const creates = [
@@ -44,7 +44,7 @@ async function ensureDatabase(env){
       `CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'ADMIN',active INTEGER NOT NULL DEFAULT 1,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id INTEGER NOT NULL,expires_at TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS party_accounts(id TEXT PRIMARY KEY,ledger_no TEXT UNIQUE,party_name TEXT UNIQUE NOT NULL,address TEXT DEFAULT '',gst_no TEXT DEFAULT '',mobile TEXT DEFAULT '',email TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
-      `CREATE TABLE IF NOT EXISTS party_payments(id TEXT PRIMARY KEY,receipt_no TEXT,party_name TEXT NOT NULL,payment_date TEXT NOT NULL,amount REAL NOT NULL,payment_mode TEXT,reference TEXT,notes TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+      `CREATE TABLE IF NOT EXISTS party_payments(id TEXT PRIMARY KEY,receipt_no TEXT,trip_id TEXT DEFAULT '',party_name TEXT NOT NULL,payment_date TEXT NOT NULL,amount REAL NOT NULL,payment_mode TEXT,reference TEXT,notes TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS trucks(id TEXT PRIMARY KEY,truck_no TEXT UNIQUE NOT NULL,owner_name TEXT,owner_mobile TEXT DEFAULT '',bank_details TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY,loading_point TEXT NOT NULL,unloading_point TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS materials(id TEXT PRIMARY KEY,material_name TEXT UNIQUE NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
@@ -52,8 +52,8 @@ async function ensureDatabase(env){
       `CREATE TABLE IF NOT EXISTS invoices(id TEXT PRIMARY KEY,invoice_no TEXT UNIQUE NOT NULL,invoice_date TEXT,party_name TEXT,party_address TEXT DEFAULT '',party_gst TEXT DEFAULT '',lr_no TEXT DEFAULT '',material TEXT DEFAULT '',loading_date TEXT DEFAULT '',sgst REAL DEFAULT 9,cgst REAL DEFAULT 9,diesel REAL DEFAULT 0,munshi REAL DEFAULT 0,subtotal REAL DEFAULT 0,gst_amount REAL DEFAULT 0,total REAL DEFAULT 0,comments TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS invoice_items(id TEXT PRIMARY KEY,invoice_id TEXT NOT NULL,trip_id TEXT DEFAULT '',truck_no TEXT,description TEXT,loading_weight REAL DEFAULT 0,unloading_weight REAL DEFAULT 0,shortage REAL DEFAULT 0,weight REAL DEFAULT 0,rate REAL DEFAULT 0,amount REAL DEFAULT 0,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS truck_payments(id TEXT PRIMARY KEY,trip_id TEXT DEFAULT '',entry_date TEXT,truck_no TEXT,owner_name TEXT,bank_details TEXT DEFAULT '',loading_point TEXT,unloading_point TEXT,weight REAL DEFAULT 0,rate REAL DEFAULT 0,commission REAL DEFAULT 0,payable REAL DEFAULT 0,notes TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
-      `CREATE TABLE IF NOT EXISTS supplier_payments(id TEXT PRIMARY KEY,receipt_no TEXT,owner_name TEXT NOT NULL,truck_no TEXT DEFAULT '',payment_date TEXT NOT NULL,amount REAL NOT NULL,payment_mode TEXT,reference TEXT,notes TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
-      `CREATE TABLE IF NOT EXISTS expenses(id TEXT PRIMARY KEY,expense_date TEXT,category TEXT,amount REAL DEFAULT 0,notes TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+      `CREATE TABLE IF NOT EXISTS supplier_payments(id TEXT PRIMARY KEY,receipt_no TEXT,trip_id TEXT DEFAULT '',owner_name TEXT NOT NULL,truck_no TEXT DEFAULT '',payment_date TEXT NOT NULL,amount REAL NOT NULL,payment_mode TEXT,reference TEXT,notes TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+      `CREATE TABLE IF NOT EXISTS expenses(id TEXT PRIMARY KEY,trip_id TEXT DEFAULT '',expense_date TEXT,category TEXT,amount REAL DEFAULT 0,notes TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS truck_documents(id TEXT PRIMARY KEY,truck_no TEXT NOT NULL,kind TEXT NOT NULL,file_name TEXT,file_type TEXT DEFAULT '',file_data TEXT DEFAULT '',expiry_date TEXT DEFAULT '',notes TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS audit_logs(id TEXT PRIMARY KEY,user_id INTEGER,action TEXT,entity TEXT,entity_id TEXT,payload TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`
     ];
@@ -111,7 +111,10 @@ async function ensureDatabase(env){
       `CREATE INDEX IF NOT EXISTS idx_party_payment_party ON party_payments(party_name)`,
       `CREATE INDEX IF NOT EXISTS idx_supplier_entry_owner ON truck_payments(owner_name)`,
       `CREATE INDEX IF NOT EXISTS idx_supplier_payment_owner ON supplier_payments(owner_name)`,
-      `CREATE INDEX IF NOT EXISTS idx_document_truck ON truck_documents(truck_no)`
+      `CREATE INDEX IF NOT EXISTS idx_document_truck ON truck_documents(truck_no)`,
+      `CREATE INDEX IF NOT EXISTS idx_party_payment_trip ON party_payments(trip_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_supplier_payment_trip ON supplier_payments(trip_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_expense_trip ON expenses(trip_id)`
     ];
     for(const sql of indexes) await env.DB.prepare(sql).run();
 
@@ -145,8 +148,8 @@ async function ensureDatabase(env){
           p.id,p.ledger_no,p.party_name,p.address,p.gst_no,p.mobile,p.email);
       }
       for(const p of SEED_DATA.party_payments){
-        await run(env, `INSERT OR IGNORE INTO party_payments(id,receipt_no,party_name,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?)`,
-          p.id,`PR-${p.id}`,p.party_name,p.payment_date,p.amount,p.payment_mode,p.reference,p.notes);
+        await run(env, `INSERT OR IGNORE INTO party_payments(id,receipt_no,trip_id,party_name,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?)`,
+          p.id,`PR-${p.id}`,'',p.party_name,p.payment_date,p.amount,p.payment_mode,p.reference,p.notes);
       }
       for(const t of SEED_DATA.trucks){
         await run(env, `INSERT OR IGNORE INTO trucks(id,truck_no,owner_name,owner_mobile,bank_details) VALUES(?,?,?,?,?)`,
@@ -176,16 +179,16 @@ async function ensureDatabase(env){
           e.id,e.trip_id,e.entry_date,e.truck_no,e.owner_name,e.bank_details,e.loading_point,e.unloading_point,e.weight,e.rate,e.commission,e.payable,e.notes);
       }
       for(const p of SEED_DATA.supplier_payments){
-        await run(env, `INSERT OR IGNORE INTO supplier_payments(id,receipt_no,owner_name,truck_no,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?)`,
-          p.id,`SP-${p.id}`,p.owner_name,p.truck_no,p.payment_date,p.amount,p.payment_mode,p.reference,p.notes);
+        await run(env, `INSERT OR IGNORE INTO supplier_payments(id,receipt_no,trip_id,owner_name,truck_no,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+          p.id,`SP-${p.id}`,'',p.owner_name,p.truck_no,p.payment_date,p.amount,p.payment_mode,p.reference,p.notes);
       }
       for(const e of SEED_DATA.expenses){
-        await run(env, `INSERT OR IGNORE INTO expenses(id,expense_date,category,amount,notes) VALUES(?,?,?,?,?)`,
-          e.id,e.expense_date,e.category,e.amount,e.notes);
+        await run(env, `INSERT OR IGNORE INTO expenses(id,trip_id,expense_date,category,amount,notes) VALUES(?,?,?,?,?,?)`,
+          e.id,'',e.expense_date,e.category,e.amount,e.notes);
       }
       await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('seed_version','2',CURRENT_TIMESTAMP)`);
     }
-    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','6',CURRENT_TIMESTAMP)`);
+    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','12',CURRENT_TIMESTAMP)`);
   })().catch(e=>{ initPromise=null; throw e; });
   return initPromise;
 }
@@ -387,7 +390,7 @@ export default {
         }
         const rows=data;
         for(const p of rows.parties||[])await run(env,`INSERT OR REPLACE INTO party_accounts(id,ledger_no,party_name,address,gst_no,mobile,email) VALUES(?,?,?,?,?,?,?)`,p.id||uid('PA'),p.ledger_no||'',upper(p.party_name),p.address||'',p.gst_no||'',p.mobile||'',p.email||'');
-        for(const p of rows.partyPayments||[])await run(env,`INSERT OR REPLACE INTO party_payments(id,receipt_no,party_name,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?)`,p.id||uid('PP'),p.receipt_no||'',upper(p.party_name),p.payment_date,num(p.amount),upper(p.payment_mode),p.reference||'',p.notes||'');
+        for(const p of rows.partyPayments||[])await run(env,`INSERT OR REPLACE INTO party_payments(id,receipt_no,trip_id,party_name,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?)`,p.id||uid('PP'),p.receipt_no||'',p.trip_id||'',upper(p.party_name),p.payment_date,num(p.amount),upper(p.payment_mode),p.reference||'',p.notes||'');
         for(const t of rows.trucks||[])await run(env,`INSERT OR REPLACE INTO trucks(id,truck_no,owner_name,owner_mobile,bank_details) VALUES(?,?,?,?,?)`,t.id||uid('TRK'),upper(t.truck_no),upper(t.owner_name),t.owner_mobile||'',t.bank_details||'');
         for(const r of rows.routes||[])await run(env,`INSERT OR REPLACE INTO routes(id,loading_point,unloading_point) VALUES(?,?,?)`,r.id||uid('RTE'),upper(r.loading_point),upper(r.unloading_point));
         for(const m of rows.materials||[])await run(env,`INSERT OR REPLACE INTO materials(id,material_name) VALUES(?,?)`,m.id||uid('MAT'),upper(m.material_name));
@@ -395,8 +398,8 @@ export default {
         for(const i of rows.invoices||[])await run(env,`INSERT OR REPLACE INTO invoices(id,invoice_no,invoice_date,party_name,party_address,party_gst,lr_no,material,loading_date,sgst,cgst,diesel,munshi,subtotal,gst_amount,total,comments) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,i.id||uid('INV'),i.invoice_no,i.invoice_date,upper(i.party_name),i.party_address||'',i.party_gst||'',i.lr_no||'',upper(i.material),i.loading_date||'',num(i.sgst),num(i.cgst),num(i.diesel),num(i.munshi),num(i.subtotal),num(i.gst_amount),num(i.total),i.comments||'');
         for(const it of rows.invoiceItems||[])await run(env,`INSERT OR REPLACE INTO invoice_items(id,invoice_id,trip_id,truck_no,description,loading_weight,unloading_weight,shortage,weight,rate,amount) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,it.id||uid('II'),it.invoice_id,it.trip_id||'',upper(it.truck_no),upper(it.description),num(it.loading_weight||it.weight),num(it.unloading_weight||it.weight),num(it.shortage),num(it.weight),num(it.rate),num(it.amount));
         for(const e of rows.truckEntries||[])await run(env,`INSERT OR REPLACE INTO truck_payments(id,trip_id,entry_date,truck_no,owner_name,bank_details,loading_point,unloading_point,weight,rate,commission,payable,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,e.id||uid('TE'),e.trip_id||'',e.entry_date,upper(e.truck_no),upper(e.owner_name),e.bank_details||'',upper(e.loading_point),upper(e.unloading_point),num(e.weight),num(e.rate),num(e.commission),num(e.payable),e.notes||'');
-        for(const p of rows.supplierPayments||[])await run(env,`INSERT OR REPLACE INTO supplier_payments(id,receipt_no,owner_name,truck_no,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?)`,p.id||uid('SP'),p.receipt_no||'',upper(p.owner_name),upper(p.truck_no),p.payment_date,num(p.amount),upper(p.payment_mode),p.reference||'',p.notes||'');
-        for(const e of rows.expenses||[])await run(env,`INSERT OR REPLACE INTO expenses(id,expense_date,category,amount,notes) VALUES(?,?,?,?,?)`,e.id||uid('EXP'),e.expense_date,upper(e.category),num(e.amount),e.notes||'');
+        for(const p of rows.supplierPayments||[])await run(env,`INSERT OR REPLACE INTO supplier_payments(id,receipt_no,trip_id,owner_name,truck_no,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?,?)`,p.id||uid('SP'),p.receipt_no||'',p.trip_id||'',upper(p.owner_name),upper(p.truck_no),p.payment_date,num(p.amount),upper(p.payment_mode),p.reference||'',p.notes||'');
+        for(const e of rows.expenses||[])await run(env,`INSERT OR REPLACE INTO expenses(id,trip_id,expense_date,category,amount,notes) VALUES(?,?,?,?,?,?)`,e.id||uid('EXP'),e.trip_id||'',e.expense_date,upper(e.category),num(e.amount),e.notes||'');
         await audit(env,user,'IMPORT','backup','', {mode:b.mode||'merge'});
         return json({ok:true});
       }
@@ -435,10 +438,10 @@ export default {
           const b=await requestBody(req);await upsertMasters(env,b);
           if(req.method==='POST'){
             const newId=uid('PP'),receipt=`PR-${Date.now().toString().slice(-8)}`;
-            await run(env,`INSERT INTO party_payments(id,receipt_no,party_name,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?)`,newId,receipt,upper(b.partyName),b.paymentDate,round2(b.amount),upper(b.paymentMode),b.reference||'',b.notes||'');
+            await run(env,`INSERT INTO party_payments(id,receipt_no,trip_id,party_name,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?)`,newId,receipt,b.tripId||'',upper(b.partyName),b.paymentDate,round2(b.amount),upper(b.paymentMode),b.reference||'',b.notes||'');
             await audit(env,user,'CREATE','party_payment',newId,b);return json({ok:true,id:newId,receipt});
           }
-          await run(env,`UPDATE party_payments SET party_name=?,payment_date=?,amount=?,payment_mode=?,reference=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,upper(b.partyName),b.paymentDate,round2(b.amount),upper(b.paymentMode),b.reference||'',b.notes||'',id);
+          await run(env,`UPDATE party_payments SET trip_id=?,party_name=?,payment_date=?,amount=?,payment_mode=?,reference=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,b.tripId||'',upper(b.partyName),b.paymentDate,round2(b.amount),upper(b.paymentMode),b.reference||'',b.notes||'',id);
           await audit(env,user,'UPDATE','party_payment',id,b);return json({ok:true});
         }
         if(req.method==='DELETE'&&id){await run(env,`DELETE FROM party_payments WHERE id=?`,id);await audit(env,user,'DELETE','party_payment',id,{});return json({ok:true})}
@@ -546,10 +549,10 @@ export default {
           const b=await requestBody(req);await upsertMasters(env,b);
           if(req.method==='POST'){
             const newId=uid('SP'),receipt=`SP-${Date.now().toString().slice(-8)}`;
-            await run(env,`INSERT INTO supplier_payments(id,receipt_no,owner_name,truck_no,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?)`,newId,receipt,upper(b.ownerName),upper(b.truckNo),b.paymentDate,round2(b.amount),upper(b.paymentMode),b.reference||'',b.notes||'');
+            await run(env,`INSERT INTO supplier_payments(id,receipt_no,trip_id,owner_name,truck_no,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?,?)`,newId,receipt,b.tripId||'',upper(b.ownerName),upper(b.truckNo),b.paymentDate,round2(b.amount),upper(b.paymentMode),b.reference||'',b.notes||'');
             await audit(env,user,'CREATE','supplier_payment',newId,b);return json({ok:true,id:newId,receipt});
           }
-          await run(env,`UPDATE supplier_payments SET owner_name=?,truck_no=?,payment_date=?,amount=?,payment_mode=?,reference=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,upper(b.ownerName),upper(b.truckNo),b.paymentDate,round2(b.amount),upper(b.paymentMode),b.reference||'',b.notes||'',id);
+          await run(env,`UPDATE supplier_payments SET trip_id=?,owner_name=?,truck_no=?,payment_date=?,amount=?,payment_mode=?,reference=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,b.tripId||'',upper(b.ownerName),upper(b.truckNo),b.paymentDate,round2(b.amount),upper(b.paymentMode),b.reference||'',b.notes||'',id);
           await audit(env,user,'UPDATE','supplier_payment',id,b);return json({ok:true});
         }
         if(req.method==='DELETE'&&id){await run(env,`DELETE FROM supplier_payments WHERE id=?`,id);await audit(env,user,'DELETE','supplier_payment',id,{});return json({ok:true})}
@@ -573,8 +576,8 @@ export default {
       if(resource==='expenses'){
         if(req.method==='POST'||(req.method==='PUT'&&id)){
           const b=await requestBody(req);
-          if(req.method==='POST'){const newId=uid('EXP');await run(env,`INSERT INTO expenses(id,expense_date,category,amount,notes) VALUES(?,?,?,?,?)`,newId,b.expenseDate,upper(b.category),round2(b.amount),b.notes||'');await audit(env,user,'CREATE','expense',newId,b);return json({ok:true,id:newId})}
-          await run(env,`UPDATE expenses SET expense_date=?,category=?,amount=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,b.expenseDate,upper(b.category),round2(b.amount),b.notes||'',id);await audit(env,user,'UPDATE','expense',id,b);return json({ok:true});
+          if(req.method==='POST'){const newId=uid('EXP');await run(env,`INSERT INTO expenses(id,trip_id,expense_date,category,amount,notes) VALUES(?,?,?,?,?,?)`,newId,b.tripId||'',b.expenseDate,upper(b.category),round2(b.amount),b.notes||'');await audit(env,user,'CREATE','expense',newId,b);return json({ok:true,id:newId})}
+          await run(env,`UPDATE expenses SET trip_id=?,expense_date=?,category=?,amount=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,b.tripId||'',b.expenseDate,upper(b.category),round2(b.amount),b.notes||'',id);await audit(env,user,'UPDATE','expense',id,b);return json({ok:true});
         }
         if(req.method==='DELETE'&&id){await run(env,`DELETE FROM expenses WHERE id=?`,id);await audit(env,user,'DELETE','expense',id,{});return json({ok:true})}
       }

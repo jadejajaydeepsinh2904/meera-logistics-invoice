@@ -2,7 +2,7 @@
 import {api,token,setToken,clearToken} from './core/api.js';
 
 const app=document.getElementById('app');
-let state={panel:'dashboard',data:null,search:'',loading:false};
+let state={panel:'dashboard',data:null,search:'',loading:false,activeTrip:null};
 const CACHE_KEY='ml_bootstrap_cache_v6';
 const readCache=()=>{try{return JSON.parse(localStorage.getItem(CACHE_KEY)||'null')}catch{return null}};
 const writeCache=data=>{try{localStorage.setItem(CACHE_KEY,JSON.stringify({savedAt:Date.now(),data}))}catch{}};
@@ -349,6 +349,14 @@ function reportsPanel(d){
 function handleAction(action,id){
   if(action==='new-trip'||action==='edit-trip')return tripForm(action==='edit-trip'?(find('trip',id)||{}):{});
   if(action==='view-trip')return viewTripDetails(find('trip',id));
+  if(action==='trip-create-invoice'){const t=find('trip',id);return invoiceForm({},t||{});}
+  if(action==='trip-party-payment'){const t=find('trip',id);return partyPaymentForm({},t||{});}
+  if(action==='trip-supplier-payment'){
+    const t=find('trip',id)||{};
+    const owner=state.data.trucks.find(x=>x.truck_no===t.truck_no)?.owner_name||t.driver_name||'';
+    return supplierPaymentForm({}, {...t,owner_name:owner});
+  }
+  if(action==='trip-expense'){const t=find('trip',id);return expenseForm({},t||{});}
   if(action==='delete-trip')return remove(`/trips/${id}`,'Delete this trip?');
   if(action==='new-invoice'||action==='edit-invoice')return invoiceForm(action==='edit-invoice'?(find('invoice',id)||{}):{});
   if(action==='delete-invoice')return remove(`/invoices/${id}`,'Delete this invoice?');
@@ -391,7 +399,7 @@ function tripFinancials(trip){
     }
   }
   const revenue=invoiceItems.reduce((a,x)=>a+Number(x.amount||0),0);
-  const partyPayments=d.partyPayments.filter(p=>p.party_name===trip.party_name);
+  const partyPayments=d.partyPayments.filter(p=>String(p.trip_id||'')===String(trip.id));
   const partyPaid=partyPayments.reduce((a,x)=>a+Number(x.amount||0),0);
 
   const supplierEntries=d.truckEntries.filter(e=>
@@ -400,12 +408,9 @@ function tripFinancials(trip){
   );
   const supplierPayable=supplierEntries.reduce((a,x)=>a+Number(x.payable||0),0);
   const ownerNames=[...new Set(supplierEntries.map(x=>x.owner_name).filter(Boolean))];
-  const supplierPays=d.supplierPayments.filter(p=>
-    ownerNames.includes(p.owner_name) &&
-    (!p.truck_no || p.truck_no===trip.truck_no)
-  );
+  const supplierPays=d.supplierPayments.filter(p=>String(p.trip_id||'')===String(trip.id));
   const supplierPaid=supplierPays.reduce((a,x)=>a+Number(x.amount||0),0);
-  const expenses=d.expenses.filter(e=>String(e.notes||'').includes(trip.id));
+  const expenses=d.expenses.filter(e=>String(e.trip_id||'')===String(trip.id));
   const expenseTotal=expenses.reduce((a,x)=>a+Number(x.amount||0),0);
   const profit=revenue-supplierPayable-expenseTotal;
   return {invoiceItems,revenue,partyPaid,supplierEntries,supplierPayable,ownerNames,supplierPays,supplierPaid,expenses,expenseTotal,profit};
@@ -425,12 +430,12 @@ function tripDetailParty(trip,f){
     ${tripStatusSteps(trip.status)}
     <div class="trip-detail-actions">
       <button class="btn green" data-action="edit-trip" data-id="${esc(trip.id)}">Complete / Edit Trip</button>
-      ${invoice?`<button class="btn primary" data-action="view-invoice" data-id="${esc(invoice.id)}">View Bill</button>`:`<button class="btn primary" data-action="new-invoice">Create Bill</button>`}
+      ${invoice?`<button class="btn primary" data-action="view-invoice" data-id="${esc(invoice.id)}">View Bill</button>`:`<button class="btn primary" data-action="trip-create-invoice" data-id="${esc(trip.id)}">Create Bill</button>`}
     </div>
     <div class="trip-money-list">
       <div><span>Freight Amount</span><b>${money(billed)}</b></div>
       <div><span>(-) Payments</span><b>${money(f.partyPaid)}</b></div>
-      <div class="trip-link-row"><button data-action="new-party-payment">Add Payment</button></div>
+      <div class="trip-link-row"><button data-action="trip-party-payment" data-id="${esc(trip.id)}">Add Payment</button></div>
       <div class="trip-balance"><span>Pending Balance</span><b>${money(balance)}</b></div>
     </div>
   </div>`;
@@ -443,7 +448,7 @@ function tripDetailProfit(trip,f){
       <div><span>(-) Expenses</span><b>${money(f.supplierPayable+f.expenseTotal)}</b></div>
       <div class="sub-box"><span>Truck Hire Cost</span><b>${money(f.supplierPayable)}</b></div>
       ${f.expenseTotal?`<div class="sub-box"><span>Other Expenses</span><b>${money(f.expenseTotal)}</b></div>`:''}
-      <div class="trip-link-row"><button data-action="new-expense">Add Expense</button></div>
+      <div class="trip-link-row"><button data-action="trip-expense" data-id="${esc(trip.id)}">Add Expense</button></div>
       <div class="trip-balance profit"><span>Profit</span><b>${money(f.profit)}</b></div>
     </div></div>
   </div>`;
@@ -456,10 +461,10 @@ function tripDetailSupplier(trip,f){
     <div class="trip-money-list">
       <div><span>Truck Hire Cost</span><b>${money(f.supplierPayable)}</b></div>
       <div><span>(-) Supplier Payments</span><b>${money(f.supplierPaid)}</b></div>
-      <div class="trip-link-row"><button data-action="new-supplier-payment">Add Supplier Payment</button></div>
+      <div class="trip-link-row"><button data-action="trip-supplier-payment" data-id="${esc(trip.id)}">Add Supplier Payment</button></div>
       <div class="trip-balance"><span>Balance Pending</span><b>${money(pending)}</b></div>
     </div>
-    <div class="trip-detail-actions single"><button class="btn primary" data-action="new-supplier-payment">₹ Pay Supplier</button></div>
+    <div class="trip-detail-actions single"><button class="btn primary" data-action="trip-supplier-payment" data-id="${esc(trip.id)}">₹ Pay Supplier</button></div>
   </div>`;
 }
 function tripDetailMore(trip){
@@ -530,7 +535,7 @@ function tripForm(x={},afterSave=null){
     };
   }});
 }
-function invoiceForm(x={}){
+function invoiceForm(x={},tripContext=null){
   x=x||{};
   const d=state.data,edit=!!x.id,items=(x.items&&x.items.length?x.items:[{trip_id:'',truck_no:'',description:'',loading_weight:0,unloading_weight:0,shortage:0,weight:0,rate:0}]);
   const host=modal(edit?'Edit Invoice':'New Invoice',`<form class="form-grid" id="invoiceForm">
@@ -642,7 +647,7 @@ function partyForm(x={}){
       host.querySelector('#partyForm').onsubmit=async e=>{e.preventDefault();if(await mutate('/parties'+(edit?'/'+x.id:''),edit?'PUT':'POST',formDataObject(e.target),e.submitter))host.remove()};
     }});
 }
-function partyPaymentForm(x={}){
+function partyPaymentForm(x={},tripContext=null){
   x=x||{};
   const d=state.data,edit=!!x.id,host=modal(edit?'Edit Party Payment':'Receive Party Payment',`<form class="form-grid" id="partyPayForm">
     ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||'','party','required')}
@@ -679,10 +684,11 @@ function truckEntryForm(x={}){
       host.querySelector('#truckEntryForm').onsubmit=async e=>{e.preventDefault();if(await mutate('/truck-entries'+(edit?'/'+x.id:''),edit?'PUT':'POST',formDataObject(e.target),e.submitter))host.remove()};
     }});
 }
-function supplierPaymentForm(x={}){
+function supplierPaymentForm(x={},tripContext=null){
   x=x||{};
   const d=state.data,edit=!!x.id,owners=[...new Set([...d.trucks.map(t=>t.owner_name),...d.supplierLedger.map(s=>s.owner_name)].filter(Boolean))],host=modal(edit?'Edit Supplier Payment':'Pay Supplier',`<form class="form-grid" id="supplierPayForm">
-    ${datalistField('Owner / Supplier','ownerName',x.owner_name||'','supplierOwnerList',owners,'required')}
+    ${datalistField('Owner / Supplier','ownerName',x.owner_name||tripContext?.owner_name||'','supplierOwnerList',owners,'required')}
+    ${field('Trip ID','tripId',x.trip_id||tripContext?.id||'','text','readonly')}
     ${masterSelectField('Truck Number','truckNo',d.trucks.map(t=>t.truck_no),x.truck_no||'','truck')}
     ${field('Payment Date','paymentDate',x.payment_date||today(),'date','required')}
     ${field('Amount','amount',x.amount||0,'number','step="0.01" min="0.01" required')}
@@ -718,10 +724,10 @@ function materialForm(){
     host.querySelector('[data-close-form]').onclick=()=>host.remove();host.querySelector('#materialForm').onsubmit=async e=>{e.preventDefault();if(await mutate('/materials','POST',formDataObject(e.target),e.submitter))host.remove()}
   }});
 }
-function expenseForm(x={}){
+function expenseForm(x={},tripContext=null){
   x=x||{};
   const edit=!!x.id,host=modal(edit?'Edit Expense':'New Expense',`<form class="form-grid" id="expenseForm">
-    ${field('Date','expenseDate',x.expense_date||today(),'date','required')}${field('Category','category',x.category||'OFFICE','text','required')}${field('Amount','amount',x.amount||0,'number','step="0.01" min="0.01" required')}${textarea('Notes','notes',x.notes||'','span2')}
+    ${field('Trip ID','tripId',x.trip_id||tripContext?.id||'','text','readonly')}${field('Date','expenseDate',x.expense_date||today(),'date','required')}${field('Category','category',x.category||'OFFICE','text','required')}${field('Amount','amount',x.amount||0,'number','step="0.01" min="0.01" required')}${textarea('Notes','notes',x.notes||'','span2')}
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">Save Expense</button></div></form>`,{small:true,onMount:host=>{
       host.querySelector('[data-close-form]').onclick=()=>host.remove();host.querySelector('#expenseForm').onsubmit=async e=>{e.preventDefault();if(await mutate('/expenses'+(edit?'/'+x.id:''),edit?'PUT':'POST',formDataObject(e.target),e.submitter))host.remove()}
     }});

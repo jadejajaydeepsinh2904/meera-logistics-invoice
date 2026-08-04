@@ -109,3 +109,14 @@ V11 NULL + TRIP-IN-INVOICE FIX
 - Saving that trip automatically adds it as a truck line.
 - Party, material, truck, route, loading/unloading weight and rate are copied.
 - Frontend cache updated to v11.
+
+
+V12 UNIVERSAL TRIP
+- Trip is now the central universal record.
+- Create Invoice directly inside Trip Details.
+- Party Payment is saved against the selected Trip.
+- Supplier Payment is saved against the selected Trip.
+- Expenses are saved against the selected Trip.
+- Profit, party pending and supplier pending are calculated only from that Trip.
+- One Trip now connects Party, Invoice, Supplier, Payments, Expenses, Profit, POD and Bilty.
+- Changes automatically apply in Party Khata, Supplier Khata, Invoice Desk and Reports.
