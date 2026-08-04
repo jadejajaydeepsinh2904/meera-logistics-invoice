@@ -1,12 +1,13 @@
 {
-  "name": "meera-logistics-erp-worker",
+  "name": "meera-logistics-transportbook-worker",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "db:migrate": "wrangler d1 migrations apply meera-logistics-erp --remote"
+    "check": "node --check src/index.js"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "wrangler": "^4.28.1"
   }
 }

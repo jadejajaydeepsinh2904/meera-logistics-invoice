@@ -1,18 +1,27 @@
-MEERA LOGISTICS ERP - READY SETUP
+MEERA LOGISTICS FINAL PROJECT
 
 1. Extract this ZIP.
-2. Upload ALL files/folders directly to GitHub main root.
+2. Upload EVERYTHING directly to the GitHub main root.
 3. Commit changes.
-4. Cloudflare Worker will redeploy automatically.
-5. Database tables and seed data are created automatically on first API request.
-6. Vercel frontend should use output directory: public
+4. Cloudflare Worker will auto-deploy.
+5. Vercel will auto-deploy the public folder.
 
-TEMPORARY LOGIN
+CLOUDFLARE SETTINGS
+Build command: cd worker && npm install
+Deploy command: cd worker && npx wrangler deploy
+Path: /
+
+VERCEL SETTINGS
+Framework: Other
+Build command: empty
+Output directory: public
+
+LOGIN
 Username: admin
 Password: Meera@2026
 
-Worker API:
+WORKER
 https://meera-logistics-invoice.jadejajaydeepsinhk007.workers.dev
 
-D1 Database ID:
+D1 DATABASE
 bdb1ef72-c3eb-465e-ae2d-853d63f3dea3

@@ -1,0 +1,9 @@
+{
+  "name": "Meera Logistics ERP",
+  "short_name": "Meera ERP",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#10284c",
+  "icons": []
+}
