@@ -213,3 +213,12 @@ V17 INVOICE SERIES
 - Examples: ML - 123 -> ML - 124, ML-009 -> ML-010.
 - Invoice Number remains fully editable before saving.
 - Duplicate invoice numbers are still blocked by the database.
+
+
+V18 FINAL CHECKED
+- Fixed Party GST/Address disappearing after Party selection.
+- Party details now come from Party Master, with latest Invoice fallback for older data.
+- Old D1 Party rows with blank GST/Address are automatically backfilled from invoices.
+- GST and Address remain readonly; edit them only in Party Master.
+- Cache version updated to v18.
+- JavaScript syntax, JSON configuration and old-D1 upgrade were validated.

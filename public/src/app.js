@@ -151,6 +151,22 @@ function selectField(label,name,items,value='',cls=''){
   return `<label class="field ${cls}"><span>${label}</span><select name="${name}">${selectOptions(items,value)}</select></label>`;
 }
 function formDataObject(form){return Object.fromEntries(new FormData(form).entries())}
+
+function getPartyDetails(name){
+  const partyName=norm(name);
+  const master=state.data.parties.find(p=>norm(p.party_name)===partyName)||{};
+  const invoice=[...state.data.invoices]
+    .filter(i=>norm(i.party_name)===partyName)
+    .sort((a,b)=>String(b.invoice_date||'').localeCompare(String(a.invoice_date||'')))[0]||{};
+  return {
+    party_name:partyName,
+    gst_no:master.gst_no||invoice.party_gst||'',
+    address:master.address||invoice.party_address||'',
+    mobile:master.mobile||'',
+    email:master.email||''
+  };
+}
+
 function find(type,id){
   const d=state.data;
   const map={trip:d.trips,invoice:d.invoices,party:d.parties,'party-payment':d.partyPayments,truck:d.trucks,'truck-entry':d.truckEntries,'supplier-payment':d.supplierPayments,route:d.routes,expense:d.expenses};
@@ -544,7 +560,7 @@ function tripForm(x={},afterSave=null){
   x=x||{};
   const d=state.data,edit=!!x.id;
   const linkedInvoice=d.invoices.find(inv=>(inv.items||[]).some(it=>String(it.trip_id||'')===String(x.id||'')))||null;
-  const partyMaster=d.parties.find(p=>p.party_name===x.party_name)||{};
+  const partyMaster=getPartyDetails(x.party_name||'');
   const host=modal(edit?'Edit Universal Trip':'New Universal Trip',`<form class="form-grid" id="tripForm">
     <div class="span2 universal-section-title"><b>TRIP DETAILS</b><small>એક જ entryમાંથી Trip, Invoice, Party અને Supplier બધે લાગુ પડશે</small></div>
     ${field('Trip Date','tripDate',x.trip_date||today(),'date','required')}
@@ -588,14 +604,15 @@ function tripForm(x={},afterSave=null){
     wireMasterSelects(host);
     const partySelect=host.querySelector('[name=partyName]');
     partySelect.addEventListener('change',()=>{
-      const p=d.parties.find(p=>p.party_name===norm(partySelect.value));
+      const p=getPartyDetails(partySelect.value);
       const gst=host.querySelector('[name=partyGst]');
       const address=host.querySelector('[name=partyAddress]');
-      gst.value=p?.gst_no||'';
-      address.value=p?.address||'';
+      gst.value=p.gst_no||'';
+      address.value=p.address||'';
       gst.readOnly=true;
       address.readOnly=true;
     });
+    if(partySelect.value)partySelect.dispatchEvent(new Event('change',{bubbles:true}));
     host.querySelector('[data-close-form]').onclick=()=>host.remove();
     host.querySelector('#tripForm').onsubmit=async e=>{
       e.preventDefault();
@@ -732,8 +749,8 @@ function invoiceForm(x={},tripContext=null){
     <label class="field"><span>Invoice Number (Auto, Editable)</span><input name="invoiceNo" type="text" value="${esc(x.invoice_no||d.nextInvoiceNo)}" required></label>
     ${field('Invoice Date','invoiceDate',x.invoice_date||today(),'date','required')}
     ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||'','party','required')}
-    ${field('Party GST','partyGst',x.party_gst||state.data.parties.find(p=>p.party_name===(tripContext?.party_name||x.party_name))?.gst_no||'','text','readonly')}
-    <label class="field span2"><span>Party Address</span><textarea name="partyAddress" readonly>${esc(x.party_address||state.data.parties.find(p=>p.party_name===(tripContext?.party_name||x.party_name))?.address||'')}</textarea></label>
+    ${field('Party GST','partyGst',x.party_gst||getPartyDetails(tripContext?.party_name||x.party_name).gst_no||'','text','readonly')}
+    <label class="field span2"><span>Party Address</span><textarea name="partyAddress" readonly>${esc(x.party_address||getPartyDetails(tripContext?.party_name||x.party_name).address||'')}</textarea></label>
     ${field('LR Number','lrNo',x.lr_no||'')}
     ${masterSelectField('Material','material',d.materials.map(m=>m.material_name),x.material||'','material')}
     ${field('Loading Date','loadingDate',x.loading_date||today(),'date')}
@@ -813,14 +830,16 @@ function invoiceForm(x={},tripContext=null){
       });
     };
     host.querySelector('[name=partyName]').addEventListener('change',e=>{
-      const p=d.parties.find(p=>p.party_name===norm(e.target.value));
+      const p=getPartyDetails(e.target.value);
       const gst=host.querySelector('[name=partyGst]');
       const address=host.querySelector('[name=partyAddress]');
-      gst.value=p?.gst_no||'';
-      address.value=p?.address||'';
+      gst.value=p.gst_no||'';
+      address.value=p.address||'';
       gst.readOnly=true;
       address.readOnly=true;
     });
+    const invoicePartySelect=host.querySelector('[name=partyName]');
+    if(invoicePartySelect.value)invoicePartySelect.dispatchEvent(new Event('change',{bubbles:true}));
     ['diesel','munshi','sgst','cgst'].forEach(n=>host.querySelector(`[name=${n}]`).addEventListener('input',recalcInvoice));
     host.querySelector('[data-close-form]').onclick=()=>host.remove();
     host.querySelector('#invoiceForm').onsubmit=async e=>{

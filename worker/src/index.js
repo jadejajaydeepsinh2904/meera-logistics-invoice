@@ -29,6 +29,45 @@ async function safe(env, sql){
   }
 }
 
+
+async function backfillPartyMaster(env){
+  // Older databases may already contain Party rows with blank GST/address.
+  // Use the latest available invoice values to complete the Party Master.
+  try{
+    await env.DB.prepare(`
+      UPDATE party_accounts
+      SET
+        gst_no = CASE
+          WHEN COALESCE(TRIM(gst_no),'')='' THEN COALESCE((
+            SELECT i.party_gst
+            FROM invoices i
+            WHERE i.party_name=party_accounts.party_name
+              AND COALESCE(TRIM(i.party_gst),'')<>''
+            ORDER BY i.invoice_date DESC, i.created_at DESC
+            LIMIT 1
+          ),gst_no)
+          ELSE gst_no
+        END,
+        address = CASE
+          WHEN COALESCE(TRIM(address),'')='' THEN COALESCE((
+            SELECT i.party_address
+            FROM invoices i
+            WHERE i.party_name=party_accounts.party_name
+              AND COALESCE(TRIM(i.party_address),'')<>''
+            ORDER BY i.invoice_date DESC, i.created_at DESC
+            LIMIT 1
+          ),address)
+          ELSE address
+        END,
+        updated_at = CASE
+          WHEN COALESCE(TRIM(gst_no),'')='' OR COALESCE(TRIM(address),'')=''
+          THEN CURRENT_TIMESTAMP ELSE updated_at END
+    `).run();
+  }catch(_){
+    // Safe on first deployment before all compatibility columns exist.
+  }
+}
+
 async function ensureDatabase(env){
   if(initPromise) return initPromise;
   initPromise = (async()=>{
@@ -36,11 +75,12 @@ async function ensureDatabase(env){
     // statements on every Worker cold start.
     try{
       const ready=await first(env,`SELECT value FROM app_meta WHERE key='schema_version'`);
-      if(ready?.value==='14'){
+      if(ready?.value==='18'){
         // Verify the columns required by the universal Trip screen.
         await first(env,`SELECT trip_id FROM party_payments LIMIT 1`);
         await first(env,`SELECT trip_id FROM supplier_payments LIMIT 1`);
         await first(env,`SELECT trip_id FROM expenses LIMIT 1`);
+        await backfillPartyMaster(env);
         return;
       }
     }catch(_){/* first deployment or an incomplete older schema */}
@@ -209,7 +249,8 @@ async function ensureDatabase(env){
       }
       await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('seed_version','2',CURRENT_TIMESTAMP)`);
     }
-    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','14',CURRENT_TIMESTAMP)`);
+    await backfillPartyMaster(env);
+    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','18',CURRENT_TIMESTAMP)`);
   })().catch(e=>{ initPromise=null; throw e; });
   return initPromise;
 }
