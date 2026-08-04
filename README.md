@@ -67,3 +67,9 @@ Output directory: `public`
 D1 ID: `bdb1ef72-c3eb-465e-ae2d-853d63f3dea3`
 
 Database schema and seed data are created automatically when the Worker starts.
+
+
+## V2 D1 compatibility
+The old D1 database is upgraded using constant defaults supported by SQLite/D1.
+Missing route and truck-document columns are also added automatically.
+Existing users and business data are preserved.

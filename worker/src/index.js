@@ -57,32 +57,36 @@ async function ensureDatabase(env){
       `ALTER TABLE party_accounts ADD COLUMN gst_no TEXT DEFAULT ''`,
       `ALTER TABLE party_accounts ADD COLUMN mobile TEXT DEFAULT ''`,
       `ALTER TABLE party_accounts ADD COLUMN email TEXT DEFAULT ''`,
-      `ALTER TABLE party_accounts ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP`,
-      `ALTER TABLE party_accounts ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP`,
+      `ALTER TABLE party_accounts ADD COLUMN created_at TEXT DEFAULT ''`,
+      `ALTER TABLE party_accounts ADD COLUMN updated_at TEXT DEFAULT ''`,
       `ALTER TABLE party_payments ADD COLUMN receipt_no TEXT`,
-      `ALTER TABLE party_payments ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP`,
-      `ALTER TABLE party_payments ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP`,
+      `ALTER TABLE party_payments ADD COLUMN created_at TEXT DEFAULT ''`,
+      `ALTER TABLE party_payments ADD COLUMN updated_at TEXT DEFAULT ''`,
       `ALTER TABLE trucks ADD COLUMN owner_mobile TEXT DEFAULT ''`,
-      `ALTER TABLE trucks ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP`,
-      `ALTER TABLE trucks ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP`,
+      `ALTER TABLE trucks ADD COLUMN created_at TEXT DEFAULT ''`,
+      `ALTER TABLE trucks ADD COLUMN updated_at TEXT DEFAULT ''`,
       `ALTER TABLE trips ADD COLUMN driver_name TEXT DEFAULT ''`,
       `ALTER TABLE trips ADD COLUMN driver_mobile TEXT DEFAULT ''`,
       `ALTER TABLE trips ADD COLUMN notes TEXT DEFAULT ''`,
       `ALTER TABLE trips ADD COLUMN pod_data TEXT DEFAULT ''`,
-      `ALTER TABLE trips ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP`,
-      `ALTER TABLE trips ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP`,
+      `ALTER TABLE trips ADD COLUMN created_at TEXT DEFAULT ''`,
+      `ALTER TABLE trips ADD COLUMN updated_at TEXT DEFAULT ''`,
       `ALTER TABLE invoices ADD COLUMN party_address TEXT DEFAULT ''`,
       `ALTER TABLE invoices ADD COLUMN party_gst TEXT DEFAULT ''`,
       `ALTER TABLE invoices ADD COLUMN loading_date TEXT DEFAULT ''`,
       `ALTER TABLE invoices ADD COLUMN sgst REAL DEFAULT 9`,
       `ALTER TABLE invoices ADD COLUMN cgst REAL DEFAULT 9`,
       `ALTER TABLE invoices ADD COLUMN comments TEXT DEFAULT ''`,
-      `ALTER TABLE invoices ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP`,
-      `ALTER TABLE invoices ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP`,
+      `ALTER TABLE invoices ADD COLUMN created_at TEXT DEFAULT ''`,
+      `ALTER TABLE invoices ADD COLUMN updated_at TEXT DEFAULT ''`,
       `ALTER TABLE truck_payments ADD COLUMN trip_id TEXT DEFAULT ''`,
       `ALTER TABLE truck_payments ADD COLUMN bank_details TEXT DEFAULT ''`,
-      `ALTER TABLE truck_payments ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP`,
-      `ALTER TABLE truck_payments ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP`
+      `ALTER TABLE truck_payments ADD COLUMN created_at TEXT DEFAULT ''`,
+      `ALTER TABLE truck_payments ADD COLUMN updated_at TEXT DEFAULT ''`,
+      `ALTER TABLE routes ADD COLUMN updated_at TEXT DEFAULT ''`,
+      `ALTER TABLE truck_documents ADD COLUMN file_type TEXT DEFAULT ''`,
+      `ALTER TABLE truck_documents ADD COLUMN file_data TEXT DEFAULT ''`,
+      `ALTER TABLE truck_documents ADD COLUMN notes TEXT DEFAULT ''`
     ];
     for(const sql of alters) await safe(env, sql);
 
@@ -100,6 +104,24 @@ async function ensureDatabase(env){
       `CREATE INDEX IF NOT EXISTS idx_document_truck ON truck_documents(truck_no)`
     ];
     for(const sql of indexes) await env.DB.prepare(sql).run();
+
+    const triggers = [
+      `CREATE TRIGGER IF NOT EXISTS trg_party_accounts_ai AFTER INSERT ON party_accounts WHEN NEW.created_at IS NULL OR NEW.created_at='' BEGIN UPDATE party_accounts SET created_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id; END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_party_accounts_au AFTER UPDATE ON party_accounts WHEN NEW.updated_at=OLD.updated_at BEGIN UPDATE party_accounts SET updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id; END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_party_payments_ai AFTER INSERT ON party_payments WHEN NEW.created_at IS NULL OR NEW.created_at='' BEGIN UPDATE party_payments SET created_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id; END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_party_payments_au AFTER UPDATE ON party_payments WHEN NEW.updated_at=OLD.updated_at BEGIN UPDATE party_payments SET updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id; END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_trucks_ai AFTER INSERT ON trucks WHEN NEW.created_at IS NULL OR NEW.created_at='' BEGIN UPDATE trucks SET created_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id; END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_trucks_au AFTER UPDATE ON trucks WHEN NEW.updated_at=OLD.updated_at BEGIN UPDATE trucks SET updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id; END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_routes_ai AFTER INSERT ON routes WHEN NEW.created_at IS NULL OR NEW.created_at='' BEGIN UPDATE routes SET created_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id; END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_routes_au AFTER UPDATE ON routes WHEN NEW.updated_at=OLD.updated_at BEGIN UPDATE routes SET updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id; END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_trips_ai AFTER INSERT ON trips WHEN NEW.created_at IS NULL OR NEW.created_at='' BEGIN UPDATE trips SET created_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id; END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_trips_au AFTER UPDATE ON trips WHEN NEW.updated_at=OLD.updated_at BEGIN UPDATE trips SET updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id; END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_invoices_ai AFTER INSERT ON invoices WHEN NEW.created_at IS NULL OR NEW.created_at='' BEGIN UPDATE invoices SET created_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id; END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_invoices_au AFTER UPDATE ON invoices WHEN NEW.updated_at=OLD.updated_at BEGIN UPDATE invoices SET updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id; END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_truck_payments_ai AFTER INSERT ON truck_payments WHEN NEW.created_at IS NULL OR NEW.created_at='' BEGIN UPDATE truck_payments SET created_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id; END`,
+      `CREATE TRIGGER IF NOT EXISTS trg_truck_payments_au AFTER UPDATE ON truck_payments WHEN NEW.updated_at=OLD.updated_at BEGIN UPDATE truck_payments SET updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id; END`
+    ];
+    for(const sql of triggers) await env.DB.prepare(sql).run();
 
     await run(env,
       `INSERT OR IGNORE INTO users(username,password_hash,role,active) VALUES('admin',?,'ADMIN',1)`,

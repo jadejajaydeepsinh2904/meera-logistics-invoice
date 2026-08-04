@@ -1,15 +1,16 @@
 {
+  "version": "V2-D1-FIX",
   "total_files": 22,
   "files": [
     {
       "path": "README.md",
-      "size": 1353,
-      "sha256": "f91653c0e4590381d39a6211a78a3b5da1513b431de7aa6fbcbb4d0890f0a227"
+      "size": 1577,
+      "sha256": "f44dd1c1dc2368f5a29450d2ac62e6968ada781473a9dbc54840e91956c7b250"
     },
     {
       "path": "START-HERE.txt",
-      "size": 577,
-      "sha256": "98ffa5685b5da3698a89cc92d24a9940ffcb5228dfa77334050c8d5077f9f727"
+      "size": 793,
+      "sha256": "a9c3d334d7ba7b100e577c082cb1fb8f1a2c52fd3def65dcfe7f44c18589ba96"
     },
     {
       "path": "public/data/invoices.json",
@@ -98,8 +99,8 @@
     },
     {
       "path": "worker/src/index.js",
-      "size": 44490,
-      "sha256": "f59a32ad998158d7f23fcf0365b3d67889670b046d1af96482980da4e84a0f4c"
+      "size": 47715,
+      "sha256": "810c1719bcc6d1fee09ec604c34a1ce8be0898fc6bb13afa73440a6fc3937e68"
     },
     {
       "path": "worker/src/seed-data.js",

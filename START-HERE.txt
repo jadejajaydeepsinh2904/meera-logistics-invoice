@@ -25,3 +25,9 @@ https://meera-logistics-invoice.jadejajaydeepsinhk007.workers.dev
 
 D1 DATABASE
 bdb1ef72-c3eb-465e-ae2d-853d63f3dea3
+
+
+V2 D1 FIX
+- Fixed D1_ERROR: Cannot add a column with non-constant default.
+- Existing database, data and admin login remain unchanged.
+- Upload this complete ZIP to GitHub main root; no SQL Console step is needed.
