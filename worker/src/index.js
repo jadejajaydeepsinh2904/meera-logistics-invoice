@@ -24,7 +24,52 @@ async function auditLog(env,userId,action,entity,entityId,payload){
     uid('AUD'),userId,action,entity,entityId,JSON.stringify(payload||{}));
 }
 
+
+async function ensureDatabase(env){
+  const statements = [
+    `CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'ADMIN',active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id INTEGER NOT NULL,expires_at TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS party_accounts(id TEXT PRIMARY KEY,ledger_no TEXT UNIQUE,party_name TEXT UNIQUE NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS party_payments(id TEXT PRIMARY KEY,party_name TEXT NOT NULL,payment_date TEXT NOT NULL,amount REAL NOT NULL,payment_mode TEXT,reference TEXT,notes TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS trucks(id TEXT PRIMARY KEY,truck_no TEXT UNIQUE NOT NULL,owner_name TEXT,bank_details TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY,loading_point TEXT NOT NULL,unloading_point TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS materials(id TEXT PRIMARY KEY,material_name TEXT UNIQUE NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS trips(id TEXT PRIMARY KEY,trip_date TEXT,party_name TEXT,truck_no TEXT,loading_point TEXT,unloading_point TEXT,material TEXT,weight REAL DEFAULT 0,rate REAL DEFAULT 0,status TEXT DEFAULT 'BOOKED',pod_file_name TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS invoices(id TEXT PRIMARY KEY,invoice_no TEXT UNIQUE NOT NULL,invoice_date TEXT,party_name TEXT,trip_id TEXT,lr_no TEXT,material TEXT,truck_no TEXT,weight REAL DEFAULT 0,rate REAL DEFAULT 0,diesel REAL DEFAULT 0,munshi REAL DEFAULT 0,subtotal REAL DEFAULT 0,gst_percent REAL DEFAULT 0,gst_amount REAL DEFAULT 0,total REAL DEFAULT 0,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS truck_payments(id TEXT PRIMARY KEY,entry_date TEXT,truck_no TEXT,owner_name TEXT,loading_point TEXT,unloading_point TEXT,weight REAL DEFAULT 0,rate REAL DEFAULT 0,commission REAL DEFAULT 0,payable REAL DEFAULT 0,paid_amount REAL DEFAULT 0,pending REAL DEFAULT 0,notes TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS expenses(id TEXT PRIMARY KEY,expense_date TEXT,category TEXT,amount REAL DEFAULT 0,notes TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS truck_documents(id TEXT PRIMARY KEY,truck_no TEXT NOT NULL,kind TEXT NOT NULL,file_name TEXT,file_url TEXT,expiry_date TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS audit_logs(id TEXT PRIMARY KEY,user_id INTEGER,action TEXT,entity TEXT,entity_id TEXT,payload TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`
+  ];
+  for(const sql of statements) await env.DB.prepare(sql).run();
+
+  await env.DB.prepare(`INSERT OR IGNORE INTO users(username,password_hash,role) VALUES('admin','0d6cf348539dd46934bae6adfaf2696453d0e74faa6823c80c986851d08362d3','ADMIN')`).run();
+
+  const accounts = [
+    ['1','MLP - 001','SAANAVI ENTERPRISE'],
+    ['2','MLP - 002','MANOJ & CO.'],
+    ['3','MLP - 003','SHREE DWARKADHISH ENTERPRISE'],
+    ['4','MLP - 004','DIGVIJAY MINERALS'],
+    ['5','MLP - 005','SHREE SATGURU TRANSPORT'],
+    ['6','MLP - 006','YADUNANDAN LOGISTICS']
+  ];
+  for(const a of accounts){
+    await env.DB.prepare('INSERT OR IGNORE INTO party_accounts(id,ledger_no,party_name) VALUES(?,?,?)').bind(...a).run();
+  }
+
+  const payments = [
+    ['4','YADUNANDAN LOGISTICS','2026-08-01',66263,'BANK','GOOGLE PAY','UPI'],
+    ['3','DIGVIJAY MINERALS','2026-07-23',62464,'BANK','NEFT',''],
+    ['2','MANOJ & CO.','2026-07-18',29088,'BANK','NEFT',''],
+    ['1','SHREE DWARKADHISH ENTERPRISE','2026-07-18',150000,'BANK','NEFT','']
+  ];
+  for(const p of payments){
+    await env.DB.prepare(`INSERT OR IGNORE INTO party_payments(id,party_name,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?)`).bind(...p).run();
+  }
+}
+
 export default {async fetch(req,env){
+  await ensureDatabase(env);
   if(req.method==='OPTIONS') return json({});
   const url=new URL(req.url), parts=routeParts(url.pathname), resource=parts[0]||'', rid=parts[1]||'';
   try{

@@ -1,5 +1,5 @@
 
-const API = '/api';
+const API = 'https://meera-logistics-invoice.jadejajaydeepsinhk007.workers.dev/api';
 export const token = () => localStorage.getItem('ml_token') || '';
 export const setToken = t => localStorage.setItem('ml_token', t);
 export const clearToken = () => localStorage.removeItem('ml_token');

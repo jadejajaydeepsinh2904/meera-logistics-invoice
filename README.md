@@ -51,8 +51,17 @@ This build stores document name, URL and expiry. Real binary upload requires Clo
 The starter uses SHA-256 password hashing for portability. Before exposing it widely, replace it with PBKDF2/scrypt/Argon2. For a small private office tool behind a strong password, it is functional, but stronger hashing is recommended.
 
 
-## D1 database already configured
-Database ID:
-`bdb1ef72-c3eb-465e-ae2d-853d63f3dea3`
+## Automatic setup version
+No D1 Console SQL paste is required in this package.
+On the first Worker request, the Worker automatically:
+- creates all required tables,
+- creates the temporary admin login,
+- imports the six party accounts,
+- imports the four party payments.
 
-`worker/wrangler.toml` already contains this ID.
+Temporary login:
+- Username: `admin`
+- Password: `Meera@2026`
+
+Frontend API is already connected to:
+`https://meera-logistics-invoice.jadejajaydeepsinhk007.workers.dev`
