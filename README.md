@@ -133,3 +133,12 @@ V8 INVOICE BOUNDARY FIX
 - Bill To, right summary, truck table, comments and totals cannot cross the invoice boundary.
 - Desktop/mobile preview scales without changing internal table widths.
 - A4 landscape PDF/print remains inside one page.
+
+
+V9 TRIP DETAILS
+- Trip ID and View button now open a full Trip Details screen.
+- Party tab: freight, bill, payments and pending balance.
+- Profit tab: revenue, supplier cost, expenses and trip profit.
+- Supplier tab: truck hire cost, supplier payments and pending payable.
+- More tab: Bilty/LR and POD actions.
+- Mobile layout follows the supplied TransportBook reference.

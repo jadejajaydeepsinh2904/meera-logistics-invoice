@@ -1,16 +1,16 @@
 {
-  "version": "V8-INVOICE-BOUNDARY-FIX",
+  "version": "V9-TRIP-DETAILS",
   "total_files": 23,
   "files": [
     {
       "path": "README.md",
-      "size": 3998,
-      "sha256": "0d7491ba12b16957f6aa40d1746167f42f21e373fbc3713c96a7689ae2ef0998"
+      "size": 4373,
+      "sha256": "e9f478ca2106b0565a1b6b9cb4333b51ae364959f8a0c384abafb431ebb4efdd"
     },
     {
       "path": "START-HERE.txt",
-      "size": 2782,
-      "sha256": "3d9d8dd191c0cc1368ea69817ba47e3ea2e22a49dae4d49f2e7a9cc43b907194"
+      "size": 3157,
+      "sha256": "d400efd9a9e451daabf6342227b73d93be8cf34d1cac59b7d5260ef1de1062f7"
     },
     {
       "path": "public/assets/meera-logo.png",
@@ -74,8 +74,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 62054,
-      "sha256": "96231de3e894c3d1430a5afcff75673a72e14f1b78a9222fcb703704647ca0e9"
+      "size": 69180,
+      "sha256": "48113d5e0c65b922959a914faeb63c3a87b5b37975410b60217c6a23969e53aa"
     },
     {
       "path": "public/src/core/api.js",
@@ -84,8 +84,8 @@
     },
     {
       "path": "public/src/styles.css",
-      "size": 18769,
-      "sha256": "35f7027b928b433ca2fff86c71fc489a30dddc283c3d1f92849d4ae886d02275"
+      "size": 22019,
+      "sha256": "4c3f9ea4646a66d9827283829b844dd9cd54922b93e4d0e0c7702b05da9132dd"
     },
     {
       "path": "vercel.json",

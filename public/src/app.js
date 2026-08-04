@@ -267,7 +267,7 @@ function dashboardPanel(d){
 function tripsPanel(d){
   const rows=filterRows(d.trips,['trip_date','party_name','truck_no','material','loading_point','unloading_point','status']);
   return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Transport Khata</h2><small>Trip booking, status and POD</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search trips…"><button class="btn primary" data-action="new-trip">New Trip</button></div></div>${table(['Date','Trip ID','Party','Truck / Driver','Route','Material','Weight × Rate','Status','POD','Action'],rows.map(t=>[
-    esc(t.trip_date),`<b>${esc(t.id)}</b>`,esc(t.party_name),`<b>${esc(t.truck_no)}</b><br><small>${esc(t.driver_name||'')}</small>`,`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,esc(t.material),`${esc(t.weight)} × ${money(t.rate)}`,statusBadge(t.status),t.pod_file_name?`<span class="badge info">${esc(t.pod_file_name)}</span>`:'-',actionButtons('trip',t.id)
+    esc(t.trip_date),`<button class="link-btn" data-action="view-trip" data-id="${esc(t.id)}"><b>${esc(t.id)}</b></button>`,esc(t.party_name),`<b>${esc(t.truck_no)}</b><br><small>${esc(t.driver_name||'')}</small>`,`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,esc(t.material),`${esc(t.weight)} × ${money(t.rate)}`,statusBadge(t.status),t.pod_file_name?`<span class="badge info">${esc(t.pod_file_name)}</span>`:'-',`<div class="action-set"><button class="mini green" data-action="view-trip" data-id="${esc(t.id)}">View</button><button class="mini" data-action="edit-trip" data-id="${esc(t.id)}">Edit</button><button class="mini danger" data-action="delete-trip" data-id="${esc(t.id)}">Delete</button></div>`
   ]),'1250px')}</div></section>`;
 }
 function invoicesPanel(d){
@@ -327,6 +327,7 @@ function reportsPanel(d){
 
 function handleAction(action,id){
   if(action==='new-trip'||action==='edit-trip')return tripForm(action==='edit-trip'?find('trip',id):null);
+  if(action==='view-trip')return viewTripDetails(find('trip',id));
   if(action==='delete-trip')return remove(`/trips/${id}`,'Delete this trip?');
   if(action==='new-invoice'||action==='edit-invoice')return invoiceForm(action==='edit-invoice'?find('invoice',id):null);
   if(action==='delete-invoice')return remove(`/invoices/${id}`,'Delete this invoice?');
@@ -358,6 +359,117 @@ function handleAction(action,id){
   if(action==='export-invoices')return exportInvoices();
 }
 async function remove(path,message){if(!confirm(message))return;try{await api(path,{method:'DELETE'});await loadData()}catch(e){alert(e.message)}}
+
+
+function tripFinancials(trip){
+  const d=state.data;
+  const invoiceItems=[];
+  for(const invoice of d.invoices){
+    for(const item of (invoice.items||[])){
+      if(String(item.trip_id||'')===String(trip.id))invoiceItems.push({...item,invoice});
+    }
+  }
+  const revenue=invoiceItems.reduce((a,x)=>a+Number(x.amount||0),0);
+  const partyPayments=d.partyPayments.filter(p=>p.party_name===trip.party_name);
+  const partyPaid=partyPayments.reduce((a,x)=>a+Number(x.amount||0),0);
+
+  const supplierEntries=d.truckEntries.filter(e=>
+    String(e.trip_id||'')===String(trip.id) ||
+    (!e.trip_id && e.truck_no===trip.truck_no && e.entry_date===trip.trip_date)
+  );
+  const supplierPayable=supplierEntries.reduce((a,x)=>a+Number(x.payable||0),0);
+  const ownerNames=[...new Set(supplierEntries.map(x=>x.owner_name).filter(Boolean))];
+  const supplierPays=d.supplierPayments.filter(p=>
+    ownerNames.includes(p.owner_name) &&
+    (!p.truck_no || p.truck_no===trip.truck_no)
+  );
+  const supplierPaid=supplierPays.reduce((a,x)=>a+Number(x.amount||0),0);
+  const expenses=d.expenses.filter(e=>String(e.notes||'').includes(trip.id));
+  const expenseTotal=expenses.reduce((a,x)=>a+Number(x.amount||0),0);
+  const profit=revenue-supplierPayable-expenseTotal;
+  return {invoiceItems,revenue,partyPaid,supplierEntries,supplierPayable,ownerNames,supplierPays,supplierPaid,expenses,expenseTotal,profit};
+}
+function tripStatusSteps(status){
+  const order=['BOOKED','LOADED','IN_TRANSIT','DELIVERED','SETTLED'];
+  const active=Math.max(0,order.indexOf(status));
+  const labels=['Started','Loaded','In Transit','Delivered','Settled'];
+  return `<div class="trip-progress">${labels.map((x,i)=>`<div class="trip-step ${i<=active?'done':''}"><span>${i<=active?'✓':''}</span><small>${x}</small></div>`).join('')}</div>`;
+}
+function tripDetailParty(trip,f){
+  const invoice=f.invoiceItems[0]?.invoice;
+  const billed=invoice?Number(invoice.total||0):f.revenue;
+  const balance=billed-f.partyPaid;
+  return `<div class="trip-detail-card">
+    <div class="trip-detail-party-head"><div><b>${esc(trip.party_name)}</b><div class="trip-route-large"><span>${esc(trip.loading_point)}</span><i>→</i><span>${esc(trip.unloading_point)}</span></div><small>${esc(trip.trip_date)} · ${esc(trip.id)}</small></div><strong>${money(billed)}</strong></div>
+    ${tripStatusSteps(trip.status)}
+    <div class="trip-detail-actions">
+      <button class="btn green" data-action="edit-trip" data-id="${esc(trip.id)}">Complete / Edit Trip</button>
+      ${invoice?`<button class="btn primary" data-action="view-invoice" data-id="${esc(invoice.id)}">View Bill</button>`:`<button class="btn primary" data-action="new-invoice">Create Bill</button>`}
+    </div>
+    <div class="trip-money-list">
+      <div><span>Freight Amount</span><b>${money(billed)}</b></div>
+      <div><span>(-) Payments</span><b>${money(f.partyPaid)}</b></div>
+      <div class="trip-link-row"><button data-action="new-party-payment">Add Payment</button></div>
+      <div class="trip-balance"><span>Pending Balance</span><b>${money(balance)}</b></div>
+    </div>
+  </div>`;
+}
+function tripDetailProfit(trip,f){
+  return `<div class="trip-detail-card">
+    <div class="profit-block"><div class="trip-money-list">
+      <div><span>(+) Revenue</span><b>${money(f.revenue)}</b></div>
+      <div class="sub-box"><span>${esc(trip.party_name)}</span><b>${money(f.revenue)}</b></div>
+      <div><span>(-) Expenses</span><b>${money(f.supplierPayable+f.expenseTotal)}</b></div>
+      <div class="sub-box"><span>Truck Hire Cost</span><b>${money(f.supplierPayable)}</b></div>
+      ${f.expenseTotal?`<div class="sub-box"><span>Other Expenses</span><b>${money(f.expenseTotal)}</b></div>`:''}
+      <div class="trip-link-row"><button data-action="new-expense">Add Expense</button></div>
+      <div class="trip-balance profit"><span>Profit</span><b>${money(f.profit)}</b></div>
+    </div></div>
+  </div>`;
+}
+function tripDetailSupplier(trip,f){
+  const owner=f.ownerNames[0]||state.data.trucks.find(t=>t.truck_no===trip.truck_no)?.owner_name||trip.driver_name||'SUPPLIER';
+  const pending=f.supplierPayable-f.supplierPaid;
+  return `<div class="trip-detail-card">
+    <h3>${esc(owner)}</h3>
+    <div class="trip-money-list">
+      <div><span>Truck Hire Cost</span><b>${money(f.supplierPayable)}</b></div>
+      <div><span>(-) Supplier Payments</span><b>${money(f.supplierPaid)}</b></div>
+      <div class="trip-link-row"><button data-action="new-supplier-payment">Add Supplier Payment</button></div>
+      <div class="trip-balance"><span>Balance Pending</span><b>${money(pending)}</b></div>
+    </div>
+    <div class="trip-detail-actions single"><button class="btn primary" data-action="new-supplier-payment">₹ Pay Supplier</button></div>
+  </div>`;
+}
+function tripDetailMore(trip){
+  return `<div class="trip-more-list">
+    <button data-action="new-document" data-id="${encodeURIComponent(trip.truck_no)}"><span>🧾</span><div><b>Online Bilty / LR</b><small>Add or view truck document</small></div><i>›</i></button>
+    <button data-action="edit-trip" data-id="${esc(trip.id)}"><span>📝</span><div><b>POD Challan</b><small>${trip.pod_file_name?esc(trip.pod_file_name):'Add POD image'}</small></div><i>›</i></button>
+  </div>`;
+}
+function viewTripDetails(trip){
+  if(!trip)return;
+  const f=tripFinancials(trip);
+  const host=modal(`Trip Details · ${trip.id}`,`<div class="trip-detail-shell">
+    <div class="trip-hero"><div><b>🚚 ${esc(trip.truck_no)}</b><span>${esc(trip.material||'MARKET')}</span></div><strong>👤 ${esc(trip.driver_name||f.ownerNames[0]||'')}</strong></div>
+    <div class="trip-tabs">
+      <button class="active" data-trip-tab="party">Party</button>
+      <button data-trip-tab="profit">Profit</button>
+      <button data-trip-tab="supplier">Supplier</button>
+      <button data-trip-tab="more">More</button>
+    </div>
+    <div class="trip-tab-pane active" data-trip-pane="party">${tripDetailParty(trip,f)}</div>
+    <div class="trip-tab-pane" data-trip-pane="profit">${tripDetailProfit(trip,f)}</div>
+    <div class="trip-tab-pane" data-trip-pane="supplier">${tripDetailSupplier(trip,f)}</div>
+    <div class="trip-tab-pane" data-trip-pane="more">${tripDetailMore(trip)}</div>
+  </div>`,{onMount:host=>{
+    host.querySelectorAll('[data-trip-tab]').forEach(btn=>btn.onclick=()=>{
+      host.querySelectorAll('[data-trip-tab]').forEach(x=>x.classList.toggle('active',x===btn));
+      host.querySelectorAll('[data-trip-pane]').forEach(x=>x.classList.toggle('active',x.dataset.tripPane===btn.dataset.tripTab));
+    });
+    host.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>{host.remove();handleAction(b.dataset.action,b.dataset.id)});
+  }});
+}
 
 function tripForm(x={}){
   const d=state.data,edit=!!x.id;

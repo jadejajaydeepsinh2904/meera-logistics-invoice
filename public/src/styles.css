@@ -205,3 +205,24 @@ select option[value="__ADD_NEW__"]{font-weight:800;color:#2457d2}
     gap:10%!important
   }
 }
+
+.link-btn{all:unset;color:#2457d2;cursor:pointer}
+.trip-detail-shell{background:#f2f4f7;border-radius:14px;overflow:hidden}
+.trip-hero{background:#0e1d38;color:#fff;padding:16px;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.trip-hero>div{background:#fff;color:#1d3c72;border-radius:11px;padding:12px 14px;display:flex;gap:9px;align-items:center;flex:1}
+.trip-hero span{background:#ef7d32;color:#fff;border-radius:7px;padding:4px 8px;font-size:10px;font-weight:800}
+.trip-hero strong{font-size:12px;white-space:nowrap}
+.trip-tabs{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-bottom:1px solid var(--line)}
+.trip-tabs button{border:0;background:#fff;padding:13px 5px;color:#7a8594;font-weight:800;border-bottom:3px solid transparent}
+.trip-tabs button.active{color:#174dc2;border-color:#174dc2}
+.trip-tab-pane{display:none;padding:12px}.trip-tab-pane.active{display:block}
+.trip-detail-card{background:#fff;border-radius:15px;padding:16px;box-shadow:0 1px 3px #0000000d}
+.trip-detail-party-head{display:flex;justify-content:space-between;gap:12px}
+.trip-detail-party-head strong{font-size:18px}.trip-route-large{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:800;margin-top:14px}.trip-route-large i{font-style:normal;border:1px solid #111;border-radius:50%;width:30px;height:30px;display:grid;place-items:center}
+.trip-progress{display:grid;grid-template-columns:repeat(5,1fr);margin:18px 0;gap:3px}.trip-step{text-align:center;position:relative}.trip-step:before{content:"";position:absolute;top:10px;left:0;right:0;height:2px;background:#ddd}.trip-step:first-child:before{left:50%}.trip-step:last-child:before{right:50%}.trip-step span{position:relative;z-index:1;width:20px;height:20px;border-radius:50%;background:#d7d7d7;display:grid;place-items:center;margin:auto;color:#fff;font-size:10px}.trip-step.done span{background:#0d9868}.trip-step small{display:block;margin-top:6px;font-size:9px;color:#777}
+.trip-detail-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.trip-detail-actions.single{display:flex;justify-content:flex-end;margin-top:16px}
+.trip-money-list{margin-top:18px}.trip-money-list>div{display:flex;justify-content:space-between;gap:12px;padding:8px 0}.trip-money-list .sub-box{background:#f1f1f1;border-radius:11px;padding:10px 12px;margin:3px 0}.trip-link-row button{all:unset;color:#174dc2;font-weight:800;cursor:pointer}.trip-balance{border-top:1px dashed #bbb;margin-top:8px;padding-top:14px!important;font-size:18px;font-weight:900}.trip-balance b{color:#0f4dc7}.trip-balance.profit b{color:#0d9868}
+.trip-more-list{display:grid;gap:10px}.trip-more-list button{border:0;background:#fff;border-radius:11px;padding:16px;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;text-align:left}.trip-more-list span{font-size:23px}.trip-more-list small{display:block;color:#7b8795;margin-top:3px}.trip-more-list i{font-style:normal;font-size:28px;color:#777}
+@media(max-width:620px){
+  .trip-hero{align-items:stretch;flex-direction:column}.trip-hero strong{padding:0 4px}.trip-detail-card{padding:14px}.trip-detail-actions{grid-template-columns:1fr 1fr}.trip-route-large{font-size:15px}.trip-progress small{font-size:8px}
+}
