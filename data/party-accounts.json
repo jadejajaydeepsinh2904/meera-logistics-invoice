@@ -1,0 +1,34 @@
+{
+  "partyAccounts": [
+    {
+      "id": "1",
+      "ledgerNo": "MLP - 001",
+      "partyName": "SAANAVI ENTERPRISE"
+    },
+    {
+      "id": "2",
+      "ledgerNo": "MLP - 002",
+      "partyName": "MANOJ & CO."
+    },
+    {
+      "id": "3",
+      "ledgerNo": "MLP - 003",
+      "partyName": "SHREE DWARKADHISH ENTERPRISE"
+    },
+    {
+      "id": "4",
+      "ledgerNo": "MLP - 004",
+      "partyName": "DIGVIJAY MINERALS"
+    },
+    {
+      "id": "5",
+      "ledgerNo": "MLP - 005",
+      "partyName": "SHREE SATGURU TRANSPORT"
+    },
+    {
+      "id": "6",
+      "ledgerNo": "MLP - 006",
+      "partyName": "YADUNANDAN LOGISTICS"
+    }
+  ]
+}

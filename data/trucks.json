@@ -1,0 +1,381 @@
+{
+  "trucks": [
+    {
+      "id": "13",
+      "truckNo": "GJ 03 BT 5925",
+      "ownerName": "BHIMSHIBHAI",
+      "bankDetails": "IDBI",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "11",
+      "truckNo": "GJ 03 BW 4387",
+      "ownerName": "mukeshbhai",
+      "bankDetails": "hdfc",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "1",
+      "truckNo": "GJ 03 CU 3351",
+      "ownerName": "BHURABHAI",
+      "bankDetails": "ICICI BANK",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "21",
+      "truckNo": "GJ 03 CU 3818",
+      "ownerName": "kanzariya",
+      "bankDetails": "",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "8",
+      "truckNo": "GJ 03 CU 5608",
+      "ownerName": "AAL LALABHAI",
+      "bankDetails": "kotak",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "19",
+      "truckNo": "GJ 03 CU 6679",
+      "ownerName": "Dipbhai",
+      "bankDetails": "Hdfc",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "10",
+      "truckNo": "GJ 03 CU 7000",
+      "ownerName": "HARPAL ENTERPRISE",
+      "bankDetails": "",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "7",
+      "truckNo": "GJ 03 CU 9064",
+      "ownerName": "AAL LALABHAI",
+      "bankDetails": "kotak",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "12",
+      "truckNo": "GJ 03 CU 9886",
+      "ownerName": "kanzariya",
+      "bankDetails": "icici",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "25",
+      "truckNo": "GJ 03 CW 1006",
+      "ownerName": "VIJAYBHAI BAMBHVA",
+      "bankDetails": "UJJIVAN SMALL FINANCE BANK",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "22",
+      "truckNo": "GJ 12 BZ 2108",
+      "ownerName": "ROHITBHAI SAPARA",
+      "bankDetails": "HDFC",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "2",
+      "truckNo": "GJ 12 BZ 8848",
+      "ownerName": "RANCHHOD SAMJI",
+      "bankDetails": "HDFC",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "9",
+      "truckNo": "GJ 32 V 1503",
+      "ownerName": "JASUBHAI",
+      "bankDetails": "SBI",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "23",
+      "truckNo": "GJ 37 T 7149",
+      "ownerName": "LAKHABHAI GAMARA",
+      "bankDetails": "SBI",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "28",
+      "truckNo": "GJ 37 V 2626",
+      "ownerName": "PAPU SHIVA DHORIYA",
+      "bankDetails": "HDFC",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": [
+        {
+          "id": "8",
+          "kind": "rc",
+          "fileName": "WhatsApp Image 2026-08-03 at 5.37.20 PM (1).jpeg"
+        },
+        {
+          "id": "9",
+          "kind": "rc",
+          "fileName": "WhatsApp Image 2026-08-03 at 5.37.20 PM (2).jpeg"
+        },
+        {
+          "id": "10",
+          "kind": "rc",
+          "fileName": "WhatsApp Image 2026-08-03 at 5.37.20 PM (1).jpeg"
+        },
+        {
+          "id": "11",
+          "kind": "pan",
+          "fileName": "WhatsApp Image 2026-08-03 at 5.37.21 PM.jpeg"
+        },
+        {
+          "id": "12",
+          "kind": "rc",
+          "fileName": "WhatsApp Image 2026-08-03 at 5.37.20 PM (2).jpeg"
+        },
+        {
+          "id": "13",
+          "kind": "cheque",
+          "fileName": "WhatsApp Image 2026-08-03 at 5.37.20 PM.jpeg"
+        },
+        {
+          "id": "14",
+          "kind": "pan",
+          "fileName": "WhatsApp Image 2026-08-03 at 5.37.21 PM.jpeg"
+        },
+        {
+          "id": "15",
+          "kind": "cheque",
+          "fileName": "WhatsApp Image 2026-08-03 at 5.37.20 PM.jpeg"
+        }
+      ]
+    },
+    {
+      "id": "24",
+      "truckNo": "GJ 37 V 5002",
+      "ownerName": "MADAM PARBATBHAI",
+      "bankDetails": "AXIS",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "27",
+      "truckNo": "GJ 37 V 6970",
+      "ownerName": "GOJIYA BHARATBHAI",
+      "bankDetails": "SBI",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": [
+        {
+          "id": "4",
+          "kind": "rc",
+          "fileName": "WhatsApp Image 2026-08-03 at 5.35.18 PM (1).jpeg"
+        },
+        {
+          "id": "5",
+          "kind": "rc",
+          "fileName": "WhatsApp Image 2026-08-03 at 5.35.18 PM.jpeg"
+        },
+        {
+          "id": "6",
+          "kind": "pan",
+          "fileName": "WhatsApp Image 2026-08-03 at 5.35.30 PM.jpeg"
+        },
+        {
+          "id": "7",
+          "kind": "cheque",
+          "fileName": "WhatsApp Image 2026-08-03 at 5.36.14 PM.jpeg"
+        }
+      ]
+    },
+    {
+      "id": "18",
+      "truckNo": "GJ 39 TA 6199",
+      "ownerName": "NARANBHAI",
+      "bankDetails": "AXIS BANK",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "26",
+      "truckNo": "GJ 39 TB 4255",
+      "ownerName": "RAHULBHAI BALIYA",
+      "bankDetails": "",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "6",
+      "truckNo": "GJ 39 TB 9201",
+      "ownerName": "ISHWAR PATEL",
+      "bankDetails": "HDFC",
+      "documents": {
+        "rc": true,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": [
+        {
+          "id": "1",
+          "kind": "rc",
+          "fileName": "WhatsApp Image 2026-07-09 at 5.31.30 PM.jpeg"
+        },
+        {
+          "id": "2",
+          "kind": "rc",
+          "fileName": "WhatsApp Image 2026-07-09 at 5.31.30 PM.jpeg"
+        },
+        {
+          "id": "3",
+          "kind": "pan",
+          "fileName": "WhatsApp Image 2026-07-09 at 5.29.47 PM.jpeg"
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "truckNo": "GJ 39 TB 9203",
+      "ownerName": "ISHWAR PATEL",
+      "bankDetails": "HDFC BANK",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "4",
+      "truckNo": "GJ 39 TB 9253",
+      "ownerName": "ISHWAR PATEL",
+      "bankDetails": "HDFC",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    },
+    {
+      "id": "5",
+      "truckNo": "GJ 39 TB 9254",
+      "ownerName": "ISHWAR PATEL",
+      "bankDetails": "HDFC",
+      "documents": {
+        "rc": false,
+        "pan": false,
+        "bilty": false,
+        "cheque": false
+      },
+      "documentFiles": []
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "meera-logistics-erp-v3",
+  "version": "3.0.0",
+  "private": true,
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx serve ."
+  }
+}
