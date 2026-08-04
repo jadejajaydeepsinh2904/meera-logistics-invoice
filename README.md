@@ -73,3 +73,15 @@ Database schema and seed data are created automatically when the Worker starts.
 The old D1 database is upgraded using constant defaults supported by SQLite/D1.
 Missing route and truck-document columns are also added automatically.
 Existing users and business data are preserved.
+
+
+## V3 Vercel configuration fix
+
+`vercel.json` now uses only:
+- `$schema`
+- `outputDirectory`
+- `cleanUrls`
+- `headers`
+
+The rejected `public` property has been removed. Keep the Vercel Root Directory
+at the repository root. The output directory is configured as `public`.

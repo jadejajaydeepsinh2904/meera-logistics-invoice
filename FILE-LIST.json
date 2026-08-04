@@ -1,16 +1,16 @@
 {
-  "version": "V2-D1-FIX",
+  "version": "V3-VERCEL-D1-FIX",
   "total_files": 22,
   "files": [
     {
       "path": "README.md",
-      "size": 1577,
-      "sha256": "f44dd1c1dc2368f5a29450d2ac62e6968ada781473a9dbc54840e91956c7b250"
+      "size": 1851,
+      "sha256": "b7744de58cb029a9c149ddf5c7c469e1f2568cd989ac722db7b45784184176dc"
     },
     {
       "path": "START-HERE.txt",
-      "size": 793,
-      "sha256": "a9c3d334d7ba7b100e577c082cb1fb8f1a2c52fd3def65dcfe7f44c18589ba96"
+      "size": 1027,
+      "sha256": "6da12a04a723f00945b7bcd1c2391326a4952e0b2df6fd32411b328ef0248258"
     },
     {
       "path": "public/data/invoices.json",
@@ -84,8 +84,8 @@
     },
     {
       "path": "vercel.json",
-      "size": 252,
-      "sha256": "f89bbf88c9a23f78a1cab2c332bcfe63c8d928180f5abe2949c7e52cf28760a7"
+      "size": 303,
+      "sha256": "c212e8cbf4a384e1397412504760987c0f577c32e8123f54b850385b96cd9cc2"
     },
     {
       "path": "worker/migrations/0001_init.sql",

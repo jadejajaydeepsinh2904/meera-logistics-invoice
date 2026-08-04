@@ -31,3 +31,10 @@ V2 D1 FIX
 - Fixed D1_ERROR: Cannot add a column with non-constant default.
 - Existing database, data and admin login remain unchanged.
 - Upload this complete ZIP to GitHub main root; no SQL Console step is needed.
+
+
+V3 VERCEL FIX
+- Removed the rejected `public` property from vercel.json.
+- Added `outputDirectory: public` directly in vercel.json.
+- Vercel Root Directory must remain blank / repository root.
+- No D1 or login changes are required.
