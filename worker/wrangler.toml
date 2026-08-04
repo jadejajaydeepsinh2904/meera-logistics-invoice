@@ -1,0 +1,11 @@
+name = "meera-logistics-erp-api"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "meera-logistics-erp"
+database_id = "bdb1ef72-c3eb-465e-ae2d-853d63f3dea3"
+
+[vars]
+APP_ORIGIN = "https://REPLACE_WITH_YOUR_PAGES_DOMAIN"

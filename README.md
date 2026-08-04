@@ -1,73 +1,58 @@
-# Meera Logistics ERP v3 Source
+# Meera Logistics ERP — Complete Online Source
 
-આ build હવે single HTML demo નથી. તે modular editable source project છે.
+આ package Cloudflare Pages + Workers + D1 માટે તૈયાર છે.
 
-## Structure
-- `src/core/dataStore.js` — data loading
-- `src/core/ledgerEngine.js` — invoice, party, supplier અને reconciliation logic
-- `src/app.js` — UI rendering and module navigation
-- `data/*.json` — exported Meera Logistics data
-- `data/party-payments.json` — future party payment import file
-
-## Current modules
+## Implemented
+- Password login and shared online database
+- Mobile + PC responsive UI
 - Dashboard
-- Trips
-- Invoices
-- Party Ledger
-- Truck Payment = Supplier Payment
-- Supplier / Malik Ledger
-- Truck Master
-- Routes
-- Profit Report
-- Data Audit
+- Trip create/edit/delete with duplicate check
+- Invoice create/edit/delete with GST auto calculation
+- Party master and ledger
+- Party payment create/edit/delete
+- Truck payment / supplier payment create/edit/delete
+- Supplier ledger
+- Truck master create/edit/delete
+- Routes create/edit/delete
+- Materials add/delete
+- Expenses create/edit/delete
+- Truck document metadata and expiry date
+- Profit report
+- Audit warnings and change audit log
+- JSON backup export
+- Print / Save as PDF
+- WhatsApp invoice summary
+- Database indexes and validation
 
-## Calculation rules
-- Supplier payable = weight × rate − commission
-- Supplier pending = payable − paid
-- Party outstanding = invoice total − party receipts
-- Estimated profit = invoice subtotal − supplier payable − expenses
+## Not automatic
+Cloudflare account, D1 database ID, password and domain are private account-specific values. They cannot be prefilled safely inside a downloadable ZIP.
 
-## Run
-Direct double-click may block JSON fetch in some browsers.
+## Setup
+1. Create a Cloudflare account.
+2. Create D1 database: `meera-logistics-erp`.
+3. Paste its ID in `worker/wrangler.toml`.
+4. Run:
+   `cd worker`
+   `npm install`
+   `npm run db:migrate`
+5. Create admin SQL:
+   `node setup-admin.js admin YOUR_PASSWORD`
+6. Run the generated SQL in D1 Console.
+7. Run `seed.sql` in D1 Console.
+8. Deploy Worker:
+   `npm run deploy`
+9. Deploy the `public` folder to Cloudflare Pages.
+10. Configure `/api/*` to the Worker domain using a Pages redirect/proxy or change `public/src/core/api.js` to your Worker URL.
 
-Use:
-```bash
-npm run dev
-```
-or VS Code Live Server.
+## File uploads
+This build stores document name, URL and expiry. Real binary upload requires Cloudflare R2 configuration. R2 credentials and bucket are account-specific, so they are not embedded.
 
-## Next required data
-Party payment API export. Put it into:
-`data/party-payments.json`
-
-Expected format:
-```json
-{
-  "payments": [
-    {
-      "id": "1",
-      "partyName": "PARTY NAME",
-      "date": "2026-08-04",
-      "amount": 10000,
-      "invoiceId": "optional",
-      "notes": ""
-    }
-  ]
-}
-```
-
-## Important
-This project does not overwrite or delete the old live ChatGPT website.
+## Security
+The starter uses SHA-256 password hashing for portability. Before exposing it widely, replace it with PBKDF2/scrypt/Argon2. For a small private office tool behind a strong password, it is functional, but stronger hashing is recommended.
 
 
-## Party payments imported
-4 party-payment records have now been imported.
+## D1 database already configured
+Database ID:
+`bdb1ef72-c3eb-465e-ae2d-853d63f3dea3`
 
-Important audit:
-- YADUNANDAN LOGISTICS payment is ₹66,263.
-- The current invoice export contains only ₹25,809.55 billing for that party.
-- Therefore the system flags this as either missing invoices in the export or an advance/overpayment. It does not silently mark the ledger as correct.
-
-
-## Party accounts imported
-6 party ledger numbers (MLP - 001 to MLP - 006) are now linked with Party Ledger.
+`worker/wrangler.toml` already contains this ID.

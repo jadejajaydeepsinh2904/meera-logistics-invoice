@@ -1,0 +1,12 @@
+{
+  "name": "meera-logistics-erp-worker",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 migrations apply meera-logistics-erp --remote"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

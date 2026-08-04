@@ -1,0 +1,105 @@
+{
+  "total_files": 20,
+  "files": [
+    {
+      "path": "README.md",
+      "size_bytes": 2087,
+      "sha256": "8e7da40531bac0b5c14f38d6d02dd2107def4537f80f0e7fa3e6c38178a21f5b"
+    },
+    {
+      "path": "public/data/invoices.json",
+      "size_bytes": 19834,
+      "sha256": "cdcc10cfb1ed33a3c914b3d71f26ad907a3ad81a0a9cd2300a50394b6255147b"
+    },
+    {
+      "path": "public/data/party-accounts.json",
+      "size_bytes": 642,
+      "sha256": "1211b5093665702c4803ddffdf2a9b7a7f2c47077823148ec4904a6a551745df"
+    },
+    {
+      "path": "public/data/party-payments.json",
+      "size_bytes": 848,
+      "sha256": "e8de46d85ba0d2fa7b01aeb4a8ea0f27e4977f3915cae938e390613a1acc6ff2"
+    },
+    {
+      "path": "public/data/routes.json",
+      "size_bytes": 1263,
+      "sha256": "a1503198f0f21decdca1219253185d9af1ed81f4b8bd13091bf4c8f93ec04c85"
+    },
+    {
+      "path": "public/data/trip-account-entries.json",
+      "size_bytes": 19,
+      "sha256": "498ca50ab1b22eb01c73569d8d8538c1f5e47f45d7a72bd72803a39a3206d8aa"
+    },
+    {
+      "path": "public/data/trip-bookings.json",
+      "size_bytes": 2188,
+      "sha256": "34fb2709c33f60dc893b1848fa615cce3e28d29b7f7b2a1e2d7ccb2b928a63f9"
+    },
+    {
+      "path": "public/data/trip-expenses.json",
+      "size_bytes": 20,
+      "sha256": "be7148dff4aa3428ceae3af28c48ae681143fb4865d5f734327e2dfe0c81efe9"
+    },
+    {
+      "path": "public/data/truck-payments.json",
+      "size_bytes": 13961,
+      "sha256": "def06e1a342b1d12529a34bff799d9692e1a776bc03b511ae23ad73498a07ee9"
+    },
+    {
+      "path": "public/data/trucks.json",
+      "size_bytes": 8479,
+      "sha256": "49484fc2447be51b10138bc45dee7c9d0323f6af0bd1fa750886a16ee6f17052"
+    },
+    {
+      "path": "public/index.html",
+      "size_bytes": 374,
+      "sha256": "5007028a4eefbda4948465628ac0c508422852b0910fbb19fb8546a464e889dd"
+    },
+    {
+      "path": "public/src/app.js",
+      "size_bytes": 18445,
+      "sha256": "33814328fa514d73c7e3651a4af91dd3fad8dd112ed9d461a7a1b05faa1dbea3"
+    },
+    {
+      "path": "public/src/core/api.js",
+      "size_bytes": 618,
+      "sha256": "71a9e77003466ffeb145d3798f178f15425be52bb7540a783a72743859380777"
+    },
+    {
+      "path": "public/src/styles.css",
+      "size_bytes": 4259,
+      "sha256": "fd25c0bc5c8097601cab19c44a30904fc4d163e0683f5d1b30ac2d8b4749c680"
+    },
+    {
+      "path": "worker/migrations/0001_init.sql",
+      "size_bytes": 4032,
+      "sha256": "35cc04b96ed2f9a7f936a1795db4d0d92ce8c67780dfdf836d32b3435ce9e5f1"
+    },
+    {
+      "path": "worker/package.json",
+      "size_bytes": 272,
+      "sha256": "8179e89ed594fc3bbc053995fe300324af32d39fadadcc9d9647f3a270eb64c8"
+    },
+    {
+      "path": "worker/seed.sql",
+      "size_bytes": 767,
+      "sha256": "3670b7d7d708b022b0b168d00873f2e0e69a5ab7086dc285fbe3ee4abdd8ade9"
+    },
+    {
+      "path": "worker/setup-admin.js",
+      "size_bytes": 398,
+      "sha256": "d87f622e0ce3b58107eed76da3680967cdd45476f18f092eeafa61b2b5ccb644"
+    },
+    {
+      "path": "worker/src/index.js",
+      "size_bytes": 18183,
+      "sha256": "c507cea584a38b964a0b0ccfb350ef3debabf130ac2e5c17558f9e658235dfbc"
+    },
+    {
+      "path": "worker/wrangler.toml",
+      "size_bytes": 275,
+      "sha256": "a2d6c953994c05e6c625954498470b65ce1d5f1cd21c2c1c3f42c89783e927c3"
+    }
+  ]
+}

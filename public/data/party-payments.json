@@ -1,0 +1,40 @@
+{
+  "payments": [
+    {
+      "id": "4",
+      "partyName": "YADUNANDAN LOGISTICS",
+      "paymentDate": "2026-08-01",
+      "amount": 66263,
+      "paymentMode": "BANK",
+      "reference": "GOOGLE PAY",
+      "notes": "UPI"
+    },
+    {
+      "id": "3",
+      "partyName": "DIGVIJAY MINERALS",
+      "paymentDate": "2026-07-23",
+      "amount": 62464,
+      "paymentMode": "BANK",
+      "reference": "NEFT",
+      "notes": ""
+    },
+    {
+      "id": "2",
+      "partyName": "MANOJ & CO.",
+      "paymentDate": "2026-07-18",
+      "amount": 29088,
+      "paymentMode": "BANK",
+      "reference": "NEFT",
+      "notes": ""
+    },
+    {
+      "id": "1",
+      "partyName": "SHREE DWARKADHISH ENTERPRISE",
+      "paymentDate": "2026-07-18",
+      "amount": 150000,
+      "paymentMode": "BANK",
+      "reference": "NEFT",
+      "notes": ""
+    }
+  ]
+}
