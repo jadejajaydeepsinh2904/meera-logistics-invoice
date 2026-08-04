@@ -278,3 +278,19 @@ select option[value="__ADD_NEW__"]{font-weight:800;color:#2457d2}
   .universal-section-title{display:block}.universal-section-title small{display:block;text-align:left;margin-top:4px}
   .ut-invoice-summary{grid-template-columns:1fr 1fr}
 }
+
+.field input[readonly],.field textarea[readonly]{
+  background:#f1f4f8;
+  color:#4d5c6f;
+  cursor:not-allowed;
+  border-style:dashed;
+}
+.field input[readonly]:focus,.field textarea[readonly]:focus{
+  border-color:var(--line);
+  box-shadow:none;
+}
+
+.field input[name="invoiceNo"]{
+  font-weight:800;
+  letter-spacing:.02em;
+}

@@ -198,3 +198,18 @@ V15 TRIP INVOICE GST UNIVERSAL
 - Trip screen visibly shows Invoice Number, GST, LR and Invoice Total.
 - Supplier rate, commission and advance are also saved from the same Universal Trip form.
 - Multiple POD images can be selected in the Trip form.
+
+
+V16 PARTY AUTO-FILL & LOCK
+- Selecting Party automatically fills GST Number and Address.
+- GST Number and Address are readonly in Universal Trip and Invoice forms.
+- Edit GST/Address only from Party Master.
+- Quick Add Party also fills and locks both values.
+
+
+V17 INVOICE SERIES
+- New invoice number is generated after the highest existing invoice number.
+- The actual series/prefix is preserved automatically.
+- Examples: ML - 123 -> ML - 124, ML-009 -> ML-010.
+- Invoice Number remains fully editable before saving.
+- Duplicate invoice numbers are still blocked by the database.

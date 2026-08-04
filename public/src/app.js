@@ -81,7 +81,8 @@ async function quickAddMaster(type,target,parentHost){
           const item={id:res.id,party_name:norm(body.partyName),gst_no:norm(body.gstNo),mobile:body.mobile||'',address:body.address||'',ledger_no:''};
           d.parties.push(item);addOptionAndSelect(target,item.party_name);
           const gst=parentHost.querySelector('[name=partyGst]'),address=parentHost.querySelector('[name=partyAddress]');
-          if(gst)gst.value=item.gst_no||'';if(address)address.value=item.address||'';
+          if(gst){gst.value=item.gst_no||'';gst.readOnly=true}
+          if(address){address.value=item.address||'';address.readOnly=true}
           h.remove();
         }catch(err){alert(err.message)}finally{setBusy(btn,false)}
       };
@@ -564,15 +565,15 @@ function tripForm(x={},afterSave=null){
       <span>Create / Update Invoice With This Trip</span>
       <input name="createInvoice" type="checkbox" ${linkedInvoice||!edit?'checked':''}>
     </label>
-    ${field('Invoice Number','invoiceNo',linkedInvoice?.invoice_no||d.nextInvoiceNo,'text','required')}
+    <label class="field"><span>Invoice Number (Auto, Editable)</span><input name="invoiceNo" type="text" value="${esc(linkedInvoice?.invoice_no||d.nextInvoiceNo)}" required></label>
     ${field('Invoice Date','invoiceDate',linkedInvoice?.invoice_date||x.trip_date||today(),'date','required')}
-    ${field('Party GST Number','partyGst',linkedInvoice?.party_gst||partyMaster.gst_no||'')}
+    ${field('Party GST Number','partyGst',linkedInvoice?.party_gst||partyMaster.gst_no||'','text','readonly')}
     ${field('LR Number','lrNo',linkedInvoice?.lr_no||'')}
     ${field('SGST %','sgst',linkedInvoice?.sgst??9,'number','step="0.01"')}
     ${field('CGST %','cgst',linkedInvoice?.cgst??9,'number','step="0.01"')}
     ${field('Diesel','diesel',linkedInvoice?.diesel||0,'number','step="0.01"')}
     ${field('Munshi Charges','munshi',linkedInvoice?.munshi||0,'number','step="0.01"')}
-    ${textarea('Party Address','partyAddress',linkedInvoice?.party_address||partyMaster.address||'','span2')}
+    <label class="field span2"><span>Party Address</span><textarea name="partyAddress" readonly>${esc(linkedInvoice?.party_address||partyMaster.address||'')}</textarea></label>
     ${textarea('Invoice Comments','comments',linkedInvoice?.comments||'1. Payment due within 30 days.\\n2. Mention invoice number in payment reference.','span2')}
 
     <div class="span2 universal-section-title supplier"><b>SUPPLIER / TRUCK MALIK</b><small>Supplier payable પણ આ Trip સાથે link થશે</small></div>
@@ -588,10 +589,12 @@ function tripForm(x={},afterSave=null){
     const partySelect=host.querySelector('[name=partyName]');
     partySelect.addEventListener('change',()=>{
       const p=d.parties.find(p=>p.party_name===norm(partySelect.value));
-      if(p){
-        host.querySelector('[name=partyGst]').value=p.gst_no||'';
-        host.querySelector('[name=partyAddress]').value=p.address||'';
-      }
+      const gst=host.querySelector('[name=partyGst]');
+      const address=host.querySelector('[name=partyAddress]');
+      gst.value=p?.gst_no||'';
+      address.value=p?.address||'';
+      gst.readOnly=true;
+      address.readOnly=true;
     });
     host.querySelector('[data-close-form]').onclick=()=>host.remove();
     host.querySelector('#tripForm').onsubmit=async e=>{
@@ -726,11 +729,11 @@ function invoiceForm(x={},tripContext=null){
   x=x||{};
   const d=state.data,edit=!!x.id,items=(x.items&&x.items.length?x.items:[{trip_id:'',truck_no:'',description:'',loading_weight:0,unloading_weight:0,shortage:0,weight:0,rate:0}]);
   const host=modal(edit?'Edit Invoice':'New Invoice',`<form class="form-grid" id="invoiceForm">
-    ${field('Invoice Number','invoiceNo',x.invoice_no||d.nextInvoiceNo,'text','required')}
+    <label class="field"><span>Invoice Number (Auto, Editable)</span><input name="invoiceNo" type="text" value="${esc(x.invoice_no||d.nextInvoiceNo)}" required></label>
     ${field('Invoice Date','invoiceDate',x.invoice_date||today(),'date','required')}
     ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||'','party','required')}
-    ${field('Party GST','partyGst',x.party_gst||state.data.parties.find(p=>p.party_name===(tripContext?.party_name||x.party_name))?.gst_no||'')}
-    ${textarea('Party Address','partyAddress',x.party_address||'','span2')}
+    ${field('Party GST','partyGst',x.party_gst||state.data.parties.find(p=>p.party_name===(tripContext?.party_name||x.party_name))?.gst_no||'','text','readonly')}
+    <label class="field span2"><span>Party Address</span><textarea name="partyAddress" readonly>${esc(x.party_address||state.data.parties.find(p=>p.party_name===(tripContext?.party_name||x.party_name))?.address||'')}</textarea></label>
     ${field('LR Number','lrNo',x.lr_no||'')}
     ${masterSelectField('Material','material',d.materials.map(m=>m.material_name),x.material||'','material')}
     ${field('Loading Date','loadingDate',x.loading_date||today(),'date')}
@@ -809,7 +812,15 @@ function invoiceForm(x={},tripContext=null){
         if(material&&!material.value)material.value=trip.material;
       });
     };
-    host.querySelector('[name=partyName]').addEventListener('change',e=>{const p=d.parties.find(p=>p.party_name===norm(e.target.value));if(p){host.querySelector('[name=partyGst]').value=p.gst_no||'';host.querySelector('[name=partyAddress]').value=p.address||''}});
+    host.querySelector('[name=partyName]').addEventListener('change',e=>{
+      const p=d.parties.find(p=>p.party_name===norm(e.target.value));
+      const gst=host.querySelector('[name=partyGst]');
+      const address=host.querySelector('[name=partyAddress]');
+      gst.value=p?.gst_no||'';
+      address.value=p?.address||'';
+      gst.readOnly=true;
+      address.readOnly=true;
+    });
     ['diesel','munshi','sgst','cgst'].forEach(n=>host.querySelector(`[name=${n}]`).addEventListener('input',recalcInvoice));
     host.querySelector('[data-close-form]').onclick=()=>host.remove();
     host.querySelector('#invoiceForm').onsubmit=async e=>{

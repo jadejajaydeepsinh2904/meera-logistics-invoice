@@ -245,14 +245,24 @@ async function upsertMasters(env,b){
     if(!exists) await run(env,`INSERT INTO routes(id,loading_point,unloading_point) VALUES(?,?,?)`,uid('RTE'),upper(b.loadingPoint),upper(b.unloadingPoint));
   }
 }
-function nextNumber(rows,prefix){
-  let max=0;
-  for(const x of rows){
-    const value=String(x||'');
-    const m=value.match(/(\d+)(?!.*\d)/);
-    if(m) max=Math.max(max,Number(m[1]));
+function nextNumber(rows,defaultPrefix='ML - '){
+  let best={number:0,prefix:defaultPrefix,width:0};
+  for(const raw of rows){
+    const value=String(raw||'').trim();
+    const match=value.match(/^(.*?)(\d+)\s*$/);
+    if(!match)continue;
+    const number=Number(match[2]);
+    if(number>best.number){
+      best={
+        number,
+        prefix:match[1]||defaultPrefix,
+        width:match[2].length
+      };
+    }
   }
-  return `${prefix}${max+1}`;
+  const next=best.number+1;
+  const digits=best.width>1?String(next).padStart(best.width,'0'):String(next);
+  return `${best.prefix}${digits}`;
 }
 function pathParts(path){ return path.replace(/^\/api\/?/,'').split('/').filter(Boolean); }
 
