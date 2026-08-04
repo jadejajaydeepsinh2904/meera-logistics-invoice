@@ -130,3 +130,20 @@ V13 VISIBLE TRIP SCREEN
 - More tab: Bilty/LR and POD actions.
 - UI matches the four TransportBook reference screenshots.
 - Frontend cache updated to v13 so the new screen must load.
+
+
+V14 D1 TRIP_ID FIX
+- Fixed D1_ERROR: no such column: trip_id.
+- Adds trip_id to party_payments, supplier_payments and expenses automatically.
+- Does not trust an old schema_version unless all required columns are verified.
+- Existing login, invoices, trips, payments and other data are preserved.
+- No SQL Console command is required.
+
+
+V15 TRIP INVOICE GST UNIVERSAL
+- New/Edit Trip now contains Invoice Number, Invoice Date, Party GST, LR No, SGST and CGST.
+- Saving the Trip can create or update its Invoice automatically.
+- Entering an existing Invoice Number adds this Trip's truck to that same multi-truck invoice.
+- Trip screen visibly shows Invoice Number, GST, LR and Invoice Total.
+- Supplier rate, commission and advance are also saved from the same Universal Trip form.
+- Multiple POD images can be selected in the Trip form.

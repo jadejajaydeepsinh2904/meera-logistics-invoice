@@ -36,8 +36,14 @@ async function ensureDatabase(env){
     // statements on every Worker cold start.
     try{
       const ready=await first(env,`SELECT value FROM app_meta WHERE key='schema_version'`);
-      if(ready?.value==='12')return;
-    }catch(_){/* first deployment: tables do not exist yet */}
+      if(ready?.value==='14'){
+        // Verify the columns required by the universal Trip screen.
+        await first(env,`SELECT trip_id FROM party_payments LIMIT 1`);
+        await first(env,`SELECT trip_id FROM supplier_payments LIMIT 1`);
+        await first(env,`SELECT trip_id FROM expenses LIMIT 1`);
+        return;
+      }
+    }catch(_){/* first deployment or an incomplete older schema */}
 
     const creates = [
       `CREATE TABLE IF NOT EXISTS app_meta(key TEXT PRIMARY KEY,value TEXT,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
@@ -69,6 +75,7 @@ async function ensureDatabase(env){
       `ALTER TABLE party_payments ADD COLUMN receipt_no TEXT`,
       `ALTER TABLE party_payments ADD COLUMN created_at TEXT DEFAULT ''`,
       `ALTER TABLE party_payments ADD COLUMN updated_at TEXT DEFAULT ''`,
+      `ALTER TABLE party_payments ADD COLUMN trip_id TEXT DEFAULT ''`,
       `ALTER TABLE trucks ADD COLUMN owner_mobile TEXT DEFAULT ''`,
       `ALTER TABLE trucks ADD COLUMN created_at TEXT DEFAULT ''`,
       `ALTER TABLE trucks ADD COLUMN updated_at TEXT DEFAULT ''`,
@@ -94,6 +101,8 @@ async function ensureDatabase(env){
       `ALTER TABLE truck_documents ADD COLUMN file_type TEXT DEFAULT ''`,
       `ALTER TABLE truck_documents ADD COLUMN file_data TEXT DEFAULT ''`,
       `ALTER TABLE truck_documents ADD COLUMN notes TEXT DEFAULT ''`,
+      `ALTER TABLE supplier_payments ADD COLUMN trip_id TEXT DEFAULT ''`,
+      `ALTER TABLE expenses ADD COLUMN trip_id TEXT DEFAULT ''`,
       `ALTER TABLE invoice_items ADD COLUMN loading_weight REAL DEFAULT 0`,
       `ALTER TABLE invoice_items ADD COLUMN unloading_weight REAL DEFAULT 0`,
       `ALTER TABLE invoice_items ADD COLUMN shortage REAL DEFAULT 0`
@@ -116,7 +125,19 @@ async function ensureDatabase(env){
       `CREATE INDEX IF NOT EXISTS idx_supplier_payment_trip ON supplier_payments(trip_id)`,
       `CREATE INDEX IF NOT EXISTS idx_expense_trip ON expenses(trip_id)`
     ];
-    for(const sql of indexes) await env.DB.prepare(sql).run();
+    for(const sql of indexes){
+      try{await env.DB.prepare(sql).run()}
+      catch(e){
+        // If an index references a newly-added column, retry its ALTER and index.
+        const message=String(e?.message||e);
+        if(/no such column: trip_id/i.test(message)){
+          await safe(env,`ALTER TABLE party_payments ADD COLUMN trip_id TEXT DEFAULT ''`);
+          await safe(env,`ALTER TABLE supplier_payments ADD COLUMN trip_id TEXT DEFAULT ''`);
+          await safe(env,`ALTER TABLE expenses ADD COLUMN trip_id TEXT DEFAULT ''`);
+          await env.DB.prepare(sql).run();
+        }else throw e;
+      }
+    }
 
     const triggers = [
       `CREATE TRIGGER IF NOT EXISTS trg_party_accounts_ai AFTER INSERT ON party_accounts WHEN NEW.created_at IS NULL OR NEW.created_at='' BEGIN UPDATE party_accounts SET created_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id; END`,
@@ -188,7 +209,7 @@ async function ensureDatabase(env){
       }
       await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('seed_version','2',CURRENT_TIMESTAMP)`);
     }
-    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','12',CURRENT_TIMESTAMP)`);
+    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','14',CURRENT_TIMESTAMP)`);
   })().catch(e=>{ initPromise=null; throw e; });
   return initPromise;
 }

@@ -468,10 +468,18 @@ function universalTripScreen(trip){
 
       <section class="ut-pane active" data-ut-pane="party">
         <div class="ut-card">
+          <div class="ut-invoice-summary">
+            <div><small>INVOICE NO.</small><b>${esc(f.invoice?.invoice_no||'Not Created')}</b></div>
+            <div><small>INVOICE DATE</small><b>${esc(f.invoice?.invoice_date||'-')}</b></div>
+            <div><small>PARTY GST</small><b>${esc(f.invoice?.party_gst||state.data.parties.find(p=>p.party_name===trip.party_name)?.gst_no||'-')}</b></div>
+            <div><small>GST</small><b>${f.invoice?`${esc(f.invoice.sgst)}% + ${esc(f.invoice.cgst)}%`:'9% + 9%'}</b></div>
+            <div><small>LR NO.</small><b>${esc(f.invoice?.lr_no||'-')}</b></div>
+            <div><small>INVOICE TOTAL</small><b>${money(f.invoice?.total||0)}</b></div>
+          </div>
           <div class="ut-actions">
-            <button class="btn green" data-action="edit-trip" data-id="${esc(trip.id)}">Complete / Edit Trip</button>
+            <button class="btn green" data-action="edit-trip" data-id="${esc(trip.id)}">Edit Universal Trip</button>
             ${f.invoice
-              ? `<button class="btn primary" data-action="view-invoice" data-id="${esc(f.invoice.id)}">View Bill</button>`
+              ? `<button class="btn primary" data-action="view-invoice" data-id="${esc(f.invoice.id)}">View / Download Bill</button>`
               : `<button class="btn primary" data-action="trip-create-invoice" data-id="${esc(trip.id)}">Create Bill</button>`}
           </div>
           <div class="ut-money">
@@ -534,7 +542,10 @@ function universalTripScreen(trip){
 function tripForm(x={},afterSave=null){
   x=x||{};
   const d=state.data,edit=!!x.id;
-  const host=modal(edit?'Edit Trip':'New Trip',`<form class="form-grid" id="tripForm">
+  const linkedInvoice=d.invoices.find(inv=>(inv.items||[]).some(it=>String(it.trip_id||'')===String(x.id||'')))||null;
+  const partyMaster=d.parties.find(p=>p.party_name===x.party_name)||{};
+  const host=modal(edit?'Edit Universal Trip':'New Universal Trip',`<form class="form-grid" id="tripForm">
+    <div class="span2 universal-section-title"><b>TRIP DETAILS</b><small>એક જ entryમાંથી Trip, Invoice, Party અને Supplier બધે લાગુ પડશે</small></div>
     ${field('Trip Date','tripDate',x.trip_date||today(),'date','required')}
     ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||'','party','required')}
     ${masterSelectField('Truck Number','truckNo',d.trucks.map(t=>t.truck_no),x.truck_no||'','truck','required')}
@@ -543,32 +554,174 @@ function tripForm(x={},afterSave=null){
     ${masterSelectField('Material','material',d.materials.map(m=>m.material_name),x.material||'','material','required')}
     ${masterSelectField('Loading Point','loadingPoint',[...new Set(d.routes.map(r=>r.loading_point))],x.loading_point||'','route-loading','required')}
     ${masterSelectField('Unloading Point','unloadingPoint',[...new Set(d.routes.map(r=>r.unloading_point))],x.unloading_point||'','route-unloading','required')}
-    ${field('Weight','weight',x.weight||0,'number','step="0.01" required')}
-    ${field('Rate','rate',x.rate||0,'number','step="0.01" required')}
-    ${selectField('Status','status',['BOOKED','LOADED','IN_TRANSIT','DELIVERED'],x.status||'BOOKED')}
-    ${textarea('Notes','notes',x.notes||'','span2')}
-    <label class="field span2"><span>POD Image (optional)</span><input id="podFile" type="file" accept="image/*"></label>
-    <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">${edit?'Update':'Save'} Trip</button></div>
+    ${field('Loading Weight','loadingWeight',x.weight||0,'number','step="0.001" required')}
+    ${field('Unloading Weight','unloadingWeight',x.weight||0,'number','step="0.001" required')}
+    ${field('Party Billing Rate','rate',x.rate||0,'number','step="0.01" required')}
+    ${selectField('Trip Status','status',['BOOKED','LOADED','IN_TRANSIT','DELIVERED'],x.status||'BOOKED')}
+
+    <div class="span2 universal-section-title billing"><b>INVOICE & GST</b><small>Invoice number અને GST આ Trip સાથે જ save થશે</small></div>
+    <label class="field span2 universal-check">
+      <span>Create / Update Invoice With This Trip</span>
+      <input name="createInvoice" type="checkbox" ${linkedInvoice||!edit?'checked':''}>
+    </label>
+    ${field('Invoice Number','invoiceNo',linkedInvoice?.invoice_no||d.nextInvoiceNo,'text','required')}
+    ${field('Invoice Date','invoiceDate',linkedInvoice?.invoice_date||x.trip_date||today(),'date','required')}
+    ${field('Party GST Number','partyGst',linkedInvoice?.party_gst||partyMaster.gst_no||'')}
+    ${field('LR Number','lrNo',linkedInvoice?.lr_no||'')}
+    ${field('SGST %','sgst',linkedInvoice?.sgst??9,'number','step="0.01"')}
+    ${field('CGST %','cgst',linkedInvoice?.cgst??9,'number','step="0.01"')}
+    ${field('Diesel','diesel',linkedInvoice?.diesel||0,'number','step="0.01"')}
+    ${field('Munshi Charges','munshi',linkedInvoice?.munshi||0,'number','step="0.01"')}
+    ${textarea('Party Address','partyAddress',linkedInvoice?.party_address||partyMaster.address||'','span2')}
+    ${textarea('Invoice Comments','comments',linkedInvoice?.comments||'1. Payment due within 30 days.\\n2. Mention invoice number in payment reference.','span2')}
+
+    <div class="span2 universal-section-title supplier"><b>SUPPLIER / TRUCK MALIK</b><small>Supplier payable પણ આ Trip સાથે link થશે</small></div>
+    ${field('Supplier Rate','supplierRate',0,'number','step="0.01"')}
+    ${field('Commission','commission',0,'number','step="0.01"')}
+    ${field('Supplier Advance','supplierAdvance',0,'number','step="0.01"')}
+
+    ${textarea('Trip Notes','notes',x.notes||'','span2')}
+    <label class="field span2"><span>POD Images (multiple allowed)</span><input id="podFiles" type="file" accept="image/*" multiple></label>
+    <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">${edit?'Update':'Save'} Universal Trip</button></div>
   </form>`,{onMount:host=>{
     wireMasterSelects(host);
+    const partySelect=host.querySelector('[name=partyName]');
+    partySelect.addEventListener('change',()=>{
+      const p=d.parties.find(p=>p.party_name===norm(partySelect.value));
+      if(p){
+        host.querySelector('[name=partyGst]').value=p.gst_no||'';
+        host.querySelector('[name=partyAddress]').value=p.address||'';
+      }
+    });
     host.querySelector('[data-close-form]').onclick=()=>host.remove();
     host.querySelector('#tripForm').onsubmit=async e=>{
-      e.preventDefault();const body=formDataObject(e.target),file=host.querySelector('#podFile').files[0];
-      if(file){const compressed=await compressImage(file);body.podFileName=file.name;body.podData=compressed}
-      else{body.podFileName=x.pod_file_name||'';body.podData=x.pod_data||''}
+      e.preventDefault();
+      const btn=e.submitter;
+      const body=formDataObject(e.target);
+      const loading=Number(body.loadingWeight||0);
+      const unloading=Number(body.unloadingWeight||0);
+      body.weight=unloading||loading;
+      const files=[...host.querySelector('#podFiles').files];
+      if(files.length){
+        const compressed=[];
+        for(const file of files)compressed.push({name:file.name,data:await compressImage(file)});
+        body.podFileName=compressed.map(x=>x.name).join(', ');
+        body.podData=JSON.stringify(compressed);
+      }else{
+        body.podFileName=x.pod_file_name||'';
+        body.podData=x.pod_data||'';
+      }
+
       try{
-        setBusy(e.submitter,true);
-        const result=await api('/trips'+(edit?'/'+x.id:''),{method:edit?'PUT':'POST',body:JSON.stringify(body)});
+        setBusy(btn,true);
+        const tripResult=await api('/trips'+(edit?'/'+x.id:''),{
+          method:edit?'PUT':'POST',
+          body:JSON.stringify(body)
+        });
+        const tripId=tripResult.id||x.id;
+
+        // Universal invoice: use an existing invoice number to add this truck
+        // to that invoice; otherwise create a new invoice.
+        if(e.target.createInvoice.checked){
+          const freshBeforeInvoice=await api('/bootstrap');
+          const sameNumber=freshBeforeInvoice.invoices.find(inv=>String(inv.invoice_no)===String(body.invoiceNo));
+          const targetInvoice=linkedInvoice||sameNumber||null;
+          const existingItems=(targetInvoice?.items||[]).filter(it=>String(it.trip_id||'')!==String(tripId));
+          existingItems.push({
+            tripId,
+            truckNo:body.truckNo,
+            description:`${body.loadingPoint} TO ${body.unloadingPoint}`,
+            loadingWeight:loading,
+            unloadingWeight:unloading,
+            weight:unloading||loading,
+            rate:Number(body.rate||0)
+          });
+          const invoiceBody={
+            invoiceNo:body.invoiceNo,
+            invoiceDate:body.invoiceDate,
+            partyName:body.partyName,
+            partyAddress:body.partyAddress||'',
+            partyGst:body.partyGst||'',
+            lrNo:body.lrNo||'',
+            material:body.material,
+            loadingDate:body.tripDate,
+            sgst:Number(body.sgst||0),
+            cgst:Number(body.cgst||0),
+            diesel:Number(body.diesel||0),
+            munshi:Number(body.munshi||0),
+            comments:body.comments||'',
+            items:existingItems.map(it=>({
+              tripId:it.trip_id||it.tripId||'',
+              truckNo:it.truck_no||it.truckNo||'',
+              description:it.description||'',
+              loadingWeight:it.loading_weight??it.loadingWeight??it.weight,
+              unloadingWeight:it.unloading_weight??it.unloadingWeight??it.weight,
+              weight:it.weight,
+              rate:it.rate
+            }))
+          };
+          await api('/invoices'+(targetInvoice?'/'+targetInvoice.id:''),{
+            method:targetInvoice?'PUT':'POST',
+            body:JSON.stringify(invoiceBody)
+          });
+        }
+
+        // Universal supplier payable entry.
+        const supplierRate=Number(body.supplierRate||0);
+        if(supplierRate>0){
+          const freshSupplier=await api('/bootstrap');
+          const truck=freshSupplier.trucks.find(t=>t.truck_no===norm(body.truckNo))||{};
+          const existingEntry=freshSupplier.truckEntries.find(te=>String(te.trip_id||'')===String(tripId));
+          const entryBody={
+            tripId,
+            entryDate:body.tripDate,
+            truckNo:body.truckNo,
+            ownerName:truck.owner_name||body.driverName||'',
+            bankDetails:truck.bank_details||'',
+            loadingPoint:body.loadingPoint,
+            unloadingPoint:body.unloadingPoint,
+            weight:unloading||loading,
+            rate:supplierRate,
+            commission:Number(body.commission||0),
+            notes:`Universal Trip ${tripId}`
+          };
+          await api('/truck-entries'+(existingEntry?'/'+existingEntry.id:''),{
+            method:existingEntry?'PUT':'POST',
+            body:JSON.stringify(entryBody)
+          });
+
+          const advance=Number(body.supplierAdvance||0);
+          if(advance>0 && !edit){
+            await api('/supplier-payments',{
+              method:'POST',
+              body:JSON.stringify({
+                tripId,
+                ownerName:entryBody.ownerName,
+                truckNo:body.truckNo,
+                paymentDate:body.tripDate,
+                amount:advance,
+                paymentMode:'BANK',
+                reference:'TRIP ADVANCE',
+                notes:`Advance for ${tripId}`
+              })
+            });
+          }
+        }
+
         const fresh=await api('/bootstrap');
         state.data=fresh;writeCache(fresh);
         host.remove();
-        if(typeof afterSave==='function')afterSave(result.id||x.id,fresh);
-        else render();
-      }catch(err){alert(err.message)}
-      finally{setBusy(e.submitter,false)}
+        if(typeof afterSave==='function')afterSave(tripId,fresh);
+        else universalTripScreen(fresh.trips.find(t=>String(t.id)===String(tripId)));
+      }catch(err){
+        alert(err.message);
+      }finally{
+        setBusy(btn,false);
+      }
     };
   }});
 }
+
 function invoiceForm(x={},tripContext=null){
   x=x||{};
   const d=state.data,edit=!!x.id,items=(x.items&&x.items.length?x.items:[{trip_id:'',truck_no:'',description:'',loading_weight:0,unloading_weight:0,shortage:0,weight:0,rate:0}]);
@@ -576,7 +729,7 @@ function invoiceForm(x={},tripContext=null){
     ${field('Invoice Number','invoiceNo',x.invoice_no||d.nextInvoiceNo,'text','required')}
     ${field('Invoice Date','invoiceDate',x.invoice_date||today(),'date','required')}
     ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||'','party','required')}
-    ${field('Party GST','partyGst',x.party_gst||'')}
+    ${field('Party GST','partyGst',x.party_gst||state.data.parties.find(p=>p.party_name===(tripContext?.party_name||x.party_name))?.gst_no||'')}
     ${textarea('Party Address','partyAddress',x.party_address||'','span2')}
     ${field('LR Number','lrNo',x.lr_no||'')}
     ${masterSelectField('Material','material',d.materials.map(m=>m.material_name),x.material||'','material')}
