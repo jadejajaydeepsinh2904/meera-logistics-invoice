@@ -288,7 +288,7 @@ function dashboardPanel(d){
 function tripsPanel(d){
   const rows=filterRows(d.trips,['trip_date','party_name','truck_no','material','loading_point','unloading_point','status']);
   return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Transport Khata</h2><small>Trip booking, status and POD</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search trips…"><button class="btn primary" data-action="new-trip">New Trip</button></div></div>${table(['Date','Trip ID','Party','Truck / Driver','Route','Material','Weight × Rate','Status','POD','Action'],rows.map(t=>[
-    esc(t.trip_date),`<button class="link-btn" data-action="view-trip" data-id="${esc(t.id)}"><b>${esc(t.id)}</b></button>`,esc(t.party_name),`<b>${esc(t.truck_no)}</b><br><small>${esc(t.driver_name||'')}</small>`,`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,esc(t.material),`${esc(t.weight)} × ${money(t.rate)}`,statusBadge(t.status),t.pod_file_name?`<span class="badge info">${esc(t.pod_file_name)}</span>`:'-',`<div class="action-set"><button class="mini green" data-action="view-trip" data-id="${esc(t.id)}">View</button><button class="mini" data-action="edit-trip" data-id="${esc(t.id)}">Edit</button><button class="mini danger" data-action="delete-trip" data-id="${esc(t.id)}">Delete</button></div>`
+    esc(t.trip_date),`<button class="link-btn" data-action="view-trip" data-id="${esc(t.id)}"><b>${esc(t.id)}</b></button>`,esc(t.party_name),`<b>${esc(t.truck_no)}</b><br><small>${esc(t.driver_name||'')}</small>`,`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,esc(t.material),`${esc(t.weight)} × ${money(t.rate)}`,statusBadge(t.status),t.pod_file_name?`<span class="badge info">${esc(t.pod_file_name)}</span>`:'-',`<div class="action-set"><button class="mini green" data-action="view-trip" data-id="${esc(t.id)}">Open Trip</button><button class="mini" data-action="edit-trip" data-id="${esc(t.id)}">Edit</button><button class="mini danger" data-action="delete-trip" data-id="${esc(t.id)}">Delete</button></div>`
   ]),'1250px')}</div></section>`;
 }
 function invoicesPanel(d){
@@ -348,7 +348,7 @@ function reportsPanel(d){
 
 function handleAction(action,id){
   if(action==='new-trip'||action==='edit-trip')return tripForm(action==='edit-trip'?(find('trip',id)||{}):{});
-  if(action==='view-trip')return viewTripDetails(find('trip',id));
+  if(action==='view-trip')return universalTripScreen(find('trip',id));
   if(action==='trip-create-invoice'){const t=find('trip',id);return invoiceForm({},t||{});}
   if(action==='trip-party-payment'){const t=find('trip',id);return partyPaymentForm({},t||{});}
   if(action==='trip-supplier-payment'){
@@ -390,6 +390,7 @@ function handleAction(action,id){
 async function remove(path,message){if(!confirm(message))return;try{await api(path,{method:'DELETE'});await loadData()}catch(e){alert(e.message)}}
 
 
+
 function tripFinancials(trip){
   const d=state.data;
   const invoiceItems=[];
@@ -398,7 +399,9 @@ function tripFinancials(trip){
       if(String(item.trip_id||'')===String(trip.id))invoiceItems.push({...item,invoice});
     }
   }
-  const revenue=invoiceItems.reduce((a,x)=>a+Number(x.amount||0),0);
+  const invoice=invoiceItems[0]?.invoice||null;
+  const revenue=invoice?Number(invoice.total||0):invoiceItems.reduce((a,x)=>a+Number(x.amount||0),0);
+
   const partyPayments=d.partyPayments.filter(p=>String(p.trip_id||'')===String(trip.id));
   const partyPaid=partyPayments.reduce((a,x)=>a+Number(x.amount||0),0);
 
@@ -408,93 +411,124 @@ function tripFinancials(trip){
   );
   const supplierPayable=supplierEntries.reduce((a,x)=>a+Number(x.payable||0),0);
   const ownerNames=[...new Set(supplierEntries.map(x=>x.owner_name).filter(Boolean))];
+
   const supplierPays=d.supplierPayments.filter(p=>String(p.trip_id||'')===String(trip.id));
   const supplierPaid=supplierPays.reduce((a,x)=>a+Number(x.amount||0),0);
+
   const expenses=d.expenses.filter(e=>String(e.trip_id||'')===String(trip.id));
   const expenseTotal=expenses.reduce((a,x)=>a+Number(x.amount||0),0);
-  const profit=revenue-supplierPayable-expenseTotal;
-  return {invoiceItems,revenue,partyPaid,supplierEntries,supplierPayable,ownerNames,supplierPays,supplierPaid,expenses,expenseTotal,profit};
+
+  return {
+    invoiceItems,invoice,revenue,partyPayments,partyPaid,
+    supplierEntries,supplierPayable,ownerNames,supplierPays,supplierPaid,
+    expenses,expenseTotal,profit:revenue-supplierPayable-expenseTotal
+  };
 }
-function tripStatusSteps(status){
+function tripProgress(status){
   const order=['BOOKED','LOADED','IN_TRANSIT','DELIVERED','SETTLED'];
-  const active=Math.max(0,order.indexOf(status));
-  const labels=['Started','Loaded','In Transit','Delivered','Settled'];
-  return `<div class="trip-progress">${labels.map((x,i)=>`<div class="trip-step ${i<=active?'done':''}"><span>${i<=active?'✓':''}</span><small>${x}</small></div>`).join('')}</div>`;
+  const current=Math.max(0,order.indexOf(status));
+  const labels=['Started','Loaded','Transit','Delivered','Settled'];
+  return `<div class="ut-progress">${labels.map((label,i)=>`
+    <div class="${i<=current?'done':''}">
+      <span>${i<=current?'✓':''}</span><small>${label}</small>
+    </div>`).join('')}</div>`;
 }
-function tripDetailParty(trip,f){
-  const invoice=f.invoiceItems[0]?.invoice;
-  const billed=invoice?Number(invoice.total||0):f.revenue;
-  const balance=billed-f.partyPaid;
-  return `<div class="trip-detail-card">
-    <div class="trip-detail-party-head"><div><b>${esc(trip.party_name)}</b><div class="trip-route-large"><span>${esc(trip.loading_point)}</span><i>→</i><span>${esc(trip.unloading_point)}</span></div><small>${esc(trip.trip_date)} · ${esc(trip.id)}</small></div><strong>${money(billed)}</strong></div>
-    ${tripStatusSteps(trip.status)}
-    <div class="trip-detail-actions">
-      <button class="btn green" data-action="edit-trip" data-id="${esc(trip.id)}">Complete / Edit Trip</button>
-      ${invoice?`<button class="btn primary" data-action="view-invoice" data-id="${esc(invoice.id)}">View Bill</button>`:`<button class="btn primary" data-action="trip-create-invoice" data-id="${esc(trip.id)}">Create Bill</button>`}
-    </div>
-    <div class="trip-money-list">
-      <div><span>Freight Amount</span><b>${money(billed)}</b></div>
-      <div><span>(-) Payments</span><b>${money(f.partyPaid)}</b></div>
-      <div class="trip-link-row"><button data-action="trip-party-payment" data-id="${esc(trip.id)}">Add Payment</button></div>
-      <div class="trip-balance"><span>Pending Balance</span><b>${money(balance)}</b></div>
-    </div>
-  </div>`;
-}
-function tripDetailProfit(trip,f){
-  return `<div class="trip-detail-card">
-    <div class="profit-block"><div class="trip-money-list">
-      <div><span>(+) Revenue</span><b>${money(f.revenue)}</b></div>
-      <div class="sub-box"><span>${esc(trip.party_name)}</span><b>${money(f.revenue)}</b></div>
-      <div><span>(-) Expenses</span><b>${money(f.supplierPayable+f.expenseTotal)}</b></div>
-      <div class="sub-box"><span>Truck Hire Cost</span><b>${money(f.supplierPayable)}</b></div>
-      ${f.expenseTotal?`<div class="sub-box"><span>Other Expenses</span><b>${money(f.expenseTotal)}</b></div>`:''}
-      <div class="trip-link-row"><button data-action="trip-expense" data-id="${esc(trip.id)}">Add Expense</button></div>
-      <div class="trip-balance profit"><span>Profit</span><b>${money(f.profit)}</b></div>
-    </div></div>
-  </div>`;
-}
-function tripDetailSupplier(trip,f){
-  const owner=f.ownerNames[0]||state.data.trucks.find(t=>t.truck_no===trip.truck_no)?.owner_name||trip.driver_name||'SUPPLIER';
-  const pending=f.supplierPayable-f.supplierPaid;
-  return `<div class="trip-detail-card">
-    <h3>${esc(owner)}</h3>
-    <div class="trip-money-list">
-      <div><span>Truck Hire Cost</span><b>${money(f.supplierPayable)}</b></div>
-      <div><span>(-) Supplier Payments</span><b>${money(f.supplierPaid)}</b></div>
-      <div class="trip-link-row"><button data-action="trip-supplier-payment" data-id="${esc(trip.id)}">Add Supplier Payment</button></div>
-      <div class="trip-balance"><span>Balance Pending</span><b>${money(pending)}</b></div>
-    </div>
-    <div class="trip-detail-actions single"><button class="btn primary" data-action="trip-supplier-payment" data-id="${esc(trip.id)}">₹ Pay Supplier</button></div>
-  </div>`;
-}
-function tripDetailMore(trip){
-  return `<div class="trip-more-list">
-    <button data-action="new-document" data-id="${encodeURIComponent(trip.truck_no)}"><span>🧾</span><div><b>Online Bilty / LR</b><small>Add or view truck document</small></div><i>›</i></button>
-    <button data-action="edit-trip" data-id="${esc(trip.id)}"><span>📝</span><div><b>POD Challan</b><small>${trip.pod_file_name?esc(trip.pod_file_name):'Add POD image'}</small></div><i>›</i></button>
-  </div>`;
-}
-function viewTripDetails(trip){
+function universalTripScreen(trip){
   if(!trip)return;
   const f=tripFinancials(trip);
-  const host=modal(`Trip Details · ${trip.id}`,`<div class="trip-detail-shell">
-    <div class="trip-hero"><div><b>🚚 ${esc(trip.truck_no)}</b><span>${esc(trip.material||'MARKET')}</span></div><strong>👤 ${esc(trip.driver_name||f.ownerNames[0]||'')}</strong></div>
-    <div class="trip-tabs">
-      <button class="active" data-trip-tab="party">Party</button>
-      <button data-trip-tab="profit">Profit</button>
-      <button data-trip-tab="supplier">Supplier</button>
-      <button data-trip-tab="more">More</button>
-    </div>
-    <div class="trip-tab-pane active" data-trip-pane="party">${tripDetailParty(trip,f)}</div>
-    <div class="trip-tab-pane" data-trip-pane="profit">${tripDetailProfit(trip,f)}</div>
-    <div class="trip-tab-pane" data-trip-pane="supplier">${tripDetailSupplier(trip,f)}</div>
-    <div class="trip-tab-pane" data-trip-pane="more">${tripDetailMore(trip)}</div>
-  </div>`,{onMount:host=>{
-    host.querySelectorAll('[data-trip-tab]').forEach(btn=>btn.onclick=()=>{
-      host.querySelectorAll('[data-trip-tab]').forEach(x=>x.classList.toggle('active',x===btn));
-      host.querySelectorAll('[data-trip-pane]').forEach(x=>x.classList.toggle('active',x.dataset.tripPane===btn.dataset.tripTab));
-    });
-    host.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>{host.remove();handleAction(b.dataset.action,b.dataset.id)});
-  }});
+  const owner=f.ownerNames[0]||state.data.trucks.find(t=>t.truck_no===trip.truck_no)?.owner_name||trip.driver_name||'SUPPLIER';
+  const partyPending=f.revenue-f.partyPaid;
+  const supplierPending=f.supplierPayable-f.supplierPaid;
+
+  const host=modal(`Trip Details · ${trip.id}`,`
+    <div class="ut-shell">
+      <div class="ut-top">
+        <div class="ut-truck"><b>🚚 ${esc(trip.truck_no)}</b><span>${esc(trip.material||'MARKET')}</span></div>
+        <div class="ut-owner">👤 ${esc(owner)}</div>
+      </div>
+
+      <div class="ut-route-card">
+        <div>
+          <small>PARTY</small>
+          <h2>${esc(trip.party_name)}</h2>
+          <div class="ut-route"><b>${esc(trip.loading_point)}</b><span>→</span><b>${esc(trip.unloading_point)}</b></div>
+          <p>${esc(trip.trip_date)} · ${esc(trip.id)}</p>
+        </div>
+        <strong>${money(f.revenue)}</strong>
+      </div>
+
+      ${tripProgress(trip.status)}
+
+      <div class="ut-tabs">
+        <button class="active" data-ut-tab="party">Party</button>
+        <button data-ut-tab="profit">Profit</button>
+        <button data-ut-tab="supplier">Supplier</button>
+        <button data-ut-tab="more">More</button>
+      </div>
+
+      <section class="ut-pane active" data-ut-pane="party">
+        <div class="ut-card">
+          <div class="ut-actions">
+            <button class="btn green" data-action="edit-trip" data-id="${esc(trip.id)}">Complete / Edit Trip</button>
+            ${f.invoice
+              ? `<button class="btn primary" data-action="view-invoice" data-id="${esc(f.invoice.id)}">View Bill</button>`
+              : `<button class="btn primary" data-action="trip-create-invoice" data-id="${esc(trip.id)}">Create Bill</button>`}
+          </div>
+          <div class="ut-money">
+            <div><span>Freight Amount</span><b>${money(f.revenue)}</b></div>
+            <div><span>(-) Party Payments</span><b>${money(f.partyPaid)}</b></div>
+            <button class="ut-link" data-action="trip-party-payment" data-id="${esc(trip.id)}">+ Add Party Payment</button>
+            <div class="ut-balance"><span>Pending Balance</span><b>${money(partyPending)}</b></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="ut-pane" data-ut-pane="profit">
+        <div class="ut-card">
+          <div class="ut-money">
+            <div><span>(+) Revenue</span><b>${money(f.revenue)}</b></div>
+            <div class="ut-sub"><span>${esc(trip.party_name)}</span><b>${money(f.revenue)}</b></div>
+            <div><span>(-) Truck Hire Cost</span><b>${money(f.supplierPayable)}</b></div>
+            <div><span>(-) Other Expenses</span><b>${money(f.expenseTotal)}</b></div>
+            <button class="ut-link" data-action="trip-expense" data-id="${esc(trip.id)}">+ Add Expense</button>
+            <div class="ut-balance profit"><span>Profit</span><b>${money(f.profit)}</b></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="ut-pane" data-ut-pane="supplier">
+        <div class="ut-card">
+          <h3>${esc(owner)}</h3>
+          <div class="ut-money">
+            <div><span>Truck Hire Cost</span><b>${money(f.supplierPayable)}</b></div>
+            <div><span>(-) Supplier Payments</span><b>${money(f.supplierPaid)}</b></div>
+            <button class="ut-link" data-action="trip-supplier-payment" data-id="${esc(trip.id)}">+ Add Supplier Payment</button>
+            <div class="ut-balance"><span>Balance Pending</span><b>${money(supplierPending)}</b></div>
+          </div>
+          <div class="ut-actions one"><button class="btn primary" data-action="trip-supplier-payment" data-id="${esc(trip.id)}">₹ Pay Supplier</button></div>
+        </div>
+      </section>
+
+      <section class="ut-pane" data-ut-pane="more">
+        <div class="ut-list">
+          <button data-action="new-document" data-id="${encodeURIComponent(trip.truck_no)}">
+            <span>🧾</span><div><b>Online Bilty / LR</b><small>Add or view documents</small></div><i>›</i>
+          </button>
+          <button data-action="edit-trip" data-id="${esc(trip.id)}">
+            <span>📝</span><div><b>POD Challan</b><small>${trip.pod_file_name?esc(trip.pod_file_name):'Add POD image'}</small></div><i>›</i>
+          </button>
+        </div>
+      </section>
+    </div>`,{onMount:host=>{
+      host.querySelectorAll('[data-ut-tab]').forEach(btn=>btn.onclick=()=>{
+        host.querySelectorAll('[data-ut-tab]').forEach(x=>x.classList.toggle('active',x===btn));
+        host.querySelectorAll('[data-ut-pane]').forEach(x=>x.classList.toggle('active',x.dataset.utPane===btn.dataset.utTab));
+      });
+      host.querySelectorAll('[data-action]').forEach(btn=>btn.onclick=()=>{
+        host.remove();
+        handleAction(btn.dataset.action,btn.dataset.id);
+      });
+    }});
 }
 
 function tripForm(x={},afterSave=null){

@@ -171,3 +171,13 @@ V12 UNIVERSAL TRIP
 - Profit, party pending and supplier pending are calculated only from that Trip.
 - One Trip now connects Party, Invoice, Supplier, Payments, Expenses, Profit, POD and Bilty.
 - Changes automatically apply in Party Khata, Supplier Khata, Invoice Desk and Reports.
+
+
+V13 VISIBLE TRIP SCREEN
+- Open Trip now shows the full Trip Details screen immediately.
+- Party tab: Create/View Bill, party payment and pending balance.
+- Profit tab: revenue, truck hire cost, expenses and profit.
+- Supplier tab: supplier payment and pending payable.
+- More tab: Bilty/LR and POD actions.
+- UI matches the four TransportBook reference screenshots.
+- Frontend cache updated to v13 so the new screen must load.

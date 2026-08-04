@@ -1,16 +1,16 @@
 {
-  "version": "V12-UNIVERSAL-TRIP",
+  "version": "V13-VISIBLE-TRIP-SCREEN",
   "total_files": 23,
   "files": [
     {
       "path": "README.md",
-      "size": 5642,
-      "sha256": "e2b6700c4ddb7701065b5410c4c6757db7646c42b3af16a21220b2727c3d7d73"
+      "size": 6071,
+      "sha256": "66543151679eacdd4ac5399eccf3fa099b93a0ffecaf76a3e58bda965537d10d"
     },
     {
       "path": "START-HERE.txt",
-      "size": 4426,
-      "sha256": "331e35d436773eb4a258f907b40e63e3d0975cbf6963d4c20feea35d61a208b9"
+      "size": 4855,
+      "sha256": "17b6dcfcd68eaad04f79158e9b862d75eb0808fac29521b858e396cebd91aa84"
     },
     {
       "path": "public/assets/meera-logo.png",
@@ -65,7 +65,7 @@
     {
       "path": "public/index.html",
       "size": 523,
-      "sha256": "51260005bb95dd5229fa1d804ea9198ab5c1dee2d6fe2dfd7f4df7db62e8f012"
+      "sha256": "70392bbed81f1eb5a429eb7dfa20ca52911da6e219db24cccead0860af2461a6"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -74,8 +74,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 72067,
-      "sha256": "99fae4af09627d3244a765827cbfa393a96d99e9b588dfdd38ef03b7f03cb70a"
+      "size": 72020,
+      "sha256": "4705f470f3803ddd3368c6bfa09f6727a7c5b19547a0898ef03a79b999c2913b"
     },
     {
       "path": "public/src/core/api.js",
@@ -84,8 +84,8 @@
     },
     {
       "path": "public/src/styles.css",
-      "size": 22188,
-      "sha256": "361c62f916a32f7f49fccdcb114789f5a67d75e1524f37a45b26936cb4fe40de"
+      "size": 25524,
+      "sha256": "23f96e65efa689713f93c5132477d3463e85edd435383d7f6651a586d759b70b"
     },
     {
       "path": "vercel.json",
