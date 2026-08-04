@@ -38,3 +38,20 @@ V3 VERCEL FIX
 - Added `outputDirectory: public` directly in vercel.json.
 - Vercel Root Directory must remain blank / repository root.
 - No D1 or login changes are required.
+
+
+V4 INVOICE UPDATE
+- Reference-style invoice layout added.
+- Edit, View and Download PDF added.
+- Multiple trucks in one invoice supported.
+- Existing D1 data and login remain preserved.
+
+
+V5 DROPDOWN UPDATE
+- Party dropdown with + Add New Party
+- Truck dropdown with + Add New Truck
+- Loading Point dropdown with + Add New Route
+- Unloading Point dropdown with + Add New Route
+- Material dropdown with + Add New Material
+- Same dropdown behavior in Trip, Invoice, Party Payment, Truck Entry, Supplier Payment and Documents.
+- Invoice truck lines also include Truck dropdown and + Add New Truck.

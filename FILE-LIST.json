@@ -1,16 +1,21 @@
 {
-  "version": "V3-VERCEL-D1-FIX",
-  "total_files": 22,
+  "version": "V5-DROPDOWNS-ADD-NEW",
+  "total_files": 23,
   "files": [
     {
       "path": "README.md",
-      "size": 1851,
-      "sha256": "b7744de58cb029a9c149ddf5c7c469e1f2568cd989ac722db7b45784184176dc"
+      "size": 2840,
+      "sha256": "89caa72e55faa7c1d5183e5922feaea6bac779fb5efaa864589c28b8ad79aa95"
     },
     {
       "path": "START-HERE.txt",
-      "size": 1027,
-      "sha256": "6da12a04a723f00945b7bcd1c2391326a4952e0b2df6fd32411b328ef0248258"
+      "size": 1624,
+      "sha256": "2ed960d39b9b8449a2b49657b23ddba1f007fcf826d069c57d63771431afa840"
+    },
+    {
+      "path": "public/assets/meera-logo.png",
+      "size": 409508,
+      "sha256": "3b0d2414c0a4b63876149d6c98d471f97d5362f0cd35979baf386ae492c61238"
     },
     {
       "path": "public/data/invoices.json",
@@ -69,8 +74,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 47713,
-      "sha256": "0ddb82a224a1423904973e437b9d424d17197e45f552942cbaab5531c8eef640"
+      "size": 61173,
+      "sha256": "356b2c215653536e843fb387bee9ce5ed9b0bd3ab1c7a996e6772aeb3f71b5ee"
     },
     {
       "path": "public/src/core/api.js",
@@ -79,8 +84,8 @@
     },
     {
       "path": "public/src/styles.css",
-      "size": 10605,
-      "sha256": "6f1ded6c9c4f6c95e3feec0fccd9a33f3666b7bc5a2abcedd29b90e5e4264eb2"
+      "size": 15419,
+      "sha256": "5c2075556c0fa97a2629a61ed2ad04592db30c586001f2855a79d7493ee1debd"
     },
     {
       "path": "vercel.json",
@@ -99,13 +104,13 @@
     },
     {
       "path": "worker/src/index.js",
-      "size": 47715,
-      "sha256": "810c1719bcc6d1fee09ec604c34a1ce8be0898fc6bb13afa73440a6fc3937e68"
+      "size": 48990,
+      "sha256": "ed8d5abc9ac407f0ea37bff5fcfbeffd5b00731f3f6f57ce87b021e914a2c642"
     },
     {
       "path": "worker/src/seed-data.js",
-      "size": 37486,
-      "sha256": "6fb9248c968ddd4bbeb0b3cecfb24e3a28ab0fa69bb4f4d14ff98afefc8ffb35"
+      "size": 39000,
+      "sha256": "264ff42648723f20640ec353d404be9f4a45ec33669e3943b4d8a96d473df74e"
     },
     {
       "path": "worker/wrangler.toml",

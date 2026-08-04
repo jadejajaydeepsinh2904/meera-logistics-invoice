@@ -85,3 +85,24 @@ Existing users and business data are preserved.
 
 The rejected `public` property has been removed. Keep the Vercel Root Directory
 at the repository root. The output directory is configured as `public`.
+
+
+## V4 invoice reference update
+- Invoice layout now matches the supplied ML-123 reference: logo, company details, Bill To block, right-side weights, blue truck table, comments, GST totals, stamp and signatures.
+- Invoice list includes Edit, View and Download PDF actions.
+- One invoice supports multiple trucks with Add Another Truck.
+- Each truck line stores loading weight, unloading weight, shortage, billable weight, rate and total.
+
+
+## Visual verification
+The invoice template was rendered as A4 landscape with two trucks and verified to fit on one page without clipping.
+
+
+V5 DROPDOWN UPDATE
+- Party dropdown with + Add New Party
+- Truck dropdown with + Add New Truck
+- Loading Point dropdown with + Add New Route
+- Unloading Point dropdown with + Add New Route
+- Material dropdown with + Add New Material
+- Same dropdown behavior in Trip, Invoice, Party Payment, Truck Entry, Supplier Payment and Documents.
+- Invoice truck lines also include Truck dropdown and + Add New Truck.

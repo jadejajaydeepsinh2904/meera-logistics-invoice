@@ -768,7 +768,10 @@ export const SEED_DATA = {
       "description": "ANJAR TO SIKKA",
       "weight": 36.8,
       "rate": 800.0,
-      "amount": 29440.0
+      "amount": 29440.0,
+      "loading_weight": 36.8,
+      "unloading_weight": 36.8,
+      "shortage": 0
     },
     {
       "id": "18517636-0428-436f-bf1d-1823206ebbaf",
@@ -778,7 +781,10 @@ export const SEED_DATA = {
       "description": "ANJAR TO SIKKA",
       "weight": 32.96,
       "rate": 800.0,
-      "amount": 26368.0
+      "amount": 26368.0,
+      "loading_weight": 32.96,
+      "unloading_weight": 32.96,
+      "shortage": 0
     },
     {
       "id": "e6b8234c-f487-49d4-b243-25678ece9b65",
@@ -788,7 +794,10 @@ export const SEED_DATA = {
       "description": "DAHEJ TO PIPAVAV",
       "weight": 41.0,
       "rate": 900.0,
-      "amount": 36900.0
+      "amount": 36900.0,
+      "loading_weight": 41.0,
+      "unloading_weight": 41.0,
+      "shortage": 0
     },
     {
       "id": "trip-1",
@@ -798,7 +807,10 @@ export const SEED_DATA = {
       "description": "DAHEJ TO SANAND",
       "weight": 42.8,
       "rate": 600.0,
-      "amount": 25680.0
+      "amount": 25680.0,
+      "loading_weight": 42.8,
+      "unloading_weight": 42.8,
+      "shortage": 0
     },
     {
       "id": "502b420c-b1d8-4d28-a3e0-302d949eff7d",
@@ -808,7 +820,10 @@ export const SEED_DATA = {
       "description": "DHANETI TO JAMNAGAR",
       "weight": 33.65,
       "rate": 650.0,
-      "amount": 21872.5
+      "amount": 21872.5,
+      "loading_weight": 33.65,
+      "unloading_weight": 33.65,
+      "shortage": 0
     },
     {
       "id": "59ff9aec-67ed-461f-8c15-e1904c7dc000",
@@ -818,7 +833,10 @@ export const SEED_DATA = {
       "description": "WELSPUN TO DCC",
       "weight": 41.51,
       "rate": 800.0,
-      "amount": 33208.0
+      "amount": 33208.0,
+      "loading_weight": 41.51,
+      "unloading_weight": 41.51,
+      "shortage": 0
     },
     {
       "id": "trip-1",
@@ -828,7 +846,10 @@ export const SEED_DATA = {
       "description": "WELSPUN TO DCC",
       "weight": 42.89,
       "rate": 800.0,
-      "amount": 34312.0
+      "amount": 34312.0,
+      "loading_weight": 42.89,
+      "unloading_weight": 42.89,
+      "shortage": 0
     },
     {
       "id": "trip-1",
@@ -838,7 +859,10 @@ export const SEED_DATA = {
       "description": "RELINCE TO JHAGADIA",
       "weight": 38.14,
       "rate": 1400.0,
-      "amount": 53396.0
+      "amount": 53396.0,
+      "loading_weight": 38.14,
+      "unloading_weight": 38.14,
+      "shortage": 0
     },
     {
       "id": "adf79485-a340-43f0-a652-84cfd7ea87b6",
@@ -848,7 +872,10 @@ export const SEED_DATA = {
       "description": "DHANETI TO LALPAR",
       "weight": 49.2,
       "rate": 550.0,
-      "amount": 27060.0
+      "amount": 27060.0,
+      "loading_weight": 49.2,
+      "unloading_weight": 49.2,
+      "shortage": 0
     },
     {
       "id": "73d7fbdc-7306-4048-a9f7-2fd2381ec234",
@@ -858,7 +885,10 @@ export const SEED_DATA = {
       "description": "DHANETI TO LALPAR",
       "weight": 50.6,
       "rate": 550.0,
-      "amount": 27830.0
+      "amount": 27830.0,
+      "loading_weight": 50.6,
+      "unloading_weight": 50.6,
+      "shortage": 0
     },
     {
       "id": "1d99b612-8e2f-419a-a4cc-650acdfabe4b",
@@ -868,7 +898,10 @@ export const SEED_DATA = {
       "description": "RELINCE TO JHAGADIA",
       "weight": 39.57,
       "rate": 1400.0,
-      "amount": 55398.0
+      "amount": 55398.0,
+      "loading_weight": 39.57,
+      "unloading_weight": 39.57,
+      "shortage": 0
     },
     {
       "id": "d4922580-32f1-482e-ad65-5672a464a7fd",
@@ -878,7 +911,10 @@ export const SEED_DATA = {
       "description": "RELINCE TO JHAGADIA",
       "weight": 38.18,
       "rate": 1400.0,
-      "amount": 53452.0
+      "amount": 53452.0,
+      "loading_weight": 38.18,
+      "unloading_weight": 38.18,
+      "shortage": 0
     },
     {
       "id": "48a1eb26-0729-4cd5-976e-0f44328664ac",
@@ -888,7 +924,10 @@ export const SEED_DATA = {
       "description": "RELINCE TO JHAGADIA",
       "weight": 38.5,
       "rate": 1400.0,
-      "amount": 53900.0
+      "amount": 53900.0,
+      "loading_weight": 38.5,
+      "unloading_weight": 38.5,
+      "shortage": 0
     },
     {
       "id": "trip-1",
@@ -898,7 +937,10 @@ export const SEED_DATA = {
       "description": "WELSPU ANJAR TO DCC SIKKA",
       "weight": 36.36,
       "rate": 800.0,
-      "amount": 29088.0
+      "amount": 29088.0,
+      "loading_weight": 36.36,
+      "unloading_weight": 36.36,
+      "shortage": 0
     },
     {
       "id": "c588c70c-1119-46e3-9dee-282f542c3f2a",
@@ -908,7 +950,10 @@ export const SEED_DATA = {
       "description": "DAHEJ TO KANDLA",
       "weight": 35.84,
       "rate": 900.0,
-      "amount": 32256.0
+      "amount": 32256.0,
+      "loading_weight": 35.84,
+      "unloading_weight": 35.84,
+      "shortage": 0
     },
     {
       "id": "c20040b9-821a-4692-bfc6-2f5e3a478886",
@@ -918,7 +963,10 @@ export const SEED_DATA = {
       "description": "DAHEJ TO PIPAVAV",
       "weight": 35.0,
       "rate": 900.0,
-      "amount": 31500.0
+      "amount": 31500.0,
+      "loading_weight": 35.0,
+      "unloading_weight": 35.0,
+      "shortage": 0
     },
     {
       "id": "77ca4ab3-8d55-44a5-9ab7-399b68924082",
@@ -928,7 +976,10 @@ export const SEED_DATA = {
       "description": "DAHEJ TO PIPAVAV",
       "weight": 35.5,
       "rate": 900.0,
-      "amount": 31950.0
+      "amount": 31950.0,
+      "loading_weight": 35.5,
+      "unloading_weight": 35.5,
+      "shortage": 0
     },
     {
       "id": "2eb99f4d-e27c-4b34-9bbe-1131922dc712",
@@ -938,7 +989,10 @@ export const SEED_DATA = {
       "description": "DAHEJ TO KANDLA",
       "weight": 45.65,
       "rate": 900.0,
-      "amount": 41085.0
+      "amount": 41085.0,
+      "loading_weight": 45.65,
+      "unloading_weight": 45.65,
+      "shortage": 0
     }
   ],
   "truck_entries": [

@@ -6,6 +6,8 @@ let state={panel:'dashboard',data:null,search:'',loading:false};
 const money=n=>'₹'+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const today=()=>new Date().toISOString().slice(0,10);
+const invoiceDate=s=>{if(!s)return '';const p=String(s).split('-');return p.length===3?`${p[2]}-${p[1]}-${p[0]}`:s};
+const number3=n=>Number(n||0).toFixed(3);
 const norm=s=>String(s||'').trim().toUpperCase();
 const download=(name,text,type='application/json')=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)};
 const statusBadge=s=>`<span class="badge ${String(s||'').toLowerCase().replaceAll('_','')}">${esc(s||'-')}</span>`;
@@ -26,6 +28,119 @@ function textarea(label,name,value='',cls=''){
 }
 function datalistField(label,name,value,listId,items,opts=''){
   return `<label class="field"><span>${label}</span><input name="${name}" value="${esc(value)}" list="${listId}" ${opts}><datalist id="${listId}">${items.map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist></label>`;
+}
+
+function masterSelectField(label,name,items,value='',masterType='',opts='',cls=''){
+  const cleanItems=[...new Set(items.filter(Boolean))];
+  return `<label class="field ${cls}"><span>${label}</span><select name="${name}" data-master-type="${masterType}" ${opts}>
+    <option value="">Select ${esc(label)}</option>
+    ${selectOptions(cleanItems,value)}
+    <option value="__ADD_NEW__">＋ Add New ${esc(label)}</option>
+  </select></label>`;
+}
+function addOptionAndSelect(select,value){
+  const cleanValue=norm(value);
+  if(!cleanValue)return;
+  let option=[...select.options].find(o=>norm(o.value)===cleanValue);
+  if(!option){
+    option=document.createElement('option');
+    option.value=cleanValue;option.textContent=cleanValue;
+    select.insertBefore(option,select.querySelector('option[value="__ADD_NEW__"]'));
+  }
+  select.value=cleanValue;
+  select.dispatchEvent(new Event('change',{bubbles:true}));
+}
+function wireMasterSelects(host){
+  host.querySelectorAll('select[data-master-type]').forEach(select=>{
+    select.addEventListener('change',async()=>{
+      if(select.value!=='__ADD_NEW__')return;
+      const type=select.dataset.masterType;
+      select.value='';
+      await quickAddMaster(type,select,host);
+    });
+  });
+}
+async function quickAddMaster(type,target,parentHost){
+  const d=state.data;
+  if(type==='party'){
+    const h=modal('Add New Party',`<form class="form-grid" id="quickPartyForm">
+      ${field('Party Name','partyName','','text','required')}
+      ${field('GST Number','gstNo','')}
+      ${field('Mobile','mobile','','tel')}
+      ${textarea('Address','address','','span2')}
+      <div class="form-actions"><button type="button" class="btn light" data-cancel>Cancel</button><button class="btn primary">Add Party</button></div>
+    </form>`,{small:true,onMount:h=>{
+      h.querySelector('[data-cancel]').onclick=()=>h.remove();
+      h.querySelector('#quickPartyForm').onsubmit=async e=>{
+        e.preventDefault();const body=formDataObject(e.target),btn=e.submitter;
+        try{setBusy(btn,true);const res=await api('/parties',{method:'POST',body:JSON.stringify(body)});
+          const item={id:res.id,party_name:norm(body.partyName),gst_no:norm(body.gstNo),mobile:body.mobile||'',address:body.address||'',ledger_no:''};
+          d.parties.push(item);addOptionAndSelect(target,item.party_name);
+          const gst=parentHost.querySelector('[name=partyGst]'),address=parentHost.querySelector('[name=partyAddress]');
+          if(gst)gst.value=item.gst_no||'';if(address)address.value=item.address||'';
+          h.remove();
+        }catch(err){alert(err.message)}finally{setBusy(btn,false)}
+      };
+    }});return;
+  }
+  if(type==='truck'){
+    const h=modal('Add New Truck',`<form class="form-grid" id="quickTruckForm">
+      ${field('Truck Number','truckNo','','text','required')}
+      ${field('Owner Name','ownerName','','text','required')}
+      ${field('Owner Mobile','ownerMobile','','tel')}
+      ${textarea('Bank Details','bankDetails','','span2')}
+      <div class="form-actions"><button type="button" class="btn light" data-cancel>Cancel</button><button class="btn primary">Add Truck</button></div>
+    </form>`,{small:true,onMount:h=>{
+      h.querySelector('[data-cancel]').onclick=()=>h.remove();
+      h.querySelector('#quickTruckForm').onsubmit=async e=>{
+        e.preventDefault();const body=formDataObject(e.target),btn=e.submitter;
+        try{setBusy(btn,true);const res=await api('/trucks',{method:'POST',body:JSON.stringify(body)});
+          const item={id:res.id,truck_no:norm(body.truckNo),owner_name:norm(body.ownerName),owner_mobile:body.ownerMobile||'',bank_details:body.bankDetails||''};
+          d.trucks.push(item);addOptionAndSelect(target,item.truck_no);
+          const owner=parentHost.querySelector('[name=ownerName]'),bank=parentHost.querySelector('[name=bankDetails]');
+          if(owner)owner.value=item.owner_name;if(bank)bank.value=item.bank_details;
+          h.remove();
+        }catch(err){alert(err.message)}finally{setBusy(btn,false)}
+      };
+    }});return;
+  }
+  if(type==='route-loading'||type==='route-unloading'){
+    const existingLoading=parentHost.querySelector('[name=loadingPoint]')?.value||'';
+    const existingUnloading=parentHost.querySelector('[name=unloadingPoint]')?.value||'';
+    const h=modal('Add New Route',`<form class="form-grid" id="quickRouteForm">
+      ${field('Loading Point','loadingPoint',type==='route-loading'?'':existingLoading,'text','required')}
+      ${field('Unloading Point','unloadingPoint',type==='route-unloading'?'':existingUnloading,'text','required')}
+      <div class="form-actions"><button type="button" class="btn light" data-cancel>Cancel</button><button class="btn primary">Add Route</button></div>
+    </form>`,{small:true,onMount:h=>{
+      h.querySelector('[data-cancel]').onclick=()=>h.remove();
+      h.querySelector('#quickRouteForm').onsubmit=async e=>{
+        e.preventDefault();const body=formDataObject(e.target),btn=e.submitter;
+        try{setBusy(btn,true);const res=await api('/routes',{method:'POST',body:JSON.stringify(body)});
+          const item={id:res.id,loading_point:norm(body.loadingPoint),unloading_point:norm(body.unloadingPoint)};
+          d.routes.push(item);
+          const loadingSelect=parentHost.querySelector('[name=loadingPoint]'),unloadingSelect=parentHost.querySelector('[name=unloadingPoint]');
+          if(loadingSelect)addOptionAndSelect(loadingSelect,item.loading_point);
+          if(unloadingSelect)addOptionAndSelect(unloadingSelect,item.unloading_point);
+          addOptionAndSelect(target,type==='route-loading'?item.loading_point:item.unloading_point);
+          h.remove();
+        }catch(err){alert(err.message)}finally{setBusy(btn,false)}
+      };
+    }});return;
+  }
+  if(type==='material'){
+    const h=modal('Add New Material',`<form class="form-grid" id="quickMaterialForm">
+      ${field('Material Name','materialName','','text','required')}
+      <div class="form-actions"><button type="button" class="btn light" data-cancel>Cancel</button><button class="btn primary">Add Material</button></div>
+    </form>`,{small:true,onMount:h=>{
+      h.querySelector('[data-cancel]').onclick=()=>h.remove();
+      h.querySelector('#quickMaterialForm').onsubmit=async e=>{
+        e.preventDefault();const body=formDataObject(e.target),btn=e.submitter;
+        try{setBusy(btn,true);const res=await api('/materials',{method:'POST',body:JSON.stringify(body)});
+          const item={id:res.id,material_name:norm(body.materialName)};d.materials.push(item);addOptionAndSelect(target,item.material_name);h.remove();
+        }catch(err){alert(err.message)}finally{setBusy(btn,false)}
+      };
+    }});
+  }
 }
 function selectField(label,name,items,value='',cls=''){
   return `<label class="field ${cls}"><span>${label}</span><select name="${name}">${selectOptions(items,value)}</select></label>`;
@@ -138,7 +253,7 @@ function tripsPanel(d){
 function invoicesPanel(d){
   const rows=filterRows(d.invoices,['invoice_no','invoice_date','party_name','lr_no','material']);
   return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Invoice Desk</h2><small>GST invoices linked with trips</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search invoices…"><button class="btn primary" data-action="new-invoice">New Invoice</button><button class="btn light" data-action="export-invoices">Excel CSV</button></div></div>${table(['Invoice','Date','Party','LR / Material','Trips','Subtotal','GST','Total','Action'],rows.map(i=>[
-    `<b>${esc(i.invoice_no)}</b>`,esc(i.invoice_date),esc(i.party_name),`${esc(i.lr_no||'-')}<br><small>${esc(i.material)}</small>`,String(i.items.length),money(i.subtotal),money(i.gst_amount),`<b>${money(i.total)}</b>`,`<div class="action-set"><button class="mini green" data-action="view-invoice" data-id="${esc(i.id)}">View</button><button class="mini" data-action="edit-invoice" data-id="${esc(i.id)}">Edit</button><button class="mini gray" data-action="share-invoice" data-id="${esc(i.id)}">WhatsApp</button><button class="mini danger" data-action="delete-invoice" data-id="${esc(i.id)}">Delete</button></div>`
+    `<b>${esc(i.invoice_no)}</b>`,esc(i.invoice_date),esc(i.party_name),`${esc(i.lr_no||'-')}<br><small>${esc(i.material)}</small>`,String(i.items.length),money(i.subtotal),money(i.gst_amount),`<b>${money(i.total)}</b>`,`<div class="action-set"><button class="mini green" data-action="view-invoice" data-id="${esc(i.id)}">View</button><button class="mini" data-action="edit-invoice" data-id="${esc(i.id)}">Edit</button><button class="mini gray" data-action="download-invoice" data-id="${esc(i.id)}">Download PDF</button><button class="mini gray" data-action="share-invoice" data-id="${esc(i.id)}">WhatsApp</button><button class="mini danger" data-action="delete-invoice" data-id="${esc(i.id)}">Delete</button></div>`
   ]),'1100px')}</div></section>`;
 }
 function partiesPanel(d){
@@ -196,6 +311,7 @@ function handleAction(action,id){
   if(action==='new-invoice'||action==='edit-invoice')return invoiceForm(action==='edit-invoice'?find('invoice',id):null);
   if(action==='delete-invoice')return remove(`/invoices/${id}`,'Delete this invoice?');
   if(action==='view-invoice')return viewInvoice(find('invoice',id));
+  if(action==='download-invoice')return downloadInvoicePdf(find('invoice',id));
   if(action==='share-invoice')return shareInvoice(find('invoice',id));
   if(action==='new-party'||action==='edit-party')return partyForm(action==='edit-party'?find('party',id):null);
   if(action==='delete-party')return remove(`/parties/${id}`,'Delete this party?');
@@ -227,13 +343,13 @@ function tripForm(x={}){
   const d=state.data,edit=!!x.id;
   const host=modal(edit?'Edit Trip':'New Trip',`<form class="form-grid" id="tripForm">
     ${field('Trip Date','tripDate',x.trip_date||today(),'date','required')}
-    ${datalistField('Party','partyName',x.party_name||'','partyList',d.parties.map(p=>p.party_name),'required')}
-    ${datalistField('Truck Number','truckNo',x.truck_no||'','truckList',d.trucks.map(t=>t.truck_no),'required')}
+    ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||'','party','required')}
+    ${masterSelectField('Truck Number','truckNo',d.trucks.map(t=>t.truck_no),x.truck_no||'','truck','required')}
     ${field('Driver / Malik Name','driverName',x.driver_name||'')}
     ${field('Driver Mobile','driverMobile',x.driver_mobile||'','tel')}
-    ${datalistField('Material','material',x.material||'','materialList',d.materials.map(m=>m.material_name),'required')}
-    ${datalistField('Loading Point','loadingPoint',x.loading_point||'','loadList',[...new Set(d.routes.map(r=>r.loading_point))],'required')}
-    ${datalistField('Unloading Point','unloadingPoint',x.unloading_point||'','unloadList',[...new Set(d.routes.map(r=>r.unloading_point))],'required')}
+    ${masterSelectField('Material','material',d.materials.map(m=>m.material_name),x.material||'','material','required')}
+    ${masterSelectField('Loading Point','loadingPoint',[...new Set(d.routes.map(r=>r.loading_point))],x.loading_point||'','route-loading','required')}
+    ${masterSelectField('Unloading Point','unloadingPoint',[...new Set(d.routes.map(r=>r.unloading_point))],x.unloading_point||'','route-unloading','required')}
     ${field('Weight','weight',x.weight||0,'number','step="0.01" required')}
     ${field('Rate','rate',x.rate||0,'number','step="0.01" required')}
     ${selectField('Status','status',['BOOKED','LOADED','IN_TRANSIT','DELIVERED'],x.status||'BOOKED')}
@@ -241,6 +357,7 @@ function tripForm(x={}){
     <label class="field span2"><span>POD Image (optional)</span><input id="podFile" type="file" accept="image/*"></label>
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">${edit?'Update':'Save'} Trip</button></div>
   </form>`,{onMount:host=>{
+    wireMasterSelects(host);
     host.querySelector('[data-close-form]').onclick=()=>host.remove();
     host.querySelector('#tripForm').onsubmit=async e=>{
       e.preventDefault();const body=formDataObject(e.target),file=host.querySelector('#podFile').files[0];
@@ -251,54 +368,82 @@ function tripForm(x={}){
   }});
 }
 function invoiceForm(x={}){
-  const d=state.data,edit=!!x.id,items=(x.items&&x.items.length?x.items:[{trip_id:'',truck_no:'',description:'',weight:0,rate:0}]);
+  const d=state.data,edit=!!x.id,items=(x.items&&x.items.length?x.items:[{trip_id:'',truck_no:'',description:'',loading_weight:0,unloading_weight:0,shortage:0,weight:0,rate:0}]);
   const host=modal(edit?'Edit Invoice':'New Invoice',`<form class="form-grid" id="invoiceForm">
     ${field('Invoice Number','invoiceNo',x.invoice_no||d.nextInvoiceNo,'text','required')}
     ${field('Invoice Date','invoiceDate',x.invoice_date||today(),'date','required')}
-    ${datalistField('Party','partyName',x.party_name||'','partyInvoiceList',d.parties.map(p=>p.party_name),'required')}
+    ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||'','party','required')}
     ${field('Party GST','partyGst',x.party_gst||'')}
     ${textarea('Party Address','partyAddress',x.party_address||'','span2')}
     ${field('LR Number','lrNo',x.lr_no||'')}
-    ${datalistField('Material','material',x.material||'','invoiceMaterialList',d.materials.map(m=>m.material_name))}
+    ${masterSelectField('Material','material',d.materials.map(m=>m.material_name),x.material||'','material')}
     ${field('Loading Date','loadingDate',x.loading_date||today(),'date')}
     ${field('Diesel','diesel',x.diesel||0,'number','step="0.01"')}
-    ${field('Munshi','munshi',x.munshi||0,'number','step="0.01"')}
+    ${field('Munshi Charges','munshi',x.munshi||0,'number','step="0.01"')}
     ${field('SGST %','sgst',x.sgst??9,'number','step="0.01"')}
     ${field('CGST %','cgst',x.cgst??9,'number','step="0.01"')}
-    <div class="span2"><div class="section-title"><h3>Invoice Lines</h3><button type="button" class="btn soft" id="addLine">+ Add Line</button></div><div class="invoice-lines" id="invoiceLines"></div></div>
-    ${textarea('Comments / Payment Terms','comments',x.comments||'1. Payment due within 30 days.\\n2. Mention invoice number in payment reference.','span2')}
+    <div class="span2"><div class="section-title"><div><h3>Truck Details</h3><small>એક invoiceમાં જેટલી truck જોઈએ એટલી add કરો</small></div><button type="button" class="btn soft" id="addLine">+ Add Another Truck</button></div><div class="invoice-lines" id="invoiceLines"></div></div>
+    <div class="span2 invoice-form-summary" id="invoiceFormSummary"></div>
+    ${textarea('Comments / Payment Terms','comments',x.comments||'1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.','span2')}
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">${edit?'Update':'Save'} Invoice</button></div>
   </form>`,{onMount:host=>{
+    wireMasterSelects(host);
+    host.querySelector('.modal').classList.add('wide-modal');
     const lines=host.querySelector('#invoiceLines');
+    const numValue=(row,name)=>Number(row.querySelector(`[name=${name}]`)?.value||0);
+    function recalcRow(row,changed=''){
+      const loading=numValue(row,'loadingWeight'),unloading=numValue(row,'unloadingWeight');
+      const shortage=Math.max(0,loading-unloading);
+      row.querySelector('[name=shortage]').value=shortage.toFixed(3);
+      if(changed==='unloadingWeight'||!numValue(row,'weight'))row.querySelector('[name=weight]').value=unloading.toFixed(3);
+      const total=numValue(row,'weight')*numValue(row,'rate');
+      row.querySelector('[data-line-total]').textContent=money(total);
+      recalcInvoice();
+    }
+    function recalcInvoice(){
+      const rows=[...lines.querySelectorAll('.invoice-line')];
+      const loading=rows.reduce((s,r)=>s+numValue(r,'loadingWeight'),0),unloading=rows.reduce((s,r)=>s+numValue(r,'unloadingWeight'),0),shortage=rows.reduce((s,r)=>s+numValue(r,'shortage'),0),freight=rows.reduce((s,r)=>s+numValue(r,'weight')*numValue(r,'rate'),0);
+      const diesel=Number(host.querySelector('[name=diesel]').value||0),munshi=Number(host.querySelector('[name=munshi]').value||0),sgst=Number(host.querySelector('[name=sgst]').value||0),cgst=Number(host.querySelector('[name=cgst]').value||0),subtotal=freight+diesel+munshi,gst=subtotal*(sgst+cgst)/100,total=subtotal+gst;
+      host.querySelector('#invoiceFormSummary').innerHTML=`<span>Trucks <b>${rows.length}</b></span><span>Loading <b>${number3(loading)}</b></span><span>Unloading <b>${number3(unloading)}</b></span><span>Shortage <b>${number3(shortage)}</b></span><span>Invoice Total <b>${money(total)}</b></span>`;
+    }
     function addLine(item={}){
+      const load=item.loading_weight??item.loadingWeight??item.weight??0,unload=item.unloading_weight??item.unloadingWeight??item.weight??0,bill=item.weight??unload??0;
       const row=document.createElement('div');row.className='invoice-line';
       row.innerHTML=`<label class="field"><span>Trip</span><select name="tripId"><option value="">Manual</option>${d.trips.map(t=>`<option value="${esc(t.id)}" ${String(t.id)===String(item.trip_id||item.tripId||'')?'selected':''}>${esc(t.id+' · '+t.truck_no+' · '+t.party_name)}</option>`).join('')}</select></label>
-      ${field('Truck','truckNo',item.truck_no||item.truckNo||'','','required')}
-      ${field('Description','description',item.description||'','','required')}
-      ${field('Weight','weight',item.weight||0,'number','step="0.01" required')}
-      ${field('Rate','rate',item.rate||0,'number','step="0.01" required')}
+      ${masterSelectField('Truck No.','truckNo',d.trucks.map(t=>t.truck_no),item.truck_no||item.truckNo||'','truck','required')}
+      ${field('Description / Route','description',item.description||'','','required')}
+      ${field('Loading Wt.','loadingWeight',load,'number','step="0.001" required')}
+      ${field('Unloading Wt.','unloadingWeight',unload,'number','step="0.001" required')}
+      ${field('Shortage','shortage',item.shortage||0,'number','step="0.001" readonly')}
+      ${field('Billing Wt.','weight',bill,'number','step="0.001" required')}
+      ${field('Rate / Ton','rate',item.rate||0,'number','step="0.01" required')}
+      <div class="line-total"><span>Total</span><b data-line-total>${money(Number(bill||0)*Number(item.rate||0))}</b></div>
       <button type="button" class="mini danger">Remove</button>`;
-      row.querySelector('button').onclick=()=>row.remove();
+      row.querySelector('button').onclick=()=>{row.remove();recalcInvoice()};
       row.querySelector('select').onchange=e=>{
         const t=d.trips.find(t=>String(t.id)===String(e.target.value));if(!t)return;
         row.querySelector('[name=truckNo]').value=t.truck_no;
         row.querySelector('[name=description]').value=`${t.loading_point} TO ${t.unloading_point}`;
-        row.querySelector('[name=weight]').value=t.weight;
+        row.querySelector('[name=loadingWeight]').value=Number(t.weight||0).toFixed(3);
+        row.querySelector('[name=unloadingWeight]').value=Number(t.weight||0).toFixed(3);
+        row.querySelector('[name=weight]').value=Number(t.weight||0).toFixed(3);
         const party=host.querySelector('[name=partyName]');if(!party.value)party.value=t.party_name;
         const material=host.querySelector('[name=material]');if(!material.value)material.value=t.material;
+        recalcRow(row,'unloadingWeight');
       };
-      lines.appendChild(row);
+      row.querySelectorAll('input').forEach(input=>input.addEventListener('input',()=>recalcRow(row,input.name)));
+      lines.appendChild(row);wireMasterSelects(row);recalcRow(row);
     }
     items.forEach(addLine);host.querySelector('#addLine').onclick=()=>addLine({});
+    host.querySelector('[name=partyName]').addEventListener('change',e=>{const p=d.parties.find(p=>p.party_name===norm(e.target.value));if(p){host.querySelector('[name=partyGst]').value=p.gst_no||'';host.querySelector('[name=partyAddress]').value=p.address||''}});
+    ['diesel','munshi','sgst','cgst'].forEach(n=>host.querySelector(`[name=${n}]`).addEventListener('input',recalcInvoice));
     host.querySelector('[data-close-form]').onclick=()=>host.remove();
     host.querySelector('#invoiceForm').onsubmit=async e=>{
       e.preventDefault();const body=formDataObject(e.target);
-      body.items=[...lines.querySelectorAll('.invoice-line')].map(r=>({
-        tripId:r.querySelector('[name=tripId]').value,truckNo:r.querySelector('[name=truckNo]').value,
-        description:r.querySelector('[name=description]').value,weight:r.querySelector('[name=weight]').value,rate:r.querySelector('[name=rate]').value
-      }));
+      body.items=[...lines.querySelectorAll('.invoice-line')].map(r=>({tripId:r.querySelector('[name=tripId]').value,truckNo:r.querySelector('[name=truckNo]').value,description:r.querySelector('[name=description]').value,loadingWeight:r.querySelector('[name=loadingWeight]').value,unloadingWeight:r.querySelector('[name=unloadingWeight]').value,shortage:r.querySelector('[name=shortage]').value,weight:r.querySelector('[name=weight]').value,rate:r.querySelector('[name=rate]').value}));
       if(await mutate('/invoices'+(edit?'/'+x.id:''),edit?'PUT':'POST',body,e.submitter))host.remove();
     };
+    recalcInvoice();
   }});
 }
 function partyForm(x={}){
@@ -316,13 +461,14 @@ function partyForm(x={}){
 }
 function partyPaymentForm(x={}){
   const d=state.data,edit=!!x.id,host=modal(edit?'Edit Party Payment':'Receive Party Payment',`<form class="form-grid" id="partyPayForm">
-    ${datalistField('Party','partyName',x.party_name||'','payPartyList',d.parties.map(p=>p.party_name),'required')}
+    ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||'','party','required')}
     ${field('Payment Date','paymentDate',x.payment_date||today(),'date','required')}
     ${field('Amount','amount',x.amount||0,'number','step="0.01" min="0.01" required')}
     ${selectField('Mode','paymentMode',['CASH','BANK','UPI','CHEQUE'],x.payment_mode||'BANK')}
     ${field('Reference','reference',x.reference||'')}
     ${textarea('Notes','notes',x.notes||'','span2')}
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn green">Save Receipt</button></div></form>`,{small:true,onMount:host=>{
+      wireMasterSelects(host);
       host.querySelector('[data-close-form]').onclick=()=>host.remove();
       host.querySelector('#partyPayForm').onsubmit=async e=>{e.preventDefault();if(await mutate('/party-payments'+(edit?'/'+x.id:''),edit?'PUT':'POST',formDataObject(e.target),e.submitter))host.remove()};
     }});
@@ -331,16 +477,17 @@ function truckEntryForm(x={}){
   const d=state.data,edit=!!x.id,host=modal(edit?'Edit Truck Entry':'New Truck / Supplier Entry',`<form class="form-grid" id="truckEntryForm">
     ${field('Entry Date','entryDate',x.entry_date||today(),'date','required')}
     ${selectField('Trip Link','tripId',['',...d.trips.map(t=>t.id)],x.trip_id||'')}
-    ${datalistField('Truck Number','truckNo',x.truck_no||'','entryTruckList',d.trucks.map(t=>t.truck_no),'required')}
+    ${masterSelectField('Truck Number','truckNo',d.trucks.map(t=>t.truck_no),x.truck_no||'','truck','required')}
     ${datalistField('Owner / Supplier','ownerName',x.owner_name||'','ownerList',[...new Set(d.trucks.map(t=>t.owner_name).filter(Boolean))],'required')}
     ${field('Bank Details','bankDetails',x.bank_details||'')}
-    ${datalistField('Loading Point','loadingPoint',x.loading_point||'','entryLoadList',[...new Set(d.routes.map(r=>r.loading_point))],'required')}
-    ${datalistField('Unloading Point','unloadingPoint',x.unloading_point||'','entryUnloadList',[...new Set(d.routes.map(r=>r.unloading_point))],'required')}
+    ${masterSelectField('Loading Point','loadingPoint',[...new Set(d.routes.map(r=>r.loading_point))],x.loading_point||'','route-loading','required')}
+    ${masterSelectField('Unloading Point','unloadingPoint',[...new Set(d.routes.map(r=>r.unloading_point))],x.unloading_point||'','route-unloading','required')}
     ${field('Weight','weight',x.weight||0,'number','step="0.01" required')}
     ${field('Rate','rate',x.rate||0,'number','step="0.01" required')}
     ${field('Commission','commission',x.commission||0,'number','step="0.01"')}
     ${textarea('Notes','notes',x.notes||'','span2')}
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">Save Entry</button></div></form>`,{onMount:host=>{
+      wireMasterSelects(host);
       host.querySelector('[name=tripId]').onchange=e=>{const t=d.trips.find(t=>String(t.id)===String(e.target.value));if(!t)return;for(const [n,v] of Object.entries({truckNo:t.truck_no,loadingPoint:t.loading_point,unloadingPoint:t.unloading_point,weight:t.weight})){host.querySelector(`[name=${n}]`).value=v}};
       host.querySelector('[name=truckNo]').onchange=e=>{const t=d.trucks.find(t=>t.truck_no===norm(e.target.value));if(t){host.querySelector('[name=ownerName]').value=t.owner_name||'';host.querySelector('[name=bankDetails]').value=t.bank_details||''}};
       host.querySelector('[data-close-form]').onclick=()=>host.remove();
@@ -350,13 +497,14 @@ function truckEntryForm(x={}){
 function supplierPaymentForm(x={}){
   const d=state.data,edit=!!x.id,owners=[...new Set([...d.trucks.map(t=>t.owner_name),...d.supplierLedger.map(s=>s.owner_name)].filter(Boolean))],host=modal(edit?'Edit Supplier Payment':'Pay Supplier',`<form class="form-grid" id="supplierPayForm">
     ${datalistField('Owner / Supplier','ownerName',x.owner_name||'','supplierOwnerList',owners,'required')}
-    ${datalistField('Truck Number','truckNo',x.truck_no||'','supplierTruckList',d.trucks.map(t=>t.truck_no))}
+    ${masterSelectField('Truck Number','truckNo',d.trucks.map(t=>t.truck_no),x.truck_no||'','truck')}
     ${field('Payment Date','paymentDate',x.payment_date||today(),'date','required')}
     ${field('Amount','amount',x.amount||0,'number','step="0.01" min="0.01" required')}
     ${selectField('Mode','paymentMode',['CASH','BANK','UPI','CHEQUE'],x.payment_mode||'BANK')}
     ${field('Reference','reference',x.reference||'')}
     ${textarea('Notes','notes',x.notes||'','span2')}
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn green">Save Payment</button></div></form>`,{small:true,onMount:host=>{
+      wireMasterSelects(host);
       host.querySelector('[data-close-form]').onclick=()=>host.remove();
       host.querySelector('#supplierPayForm').onsubmit=async e=>{e.preventDefault();if(await mutate('/supplier-payments'+(edit?'/'+x.id:''),edit?'PUT':'POST',formDataObject(e.target),e.submitter))host.remove()};
     }});
@@ -391,12 +539,13 @@ function expenseForm(x={}){
 }
 function documentForm(truckNo=''){
   const d=state.data,host=modal('Add Truck Document',`<form class="form-grid" id="documentForm">
-    ${datalistField('Truck Number','truckNo',truckNo,'docTruckList',d.trucks.map(t=>t.truck_no),'required')}
+    ${masterSelectField('Truck Number','truckNo',d.trucks.map(t=>t.truck_no),truckNo,'truck','required')}
     ${selectField('Document Type','kind',['RC FRONT','RC BACK','PAN','CHEQUE','BILTY','INSURANCE','PERMIT','PUC','OTHER'],'RC FRONT')}
     ${field('Expiry Date','expiryDate','','date')}
     ${textarea('Notes','notes','','span2')}
     <label class="field span2"><span>Image / PDF</span><input id="documentFile" type="file" accept="image/*,.pdf" required></label>
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">Upload Document</button></div></form>`,{onMount:host=>{
+      wireMasterSelects(host);
       host.querySelector('[data-close-form]').onclick=()=>host.remove();
       host.querySelector('#documentForm').onsubmit=async e=>{e.preventDefault();const file=host.querySelector('#documentFile').files[0],body=formDataObject(e.target);if(!file)return;
         body.fileName=file.name;body.fileType=file.type;
@@ -417,12 +566,28 @@ async function viewSupplierLedger(name){
   try{const x=await api('/supplier-ledger/'+encodeURIComponent(name));modal(`Supplier Ledger · ${name}`,`<div class="cards">${metric('Payable',x.entries.reduce((a,v)=>a+Number(v.payable||0),0))}${metric('Paid',x.payments.reduce((a,v)=>a+Number(v.amount||0),0))}${metric('Pending',x.balance)}</div>${table(['Date','Type','Reference','Debit','Credit','Balance','Notes'],x.lines.map(l=>[esc(l.date),statusBadge(l.type),esc(l.reference),l.debit?money(l.debit):'-',l.credit?money(l.credit):'-',`<b>${money(l.balance)}</b>`,esc(l.notes||'-')]),'850px')}`)}
   catch(e){alert(e.message)}
 }
+function invoiceTemplate(i){
+  const items=i.items||[],loading=items.reduce((s,x)=>s+Number(x.loading_weight||x.weight||0),0),unloading=items.reduce((s,x)=>s+Number(x.unloading_weight||x.weight||0),0),shortage=items.reduce((s,x)=>s+Number(x.shortage||Math.max(0,Number(x.loading_weight||x.weight||0)-Number(x.unloading_weight||x.weight||0))),0);
+  const sgstAmount=Number(i.subtotal||0)*Number(i.sgst||0)/100,cgstAmount=Number(i.subtotal||0)*Number(i.cgst||0)/100;
+  return `<div class="transport-invoice" id="invoicePrint">
+    <div class="ti-head"><img src="/assets/meera-logo.png" class="ti-logo" alt="Meera Logistics"><div class="ti-company-name">MEERA LOGISTICS</div><div class="ti-title"><b>${esc(i.invoice_no)}</b><span>Transport Invoice</span></div></div>
+    <div class="ti-top-grid"><table class="ti-info-table"><tr><th>Address</th><td>OFFICE NO.101, MOMAI COMPLEX BEDI BANDAR ROAD, JAMNAGAR</td></tr><tr><th>Phone</th><td>9558959579</td></tr><tr><th>Email</th><td>meera.logistics99@gmail.com</td></tr><tr><th>GST NO.</th><td>24ACFFM2544N1Z1</td></tr></table>
+    <table class="ti-right-table"><tr><th>INVOICE DATE</th><td>${esc(invoiceDate(i.invoice_date))}</td></tr><tr><th>LR NO.</th><td>${esc(i.lr_no||'-')}</td></tr><tr><th>MATERIAL</th><td>${esc(i.material||'-')}</td></tr><tr><th>LOADING DATE</th><td>${esc(invoiceDate(i.loading_date)||'-')}</td></tr><tr><th>LOADING WEIGHT</th><td>${number3(loading)}</td></tr><tr><th>UNLOADING WEIGHT</th><td>${number3(unloading)}</td></tr><tr><th>SHORTAGE</th><td>${number3(shortage)}</td></tr></table></div>
+    <table class="ti-bill-table"><caption>Bill To</caption><tr><th>Name</th><td>${esc(i.party_name)}</td></tr><tr><th>Company</th><td>${esc(i.party_name)}</td></tr><tr><th>Address</th><td>${esc(i.party_address||'-')}</td></tr><tr><th>GST NO.</th><td>${esc(i.party_gst||'-')}</td></tr></table>
+    <table class="ti-items"><thead><tr><th>TRUCK NO.</th><th>DESCRIPTION</th><th>LOADING WT.</th><th>UNLOADING WT.</th><th>SHORTAGE</th><th>WEIGHT/TON</th><th>RATE PER TONE</th><th>TOTAL</th></tr></thead><tbody>${items.map(x=>`<tr><td>${esc(x.truck_no)}</td><td>${esc(x.description)}</td><td>${number3(x.loading_weight||x.weight)}</td><td>${number3(x.unloading_weight||x.weight)}</td><td>${number3(x.shortage||0)}</td><td>${number3(x.weight)}</td><td>${money(x.rate)}</td><td>${money(x.amount)}</td></tr>`).join('')}</tbody></table>
+    <div class="ti-bottom"><div class="ti-comments"><b>Comments</b><div>${esc(i.comments||'').replaceAll('\n','<br>')}</div></div><table class="ti-totals"><tr><th>SGST ${esc(i.sgst)}%</th><td>${money(sgstAmount)}</td></tr><tr><th>CGST ${esc(i.cgst)}%</th><td>${money(cgstAmount)}</td></tr><tr><th>DIESEL</th><td>${Number(i.diesel||0)?money(i.diesel):'-'}</td></tr><tr><th>MUNSHI CHARGES</th><td>${Number(i.munshi||0)?money(i.munshi):'-'}</td></tr><tr class="grand"><th>Total</th><td>${money(i.total)}</td></tr></table></div>
+    <div class="ti-signatures"><div><span></span><b>Signature of the Customer</b></div><div class="ti-supplier"><div class="ti-stamp">MEERA<br>LOGISTICS</div><span></span><b>Signature of the Supplier</b></div></div>
+  </div>`;
+}
 function viewInvoice(i){
-  const html=`<div class="print-sheet" id="invoicePrint"><div class="invoice-header"><div class="invoice-company"><h1>MEERA LOGISTICS</h1><div>Transport & Logistics Services</div><div>Jamnagar, Gujarat</div></div><div class="invoice-meta"><b>TAX INVOICE</b><div>${esc(i.invoice_no)}</div><div>${esc(i.invoice_date)}</div></div></div>
-  <div class="invoice-party"><div><b>Bill To</b><div>${esc(i.party_name)}</div><div>${esc(i.party_address||'')}</div><div>GST: ${esc(i.party_gst||'-')}</div></div><div><b>LR No:</b> ${esc(i.lr_no||'-')}<br><b>Material:</b> ${esc(i.material||'-')}<br><b>Loading Date:</b> ${esc(i.loading_date||'-')}</div></div>
-  ${table(['Truck No','Description','Weight','Rate','Amount'],i.items.map(x=>[esc(x.truck_no),esc(x.description),esc(x.weight),money(x.rate),money(x.amount)]),'650px')}
-  <div class="invoice-total"><div><span>Subtotal</span><b>${money(i.subtotal)}</b></div><div><span>Diesel</span><b>${money(i.diesel)}</b></div><div><span>Munshi</span><b>${money(i.munshi)}</b></div><div><span>SGST ${i.sgst}%</span><b>${money(i.subtotal*i.sgst/100)}</b></div><div><span>CGST ${i.cgst}%</span><b>${money(i.subtotal*i.cgst/100)}</b></div><div class="grand"><span>Total</span><span>${money(i.total)}</span></div></div><p style="white-space:pre-line">${esc(i.comments||'')}</p></div><div class="form-actions no-print"><button class="btn primary" onclick="window.print()">Print / Save PDF</button></div>`;
-  modal(`Invoice ${i.invoice_no}`,html);
+  if(!i)return;
+  const host=modal(`Invoice ${i.invoice_no}`,`${invoiceTemplate(i)}<div class="form-actions no-print"><button class="btn light" id="editInvoiceFromView">Edit Invoice</button><button class="btn primary" id="downloadInvoiceFromView">Download PDF</button></div>`,{onMount:host=>{host.querySelector('.modal').classList.add('invoice-modal');host.querySelector('#editInvoiceFromView').onclick=()=>{host.remove();invoiceForm(i)};host.querySelector('#downloadInvoiceFromView').onclick=()=>downloadInvoicePdf(i)}});
+}
+function downloadInvoicePdf(i){
+  if(!i)return;
+  const win=window.open('','_blank','width=1280,height=900');
+  if(!win){alert('Please allow pop-ups to download invoice PDF.');return}
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(i.invoice_no)}</title><link rel="stylesheet" href="${location.origin}/src/styles.css"></head><body class="invoice-download-body">${invoiceTemplate(i)}<script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`);win.document.close();
 }
 function shareInvoice(i){
   const text=`Meera Logistics\nInvoice: ${i.invoice_no}\nDate: ${i.invoice_date}\nParty: ${i.party_name}\nTotal: ${money(i.total)}`;
