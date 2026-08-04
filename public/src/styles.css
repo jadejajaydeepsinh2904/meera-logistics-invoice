@@ -120,3 +120,88 @@ select option[value="__ADD_NEW__"]{font-weight:800;color:#2457d2}
   .ti-bottom{margin-top:5mm}.ti-signatures{padding:8mm 23mm 0;gap:35mm}
   .transport-invoice *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+
+
+/* V8: Invoice boundary and overlap hard-fix.
+   The app's generic table rule sets min-width:900px; invoice tables must override it. */
+.invoice-modal{width:min(1240px,98vw);overflow:hidden}
+.invoice-modal .modal-body{
+  padding:14px;background:#e9edf3;overflow:auto;
+  display:block;max-width:100%
+}
+.invoice-modal .transport-invoice,
+.invoice-download-body .transport-invoice{
+  box-sizing:border-box;
+  width:100%;
+  max-width:1120px;
+  min-width:0;
+  min-height:790px;
+  overflow:hidden;
+  margin:0 auto;
+  zoom:1!important;
+  transform:none!important
+}
+.transport-invoice *,
+.transport-invoice *::before,
+.transport-invoice *::after{box-sizing:border-box}
+.transport-invoice table{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  margin-left:0!important;
+  margin-right:0!important;
+}
+.ti-head,.ti-top-grid,.ti-bill-row,.ti-bottom,.ti-signatures{
+  width:100%;max-width:100%;min-width:0
+}
+.ti-head>*,
+.ti-top-grid>*,
+.ti-bill-row>*,
+.ti-bottom>*,
+.ti-signatures>*{min-width:0;max-width:100%}
+.ti-company-name{overflow-wrap:anywhere}
+.ti-info-table td,.ti-bill-table td,.ti-right-table td,
+.ti-items th,.ti-items td,.ti-totals th,.ti-totals td{
+  overflow-wrap:anywhere;word-break:normal
+}
+.ti-items{display:table!important;table-layout:fixed!important}
+.ti-items thead{display:table-header-group!important}
+.ti-items tbody{display:table-row-group!important}
+.ti-items tr{display:table-row!important}
+.ti-items th,.ti-items td{display:table-cell!important}
+.ti-bottom{grid-template-columns:minmax(0,58fr) minmax(260px,32fr);gap:10%}
+.ti-top-grid,.ti-bill-row{grid-template-columns:minmax(0,58fr) minmax(260px,32fr);gap:10%}
+.ti-bill-row>div:empty{display:block}
+.ti-signatures{gap:12%;padding-left:8%;padding-right:8%}
+
+@media(max-width:1180px){
+  .invoice-modal .transport-invoice{
+    width:1120px;
+    max-width:none;
+    transform:scale(.82)!important;
+    transform-origin:top left;
+    margin:0;
+  }
+  .invoice-modal .modal-body{
+    min-height:680px;
+  }
+}
+@media(max-width:960px){
+  .invoice-modal .transport-invoice{transform:scale(.66)!important}
+  .invoice-modal .modal-body{min-height:550px}
+}
+@media(max-width:700px){
+  .invoice-modal .transport-invoice{transform:scale(.43)!important}
+  .invoice-modal .modal-body{min-height:370px;padding:8px}
+}
+@media print{
+  .transport-invoice{
+    width:100%!important;max-width:none!important;min-width:0!important;
+    transform:none!important;zoom:1!important;overflow:hidden!important
+  }
+  .transport-invoice table{min-width:0!important;max-width:100%!important}
+  .ti-top-grid,.ti-bill-row,.ti-bottom{
+    grid-template-columns:minmax(0,58fr) minmax(0,32fr)!important;
+    gap:10%!important
+  }
+}

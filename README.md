@@ -125,3 +125,11 @@ V7 INVOICE LAYOUT FIX
 - Signature and stamp stay at the bottom.
 - Preview scales automatically for desktop and mobile.
 - A4 landscape print/PDF layout is fixed.
+
+
+V8 INVOICE BOUNDARY FIX
+- Fixed the real overlap cause: the global table min-width was forcing invoice tables outside the border.
+- Every invoice table now has min-width 0 and stays inside the blue square.
+- Bill To, right summary, truck table, comments and totals cannot cross the invoice boundary.
+- Desktop/mobile preview scales without changing internal table widths.
+- A4 landscape PDF/print remains inside one page.
