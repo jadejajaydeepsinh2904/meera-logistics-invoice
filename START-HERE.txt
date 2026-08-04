@@ -55,3 +55,22 @@ V5 DROPDOWN UPDATE
 - Material dropdown with + Add New Material
 - Same dropdown behavior in Trip, Invoice, Party Payment, Truck Entry, Supplier Payment and Documents.
 - Invoice truck lines also include Truck dropdown and + Add New Truck.
+
+
+V6 SPEED UPDATE
+- Login uses a fast database path and no longer repeats the full D1 schema setup.
+- The dashboard opens immediately from a safe local cache, then refreshes online.
+- Static JavaScript/CSS files use long browser caching.
+- API requests have a clear timeout instead of appearing frozen.
+- Existing online data, D1 database and login remain unchanged.
+
+
+V7 INVOICE LAYOUT FIX
+- Removed the negative Bill To overlap.
+- Bill To now stays in a clean left column.
+- Invoice summary stays aligned on the right.
+- Truck table widths are balanced.
+- Comments and totals align correctly.
+- Signature and stamp stay at the bottom.
+- Preview scales automatically for desktop and mobile.
+- A4 landscape print/PDF layout is fixed.

@@ -1,16 +1,16 @@
 {
-  "version": "V5-DROPDOWNS-ADD-NEW",
+  "version": "V7-INVOICE-LAYOUT",
   "total_files": 23,
   "files": [
     {
       "path": "README.md",
-      "size": 2840,
-      "sha256": "89caa72e55faa7c1d5183e5922feaea6bac779fb5efaa864589c28b8ad79aa95"
+      "size": 3574,
+      "sha256": "998267a8de5ff35cd1c57c407698562a717009e1722038590d1249f0d69e4b37"
     },
     {
       "path": "START-HERE.txt",
-      "size": 1624,
-      "sha256": "2ed960d39b9b8449a2b49657b23ddba1f007fcf826d069c57d63771431afa840"
+      "size": 2358,
+      "sha256": "b85af89524cab695c47019965ef9b88fbcc57748f9cc2bc601e3404c90c7ca14"
     },
     {
       "path": "public/assets/meera-logo.png",
@@ -74,23 +74,23 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 61173,
-      "sha256": "356b2c215653536e843fb387bee9ce5ed9b0bd3ab1c7a996e6772aeb3f71b5ee"
+      "size": 62054,
+      "sha256": "96231de3e894c3d1430a5afcff75673a72e14f1b78a9222fcb703704647ca0e9"
     },
     {
       "path": "public/src/core/api.js",
-      "size": 737,
-      "sha256": "b81b5d1e22c08a77a2953bba1ab82f3d13dafd9907516c2ed209654b1668f415"
+      "size": 1048,
+      "sha256": "78b89ffbd733cb742a716e7cc818f1e8d186c9fbae26b5a7e85fb8a625a3bb8b"
     },
     {
       "path": "public/src/styles.css",
-      "size": 15419,
-      "sha256": "5c2075556c0fa97a2629a61ed2ad04592db30c586001f2855a79d7493ee1debd"
+      "size": 16077,
+      "sha256": "e9b06acdf0ee5682b85a029850bcf83232a2a1f642dac02ac9fbcb7ea3755315"
     },
     {
       "path": "vercel.json",
-      "size": 303,
-      "sha256": "c212e8cbf4a384e1397412504760987c0f577c32e8123f54b850385b96cd9cc2"
+      "size": 483,
+      "sha256": "25dd861c9d3f77dc3d66a09462cbe19e2eac63c0625dbd65076df7a24d7f90bf"
     },
     {
       "path": "worker/migrations/0001_init.sql",
@@ -104,8 +104,8 @@
     },
     {
       "path": "worker/src/index.js",
-      "size": 48990,
-      "sha256": "ed8d5abc9ac407f0ea37bff5fcfbeffd5b00731f3f6f57ce87b021e914a2c642"
+      "size": 49830,
+      "sha256": "15c923e9498ef600d32984efc8954a359b84ab4e58bbcc2ee8f11f6a30dda97e"
     },
     {
       "path": "worker/src/seed-data.js",

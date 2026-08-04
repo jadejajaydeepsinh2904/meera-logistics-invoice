@@ -3,6 +3,10 @@ import {api,token,setToken,clearToken} from './core/api.js';
 
 const app=document.getElementById('app');
 let state={panel:'dashboard',data:null,search:'',loading:false};
+const CACHE_KEY='ml_bootstrap_cache_v6';
+const readCache=()=>{try{return JSON.parse(localStorage.getItem(CACHE_KEY)||'null')}catch{return null}};
+const writeCache=data=>{try{localStorage.setItem(CACHE_KEY,JSON.stringify({savedAt:Date.now(),data}))}catch{}};
+const clearCache=()=>{try{localStorage.removeItem(CACHE_KEY)}catch{}};
 const money=n=>'₹'+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const today=()=>new Date().toISOString().slice(0,10);
@@ -172,15 +176,31 @@ function loginView(message=''){
   app.innerHTML=`<div class="login-shell"><div class="login-art"><h1>Transport<br>made simple.</h1><p>Meera Logisticsનું online transport ERP — Trips, invoices, party khata, supplier khata, payments અને profit એક જ જગ્યાએ.</p></div><div class="login-side"><form class="login-card" id="loginForm"><div class="login-logo">ML</div><h2>Welcome back</h2><p>Sign in to Meera Logistics ERP</p>${message?`<div class="error-box">${esc(message)}</div>`:''}<label class="field"><span>Username</span><input name="username" autocomplete="username" value="admin" required></label><label class="field" style="margin-top:12px"><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label><button class="btn primary full" style="margin-top:18px">Login</button></form></div></div>`;
   document.getElementById('loginForm').onsubmit=async e=>{
     e.preventDefault();const btn=e.submitter;setBusy(btn,true,'Logging in...');
-    try{const res=await api('/login',{method:'POST',body:JSON.stringify(formDataObject(e.target))});setToken(res.token);await loadData()}
+    try{const res=await api('/login',{method:'POST',body:JSON.stringify(formDataObject(e.target))});setToken(res.token);await loadData({background:true})}
     catch(err){loginView(err.message)}
   };
 }
-async function loadData(){
-  state.loading=true;if(!state.data)app.innerHTML='<div class="loading">Loading Meera Logistics ERP…</div>';
-  try{state.data=await api('/bootstrap');render()}
-  catch(e){clearToken();loginView(e.message)}
-  finally{state.loading=false}
+async function loadData({background=false}={}){
+  state.loading=true;
+  if(!state.data){
+    const cached=readCache();
+    if(cached?.data){
+      state.data=cached.data;
+      render();
+    }else{
+      app.innerHTML='<div class="loading"><div><b>Opening Meera Logistics ERP…</b><br><small>Connecting to online database</small></div></div>';
+    }
+  }
+  try{
+    const fresh=await api('/bootstrap');
+    state.data=fresh;writeCache(fresh);render();
+  }catch(e){
+    if(state.data){
+      if(!background)alert(e.message);
+    }else{
+      clearToken();clearCache();loginView(e.message);
+    }
+  }finally{state.loading=false}
 }
 function navButton(id,label){return `<button class="${state.panel===id?'active':''}" data-panel="${id}"><span class="dot"></span>${label}</button>`}
 function render(){
@@ -207,7 +227,7 @@ function wireCommon(){
   document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>handleAction(b.dataset.action,b.dataset.id));
   document.getElementById('menuBtn').onclick=()=>document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('refreshBtn').onclick=loadData;
-  document.getElementById('logoutBtn').onclick=async()=>{try{await api('/logout',{method:'POST'})}catch{}clearToken();loginView()};
+  document.getElementById('logoutBtn').onclick=async()=>{try{await api('/logout',{method:'POST'})}catch{}clearToken();clearCache();loginView()};
   document.getElementById('backupBtn').onclick=async()=>download(`meera-logistics-backup-${today()}.json`,JSON.stringify(await api('/export'),null,2));
   document.querySelectorAll('[data-search]').forEach(input=>input.oninput=()=>{state.search=input.value.toLowerCase();render()});
 }
@@ -573,7 +593,7 @@ function invoiceTemplate(i){
     <div class="ti-head"><img src="/assets/meera-logo.png" class="ti-logo" alt="Meera Logistics"><div class="ti-company-name">MEERA LOGISTICS</div><div class="ti-title"><b>${esc(i.invoice_no)}</b><span>Transport Invoice</span></div></div>
     <div class="ti-top-grid"><table class="ti-info-table"><tr><th>Address</th><td>OFFICE NO.101, MOMAI COMPLEX BEDI BANDAR ROAD, JAMNAGAR</td></tr><tr><th>Phone</th><td>9558959579</td></tr><tr><th>Email</th><td>meera.logistics99@gmail.com</td></tr><tr><th>GST NO.</th><td>24ACFFM2544N1Z1</td></tr></table>
     <table class="ti-right-table"><tr><th>INVOICE DATE</th><td>${esc(invoiceDate(i.invoice_date))}</td></tr><tr><th>LR NO.</th><td>${esc(i.lr_no||'-')}</td></tr><tr><th>MATERIAL</th><td>${esc(i.material||'-')}</td></tr><tr><th>LOADING DATE</th><td>${esc(invoiceDate(i.loading_date)||'-')}</td></tr><tr><th>LOADING WEIGHT</th><td>${number3(loading)}</td></tr><tr><th>UNLOADING WEIGHT</th><td>${number3(unloading)}</td></tr><tr><th>SHORTAGE</th><td>${number3(shortage)}</td></tr></table></div>
-    <table class="ti-bill-table"><caption>Bill To</caption><tr><th>Name</th><td>${esc(i.party_name)}</td></tr><tr><th>Company</th><td>${esc(i.party_name)}</td></tr><tr><th>Address</th><td>${esc(i.party_address||'-')}</td></tr><tr><th>GST NO.</th><td>${esc(i.party_gst||'-')}</td></tr></table>
+    <div class="ti-bill-row"><table class="ti-bill-table"><caption>Bill To</caption><tr><th>Name</th><td>${esc(i.party_name)}</td></tr><tr><th>Company</th><td>${esc(i.party_name)}</td></tr><tr><th>Address</th><td>${esc(i.party_address||'-')}</td></tr><tr><th>GST NO.</th><td>${esc(i.party_gst||'-')}</td></tr></table><div></div></div>
     <table class="ti-items"><thead><tr><th>TRUCK NO.</th><th>DESCRIPTION</th><th>LOADING WT.</th><th>UNLOADING WT.</th><th>SHORTAGE</th><th>WEIGHT/TON</th><th>RATE PER TONE</th><th>TOTAL</th></tr></thead><tbody>${items.map(x=>`<tr><td>${esc(x.truck_no)}</td><td>${esc(x.description)}</td><td>${number3(x.loading_weight||x.weight)}</td><td>${number3(x.unloading_weight||x.weight)}</td><td>${number3(x.shortage||0)}</td><td>${number3(x.weight)}</td><td>${money(x.rate)}</td><td>${money(x.amount)}</td></tr>`).join('')}</tbody></table>
     <div class="ti-bottom"><div class="ti-comments"><b>Comments</b><div>${esc(i.comments||'').replaceAll('\n','<br>')}</div></div><table class="ti-totals"><tr><th>SGST ${esc(i.sgst)}%</th><td>${money(sgstAmount)}</td></tr><tr><th>CGST ${esc(i.cgst)}%</th><td>${money(cgstAmount)}</td></tr><tr><th>DIESEL</th><td>${Number(i.diesel||0)?money(i.diesel):'-'}</td></tr><tr><th>MUNSHI CHARGES</th><td>${Number(i.munshi||0)?money(i.munshi):'-'}</td></tr><tr class="grand"><th>Total</th><td>${money(i.total)}</td></tr></table></div>
     <div class="ti-signatures"><div><span></span><b>Signature of the Customer</b></div><div class="ti-supplier"><div class="ti-stamp">MEERA<br>LOGISTICS</div><span></span><b>Signature of the Supplier</b></div></div>
@@ -611,4 +631,8 @@ async function compressImage(file){
   canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);URL.revokeObjectURL(url);return canvas.toDataURL('image/jpeg',.72);
 }
 
-if(token())loadData();else loginView();
+if(token()){
+  const cached=readCache();
+  if(cached?.data){state.data=cached.data;render();loadData({background:true})}
+  else loadData();
+}else loginView();

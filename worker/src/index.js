@@ -32,6 +32,13 @@ async function safe(env, sql){
 async function ensureDatabase(env){
   if(initPromise) return initPromise;
   initPromise = (async()=>{
+    // Fast path: on an already-configured database, avoid repeating all DDL
+    // statements on every Worker cold start.
+    try{
+      const ready=await first(env,`SELECT value FROM app_meta WHERE key='schema_version'`);
+      if(ready?.value==='6')return;
+    }catch(_){/* first deployment: tables do not exist yet */}
+
     const creates = [
       `CREATE TABLE IF NOT EXISTS app_meta(key TEXT PRIMARY KEY,value TEXT,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'ADMIN',active INTEGER NOT NULL DEFAULT 1,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
@@ -178,6 +185,7 @@ async function ensureDatabase(env){
       }
       await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('seed_version','2',CURRENT_TIMESTAMP)`);
     }
+    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','6',CURRENT_TIMESTAMP)`);
   })().catch(e=>{ initPromise=null; throw e; });
   return initPromise;
 }
@@ -309,15 +317,19 @@ export default {
   async fetch(req,env){
     if(req.method==='OPTIONS')return json({ok:true});
     try{
-      await ensureDatabase(env);
       const url=new URL(req.url);
       const parts=pathParts(url.pathname);
       const resource=parts[0]||'';
       const id=decodeURIComponent(parts[1]||'');
 
-      if(resource==='health')return json({ok:true,service:'Meera Logistics ERP API',version:'2026.08.04-final'});
+      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'2026.08.04-speed'}),{headers:{...HEADERS,'cache-control':'public,max-age=60'}});
 
+      // Login fast path: query the existing users table first. Only run the full
+      // schema initializer if this is a brand-new database.
       if(resource==='login'&&req.method==='POST'){
+        let usersReady=true;
+        try{await first(env,`SELECT id FROM users LIMIT 1`)}catch(_){usersReady=false}
+        if(!usersReady)await ensureDatabase(env);
         const b=await requestBody(req);
         const hash=await sha256(b.password||'');
         const user=await first(env,`SELECT id,username,role FROM users WHERE LOWER(username)=LOWER(?) AND password_hash=? AND active=1`,clean(b.username),hash);
@@ -328,6 +340,7 @@ export default {
         return json({token,user});
       }
 
+      await ensureDatabase(env);
       const user=await auth(req,env);
       if(!user)return json({error:'Unauthorized'},401);
 
