@@ -226,3 +226,7 @@ select option[value="__ADD_NEW__"]{font-weight:800;color:#2457d2}
 @media(max-width:620px){
   .trip-hero{align-items:stretch;flex-direction:column}.trip-hero strong{padding:0 4px}.trip-detail-card{padding:14px}.trip-detail-actions{grid-template-columns:1fr 1fr}.trip-route-large{font-size:15px}.trip-progress small{font-size:8px}
 }
+
+.quick{position:relative;z-index:1;cursor:pointer;touch-action:manipulation}
+.quick:active{transform:scale(.985)}
+[data-action],[data-panel]{touch-action:manipulation}

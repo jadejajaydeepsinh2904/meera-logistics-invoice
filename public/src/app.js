@@ -223,10 +223,31 @@ function render(){
   wireCommon();
 }
 function wireCommon(){
-  document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>{state.panel=b.dataset.panel;render();document.getElementById('sidebar').classList.remove('open')});
-  document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>handleAction(b.dataset.action,b.dataset.id));
+  // One delegated click handler makes dashboard cards, table buttons and
+  // dynamically-created controls reliable on desktop and mobile.
+  app.onclick=async event=>{
+    const panelButton=event.target.closest('[data-panel]');
+    if(panelButton){
+      event.preventDefault();
+      state.panel=panelButton.dataset.panel;
+      render();
+      document.getElementById('sidebar')?.classList.remove('open');
+      return;
+    }
+    const actionButton=event.target.closest('[data-action]');
+    if(actionButton){
+      event.preventDefault();
+      event.stopPropagation();
+      try{
+        await handleAction(actionButton.dataset.action,actionButton.dataset.id);
+      }catch(error){
+        console.error(error);
+        alert(error?.message||String(error));
+      }
+    }
+  };
   document.getElementById('menuBtn').onclick=()=>document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('refreshBtn').onclick=loadData;
+  document.getElementById('refreshBtn').onclick=()=>loadData();
   document.getElementById('logoutBtn').onclick=async()=>{try{await api('/logout',{method:'POST'})}catch{}clearToken();clearCache();loginView()};
   document.getElementById('backupBtn').onclick=async()=>download(`meera-logistics-backup-${today()}.json`,JSON.stringify(await api('/export'),null,2));
   document.querySelectorAll('[data-search]').forEach(input=>input.oninput=()=>{state.search=input.value.toLowerCase();render()});
@@ -255,10 +276,10 @@ function dashboardPanel(d){
   return `<section class="panel active">
     <div class="cards">${metric('Party Receivable',d.summary.partyOutstanding,'Outstanding from parties')}${metric('Supplier Payable',d.summary.supplierPending,'Pending to truck owners')}${metric('Total Billing',d.summary.totalBilling,`${d.summary.invoices} invoices`)}${metric('Party Received',d.summary.partyReceived,'Collection received')}${metric('Estimated Profit',d.summary.estimatedProfit,'Before income tax')}${metric('Total Trips',String(d.summary.trips),'All transport entries')}</div>
     <div class="quick-actions no-print">
-      <button class="quick" data-action="new-trip"><b>+ New Trip</b><small>Create transport booking</small></button>
-      <button class="quick" data-action="new-invoice"><b>+ New Invoice</b><small>Create GST invoice</small></button>
-      <button class="quick" data-action="new-party-payment"><b>Receive Payment</b><small>Party collection entry</small></button>
-      <button class="quick" data-action="new-supplier-payment"><b>Pay Supplier</b><small>Truck malik payment</small></button>
+      <button type="button" class="quick" data-action="new-trip"><b>+ New Trip</b><small>Create transport booking</small></button>
+      <button type="button" class="quick" data-action="new-invoice"><b>+ New Invoice</b><small>Create GST invoice</small></button>
+      <button type="button" class="quick" data-action="new-party-payment"><b>Receive Payment</b><small>Party collection entry</small></button>
+      <button type="button" class="quick" data-action="new-supplier-payment"><b>Pay Supplier</b><small>Truck malik payment</small></button>
     </div>
     <div class="grid2" style="margin-top:12px"><div class="card"><div class="section-title"><h2>Recent Trips</h2><button class="btn soft" data-panel="trips">View all</button></div>${table(['Date','Party','Truck','Route','Status'],d.trips.slice(0,8).map(t=>[esc(t.trip_date),`<b>${esc(t.party_name)}</b>`,esc(t.truck_no),`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,statusBadge(t.status)]),'700px')}</div>
     <div class="card"><div class="section-title"><h2>Party Outstanding</h2></div><div class="row-list">${d.partyLedger.slice(0,8).map(p=>`<button class="ledger-row" data-action="view-party-ledger" data-id="${encodeURIComponent(p.party_name)}"><div><b>${esc((p.ledger_no?p.ledger_no+' · ':'')+p.party_name)}</b><small>${p.invoices} invoices · ${p.payments} payments</small></div><div class="money-right"><b>${money(p.outstanding)}</b><small>Outstanding</small></div></button>`).join('')}</div></div></div>

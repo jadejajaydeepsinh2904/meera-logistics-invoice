@@ -91,3 +91,11 @@ V9 TRIP DETAILS
 - Supplier tab: truck hire cost, supplier payments and pending payable.
 - More tab: Bilty/LR and POD actions.
 - Mobile layout follows the supplied TransportBook reference.
+
+
+V10 CLICK AND CACHE FIX
+- New Trip, New Invoice, Receive Payment and Pay Supplier now use reliable event delegation.
+- Fixed stale Vercel/browser cache that kept old app.js after deployment.
+- app.js and styles.css now use versioned URLs.
+- Removed one-year immutable caching from /src files.
+- All action buttons are touch-friendly and work on desktop/mobile.
