@@ -1,6 +1,5 @@
 
--- Create admin using setup-admin.js output, then paste INSERT here.
-INSERT OR IGNORE INTO party_accounts(id,ledger_no,party_name) VALUES
+INSERT OR IGNORE INTO party_accounts(id, ledger_no, party_name) VALUES
 ('1','MLP - 001','SAANAVI ENTERPRISE'),
 ('2','MLP - 002','MANOJ & CO.'),
 ('3','MLP - 003','SHREE DWARKADHISH ENTERPRISE'),
@@ -8,7 +7,9 @@ INSERT OR IGNORE INTO party_accounts(id,ledger_no,party_name) VALUES
 ('5','MLP - 005','SHREE SATGURU TRANSPORT'),
 ('6','MLP - 006','YADUNANDAN LOGISTICS');
 
-INSERT OR IGNORE INTO party_payments(id,party_name,payment_date,amount,payment_mode,reference,notes) VALUES
+INSERT OR IGNORE INTO party_payments
+(id, party_name, payment_date, amount, payment_mode, reference, notes)
+VALUES
 ('4','YADUNANDAN LOGISTICS','2026-08-01',66263,'BANK','GOOGLE PAY','UPI'),
 ('3','DIGVIJAY MINERALS','2026-07-23',62464,'BANK','NEFT',''),
 ('2','MANOJ & CO.','2026-07-18',29088,'BANK','NEFT',''),
