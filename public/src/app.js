@@ -347,34 +347,34 @@ function reportsPanel(d){
 }
 
 function handleAction(action,id){
-  if(action==='new-trip'||action==='edit-trip')return tripForm(action==='edit-trip'?find('trip',id):null);
+  if(action==='new-trip'||action==='edit-trip')return tripForm(action==='edit-trip'?(find('trip',id)||{}):{});
   if(action==='view-trip')return viewTripDetails(find('trip',id));
   if(action==='delete-trip')return remove(`/trips/${id}`,'Delete this trip?');
-  if(action==='new-invoice'||action==='edit-invoice')return invoiceForm(action==='edit-invoice'?find('invoice',id):null);
+  if(action==='new-invoice'||action==='edit-invoice')return invoiceForm(action==='edit-invoice'?(find('invoice',id)||{}):{});
   if(action==='delete-invoice')return remove(`/invoices/${id}`,'Delete this invoice?');
   if(action==='view-invoice')return viewInvoice(find('invoice',id));
   if(action==='download-invoice')return downloadInvoicePdf(find('invoice',id));
   if(action==='share-invoice')return shareInvoice(find('invoice',id));
-  if(action==='new-party'||action==='edit-party')return partyForm(action==='edit-party'?find('party',id):null);
+  if(action==='new-party'||action==='edit-party')return partyForm(action==='edit-party'?(find('party',id)||{}):{});
   if(action==='delete-party')return remove(`/parties/${id}`,'Delete this party?');
   if(action==='view-party-ledger')return viewPartyLedger(decodeURIComponent(id));
-  if(action==='new-party-payment'||action==='edit-party-payment')return partyPaymentForm(action==='edit-party-payment'?find('party-payment',id):null);
+  if(action==='new-party-payment'||action==='edit-party-payment')return partyPaymentForm(action==='edit-party-payment'?(find('party-payment',id)||{}):{});
   if(action==='delete-party-payment')return remove(`/party-payments/${id}`,'Delete this party payment?');
   if(action==='view-supplier-ledger')return viewSupplierLedger(decodeURIComponent(id));
-  if(action==='new-truck-entry'||action==='edit-truck-entry')return truckEntryForm(action==='edit-truck-entry'?find('truck-entry',id):null);
+  if(action==='new-truck-entry'||action==='edit-truck-entry')return truckEntryForm(action==='edit-truck-entry'?(find('truck-entry',id)||{}):{});
   if(action==='delete-truck-entry')return remove(`/truck-entries/${id}`,'Delete this supplier entry?');
-  if(action==='new-supplier-payment'||action==='edit-supplier-payment')return supplierPaymentForm(action==='edit-supplier-payment'?find('supplier-payment',id):null);
+  if(action==='new-supplier-payment'||action==='edit-supplier-payment')return supplierPaymentForm(action==='edit-supplier-payment'?(find('supplier-payment',id)||{}):{});
   if(action==='delete-supplier-payment')return remove(`/supplier-payments/${id}`,'Delete this supplier payment?');
-  if(action==='new-truck'||action==='edit-truck')return truckForm(action==='edit-truck'?find('truck',id):null);
+  if(action==='new-truck'||action==='edit-truck')return truckForm(action==='edit-truck'?(find('truck',id)||{}):{});
   if(action==='delete-truck')return remove(`/trucks/${id}`,'Delete this truck?');
   if(action==='new-document')return documentForm(id?decodeURIComponent(id):'');
   if(action==='view-document')return viewDocument(id);
   if(action==='delete-document')return remove(`/documents/${id}`,'Delete this document?');
-  if(action==='new-route'||action==='edit-route')return routeForm(action==='edit-route'?find('route',id):null);
+  if(action==='new-route'||action==='edit-route')return routeForm(action==='edit-route'?(find('route',id)||{}):{});
   if(action==='delete-route')return remove(`/routes/${id}`,'Delete this route?');
   if(action==='new-material')return materialForm();
   if(action==='delete-material')return remove(`/materials/${id}`,'Delete this material?');
-  if(action==='new-expense'||action==='edit-expense')return expenseForm(action==='edit-expense'?find('expense',id):null);
+  if(action==='new-expense'||action==='edit-expense')return expenseForm(action==='edit-expense'?(find('expense',id)||{}):{});
   if(action==='delete-expense')return remove(`/expenses/${id}`,'Delete this expense?');
   if(action==='restore-backup')return restoreBackup();
   if(action==='export-invoices')return exportInvoices();
@@ -492,7 +492,8 @@ function viewTripDetails(trip){
   }});
 }
 
-function tripForm(x={}){
+function tripForm(x={},afterSave=null){
+  x=x||{};
   const d=state.data,edit=!!x.id;
   const host=modal(edit?'Edit Trip':'New Trip',`<form class="form-grid" id="tripForm">
     ${field('Trip Date','tripDate',x.trip_date||today(),'date','required')}
@@ -516,11 +517,21 @@ function tripForm(x={}){
       e.preventDefault();const body=formDataObject(e.target),file=host.querySelector('#podFile').files[0];
       if(file){const compressed=await compressImage(file);body.podFileName=file.name;body.podData=compressed}
       else{body.podFileName=x.pod_file_name||'';body.podData=x.pod_data||''}
-      if(await mutate('/trips'+(edit?'/'+x.id:''),edit?'PUT':'POST',body,e.submitter))host.remove();
+      try{
+        setBusy(e.submitter,true);
+        const result=await api('/trips'+(edit?'/'+x.id:''),{method:edit?'PUT':'POST',body:JSON.stringify(body)});
+        const fresh=await api('/bootstrap');
+        state.data=fresh;writeCache(fresh);
+        host.remove();
+        if(typeof afterSave==='function')afterSave(result.id||x.id,fresh);
+        else render();
+      }catch(err){alert(err.message)}
+      finally{setBusy(e.submitter,false)}
     };
   }});
 }
 function invoiceForm(x={}){
+  x=x||{};
   const d=state.data,edit=!!x.id,items=(x.items&&x.items.length?x.items:[{trip_id:'',truck_no:'',description:'',loading_weight:0,unloading_weight:0,shortage:0,weight:0,rate:0}]);
   const host=modal(edit?'Edit Invoice':'New Invoice',`<form class="form-grid" id="invoiceForm">
     ${field('Invoice Number','invoiceNo',x.invoice_no||d.nextInvoiceNo,'text','required')}
@@ -535,7 +546,7 @@ function invoiceForm(x={}){
     ${field('Munshi Charges','munshi',x.munshi||0,'number','step="0.01"')}
     ${field('SGST %','sgst',x.sgst??9,'number','step="0.01"')}
     ${field('CGST %','cgst',x.cgst??9,'number','step="0.01"')}
-    <div class="span2"><div class="section-title"><div><h3>Truck Details</h3><small>એક invoiceમાં જેટલી truck જોઈએ એટલી add કરો</small></div><button type="button" class="btn soft" id="addLine">+ Add Another Truck</button></div><div class="invoice-lines" id="invoiceLines"></div></div>
+    <div class="span2"><div class="section-title"><div><h3>Truck Details</h3><small>એક invoiceમાં જેટલી truck જોઈએ એટલી add કરો</small></div><div class="toolbar"><button type="button" class="btn green" id="addTripFromInvoice">+ New Trip</button><button type="button" class="btn soft" id="addLine">+ Add Another Truck</button></div></div><div class="invoice-lines" id="invoiceLines"></div></div>
     <div class="span2 invoice-form-summary" id="invoiceFormSummary"></div>
     ${textarea('Comments / Payment Terms','comments',x.comments||'1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.','span2')}
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">${edit?'Update':'Save'} Invoice</button></div>
@@ -588,6 +599,24 @@ function invoiceForm(x={}){
       lines.appendChild(row);wireMasterSelects(row);recalcRow(row);
     }
     items.forEach(addLine);host.querySelector('#addLine').onclick=()=>addLine({});
+    host.querySelector('#addTripFromInvoice').onclick=()=>{
+      tripForm({},(newTripId,fresh)=>{
+        const trip=fresh.trips.find(t=>String(t.id)===String(newTripId));
+        if(!trip)return;
+        addLine({
+          trip_id:trip.id,tripId:trip.id,
+          truck_no:trip.truck_no,truckNo:trip.truck_no,
+          description:`${trip.loading_point} TO ${trip.unloading_point}`,
+          loading_weight:trip.weight,loadingWeight:trip.weight,
+          unloading_weight:trip.weight,unloadingWeight:trip.weight,
+          weight:trip.weight,rate:trip.rate
+        });
+        const party=host.querySelector('[name=partyName]');
+        const material=host.querySelector('[name=material]');
+        if(party&&!party.value)party.value=trip.party_name;
+        if(material&&!material.value)material.value=trip.material;
+      });
+    };
     host.querySelector('[name=partyName]').addEventListener('change',e=>{const p=d.parties.find(p=>p.party_name===norm(e.target.value));if(p){host.querySelector('[name=partyGst]').value=p.gst_no||'';host.querySelector('[name=partyAddress]').value=p.address||''}});
     ['diesel','munshi','sgst','cgst'].forEach(n=>host.querySelector(`[name=${n}]`).addEventListener('input',recalcInvoice));
     host.querySelector('[data-close-form]').onclick=()=>host.remove();
@@ -600,6 +629,7 @@ function invoiceForm(x={}){
   }});
 }
 function partyForm(x={}){
+  x=x||{};
   const edit=!!x.id,host=modal(edit?'Edit Party':'New Party',`<form class="form-grid" id="partyForm">
     ${field('Ledger Number','ledgerNo',x.ledger_no||'')}
     ${field('Party Name','partyName',x.party_name||'','text','required')}
@@ -613,6 +643,7 @@ function partyForm(x={}){
     }});
 }
 function partyPaymentForm(x={}){
+  x=x||{};
   const d=state.data,edit=!!x.id,host=modal(edit?'Edit Party Payment':'Receive Party Payment',`<form class="form-grid" id="partyPayForm">
     ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||'','party','required')}
     ${field('Payment Date','paymentDate',x.payment_date||today(),'date','required')}
@@ -627,6 +658,7 @@ function partyPaymentForm(x={}){
     }});
 }
 function truckEntryForm(x={}){
+  x=x||{};
   const d=state.data,edit=!!x.id,host=modal(edit?'Edit Truck Entry':'New Truck / Supplier Entry',`<form class="form-grid" id="truckEntryForm">
     ${field('Entry Date','entryDate',x.entry_date||today(),'date','required')}
     ${selectField('Trip Link','tripId',['',...d.trips.map(t=>t.id)],x.trip_id||'')}
@@ -648,6 +680,7 @@ function truckEntryForm(x={}){
     }});
 }
 function supplierPaymentForm(x={}){
+  x=x||{};
   const d=state.data,edit=!!x.id,owners=[...new Set([...d.trucks.map(t=>t.owner_name),...d.supplierLedger.map(s=>s.owner_name)].filter(Boolean))],host=modal(edit?'Edit Supplier Payment':'Pay Supplier',`<form class="form-grid" id="supplierPayForm">
     ${datalistField('Owner / Supplier','ownerName',x.owner_name||'','supplierOwnerList',owners,'required')}
     ${masterSelectField('Truck Number','truckNo',d.trucks.map(t=>t.truck_no),x.truck_no||'','truck')}
@@ -663,6 +696,7 @@ function supplierPaymentForm(x={}){
     }});
 }
 function truckForm(x={}){
+  x=x||{};
   const edit=!!x.id,host=modal(edit?'Edit Truck':'Add Truck',`<form class="form-grid" id="truckForm">
     ${field('Truck Number','truckNo',x.truck_no||'','text','required')}
     ${field('Owner Name','ownerName',x.owner_name||'','text','required')}
@@ -674,6 +708,7 @@ function truckForm(x={}){
     }});
 }
 function routeForm(x={}){
+  x=x||{};
   const edit=!!x.id,host=modal(edit?'Edit Route':'Add Route',`<form class="form-grid" id="routeForm">${field('Loading Point','loadingPoint',x.loading_point||'','text','required')}${field('Unloading Point','unloadingPoint',x.unloading_point||'','text','required')}<div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">Save Route</button></div></form>`,{small:true,onMount:host=>{
     host.querySelector('[data-close-form]').onclick=()=>host.remove();host.querySelector('#routeForm').onsubmit=async e=>{e.preventDefault();if(await mutate('/routes'+(edit?'/'+x.id:''),edit?'PUT':'POST',formDataObject(e.target),e.submitter))host.remove()}
   }});
@@ -684,6 +719,7 @@ function materialForm(){
   }});
 }
 function expenseForm(x={}){
+  x=x||{};
   const edit=!!x.id,host=modal(edit?'Edit Expense':'New Expense',`<form class="form-grid" id="expenseForm">
     ${field('Date','expenseDate',x.expense_date||today(),'date','required')}${field('Category','category',x.category||'OFFICE','text','required')}${field('Amount','amount',x.amount||0,'number','step="0.01" min="0.01" required')}${textarea('Notes','notes',x.notes||'','span2')}
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">Save Expense</button></div></form>`,{small:true,onMount:host=>{

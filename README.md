@@ -150,3 +150,13 @@ V10 CLICK AND CACHE FIX
 - app.js and styles.css now use versioned URLs.
 - Removed one-year immutable caching from /src files.
 - All action buttons are touch-friendly and work on desktop/mobile.
+
+
+V11 NULL + TRIP-IN-INVOICE FIX
+- Fixed: Cannot read properties of null (reading 'id').
+- New Trip and New Invoice now open correctly.
+- All new/edit forms are null-safe.
+- New Invoice includes + New Trip.
+- Saving that trip automatically adds it as a truck line.
+- Party, material, truck, route, loading/unloading weight and rate are copied.
+- Frontend cache updated to v11.
