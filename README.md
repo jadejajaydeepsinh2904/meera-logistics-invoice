@@ -303,3 +303,10 @@ V30 CORE FINAL
 - Party and Supplier Ledgers include View, PDF/Print, Excel-compatible XLS and WhatsApp.
 - Universal Search supports ML/JAY invoice, TR trip, PML supplier, party and truck.
 - TDS declaration includes the Meera Logistics digital stamp.
+
+
+V31 LOGIN ALTER FIX
+- Fixed login crash: "ALTER TABLE invoice_items ADD COLUMN shortage REAL DEFAULT 0" is not a function.
+- Cause was a missing comma between D1 migration template strings.
+- CREATE TABLE, ALTER TABLE and CREATE INDEX arrays were normalized and syntax-checked.
+- Existing D1 data is preserved.

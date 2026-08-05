@@ -246,7 +246,7 @@ async function ensureDatabase(env){
       `ALTER TABLE expenses ADD COLUMN trip_id TEXT DEFAULT ''`,
       `ALTER TABLE invoice_items ADD COLUMN loading_weight REAL DEFAULT 0`,
       `ALTER TABLE invoice_items ADD COLUMN unloading_weight REAL DEFAULT 0`,
-      `ALTER TABLE invoice_items ADD COLUMN shortage REAL DEFAULT 0`
+      `ALTER TABLE invoice_items ADD COLUMN shortage REAL DEFAULT 0`,
       `ALTER TABLE trips ADD COLUMN trip_no TEXT DEFAULT ''`,
       `ALTER TABLE trips ADD COLUMN invoice_id TEXT DEFAULT ''`,
       `ALTER TABLE trips ADD COLUMN invoice_item_id TEXT DEFAULT ''`,
