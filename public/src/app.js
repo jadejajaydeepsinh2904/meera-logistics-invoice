@@ -986,211 +986,131 @@ function invoiceForm(x={},tripContext=null){
   x=x||{};
   const d=state.data,edit=!!x.id;
   const initialType=x.invoice_type||'GST';
-  const items=(x.items&&x.items.length?x.items:[{trip_id:'',truck_no:'',description:'',loading_weight:0,unloading_weight:0,shortage:0,weight:0,rate:0}]);
+  const items=(x.items&&x.items.length?x.items:(tripContext?[{
+    trip_id:tripContext.id,tripId:tripContext.id,truck_no:tripContext.truck_no,truckNo:tripContext.truck_no,
+    description:`${tripContext.loading_point} TO ${tripContext.unloading_point}`,
+    loading_weight:tripContext.weight,unloading_weight:tripContext.weight,weight:tripContext.weight,rate:tripContext.rate
+  }]:[{trip_id:'',truck_no:'',description:'',weight:0,rate:0}]));
+
   const host=modal(edit?'Edit Invoice':'New Invoice',`<form class="form-grid" id="invoiceForm">
-    ${selectField('Invoice Type','invoiceType',['GST','NON_GST'],initialType)}
+    <div class="span2 invoice-type-switch">
+      <span>Invoice Type</span>
+      <div class="invoice-type-buttons">
+        <button type="button" class="type-choice ${initialType==='GST'?'active':''}" data-type-choice="GST">GST Invoice</button>
+        <button type="button" class="type-choice ${initialType==='NON_GST'?'active':''}" data-type-choice="NON_GST">Non-GST Invoice</button>
+      </div>
+      <input type="hidden" name="invoiceType" value="${esc(initialType)}">
+    </div>
+
     <label class="field"><span>Invoice Number (Auto, Editable)</span><input name="invoiceNo" type="text" value="${esc(x.invoice_no||(initialType==='NON_GST'?d.nextNonGstInvoiceNo:d.nextInvoiceNo))}" required></label>
     ${field('Invoice Date','invoiceDate',x.invoice_date||today(),'date','required')}
-    ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||'','party','required')}
-    <div class="gst-only">${field('Party GST','partyGst',x.party_gst||getPartyDetails(tripContext?.party_name||x.party_name).gst_no||'','text','readonly')}</div>
+    ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||tripContext?.party_name||'','party','required')}
+    <div class="gst-field">${field('Party GST','partyGst',x.party_gst||getPartyDetails(tripContext?.party_name||x.party_name).gst_no||'','text','readonly')}</div>
     <label class="field span2"><span>Party Address</span><textarea name="partyAddress" readonly>${esc(x.party_address||getPartyDetails(tripContext?.party_name||x.party_name).address||'')}</textarea></label>
     ${field('LR Number','lrNo',x.lr_no||'')}
-    ${masterSelectField('Material','material',d.materials.map(m=>m.material_name),x.material||'','material')}
+    ${masterSelectField('Material','material',d.materials.map(m=>m.material_name),x.material||tripContext?.material||'','material')}
     ${field('Loading Date','loadingDate',x.loading_date||today(),'date')}
     ${field('Diesel','diesel',x.diesel||0,'number','step="0.01"')}
-    ${field('Munshi Charges','munshi',x.munshi||0,'number','step="0.01"')}
-    <div class="gst-only">${field('SGST %','sgst',x.sgst??9,'number','step="0.01"')}</div>
-    <div class="gst-only">${field('CGST %','cgst',x.cgst??9,'number','step="0.01"')}</div>
+    ${field('Munshi','munshi',x.munshi||0,'number','step="0.01"')}
+    <div class="gst-field">${field('SGST %','sgst',x.sgst??9,'number','step="0.01"')}</div>
+    <div class="gst-field">${field('CGST %','cgst',x.cgst??9,'number','step="0.01"')}</div>
+
     <div class="span2"><div class="section-title"><div><h3>Truck Details</h3><small>એક invoiceમાં જેટલી truck જોઈએ એટલી add કરો</small></div><div class="toolbar"><button type="button" class="btn green" id="addTripFromInvoice">+ New Trip</button><button type="button" class="btn soft" id="addLine">+ Add Another Truck</button></div></div><div class="invoice-lines" id="invoiceLines"></div></div>
-    <div class="span2 invoice-form-summary" id="invoiceFormSummary"></div>
-    ${textarea('Comments / Payment Terms','comments',x.comments||'1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.','span2')}
+
+    <div class="span2 invoice-live-summary">
+      <div><small>Subtotal</small><b id="sumSubtotal">₹0.00</b></div>
+      <div class="gst-summary"><small>GST</small><b id="sumGst">₹0.00</b></div>
+      <div><small>Total</small><b id="sumTotal">₹0.00</b></div>
+    </div>
+
+    ${textarea('Comments / Payment Terms','comments',x.comments||'1. Payment due within 30 days.\\n2. Mention invoice number in payment reference.','span2')}
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">${edit?'Update':'Save'} Invoice</button></div>
   </form>`,{onMount:host=>{
     wireMasterSelects(host);
-    host.querySelector('.modal').classList.add('wide-modal');
     const lines=host.querySelector('#invoiceLines');
-    const numValue=(row,name)=>Number(row.querySelector(`[name=${name}]`)?.value||0);
-    function recalcRow(row,changed=''){
-      const loading=numValue(row,'loadingWeight'),unloading=numValue(row,'unloadingWeight');
-      const shortage=Math.max(0,loading-unloading);
-      row.querySelector('[name=shortage]').value=shortage.toFixed(3);
-      if(changed==='unloadingWeight'||!numValue(row,'weight'))row.querySelector('[name=weight]').value=unloading.toFixed(3);
-      const total=numValue(row,'weight')*numValue(row,'rate');
-      row.querySelector('[data-line-total]').textContent=money(total);
-      recalcInvoice();
-    }
-    function recalcInvoice(){
-      const rows=[...lines.querySelectorAll('.invoice-line')];
-      const loading=rows.reduce((s,r)=>s+numValue(r,'loadingWeight'),0),unloading=rows.reduce((s,r)=>s+numValue(r,'unloadingWeight'),0),shortage=rows.reduce((s,r)=>s+numValue(r,'shortage'),0),freight=rows.reduce((s,r)=>s+numValue(r,'weight')*numValue(r,'rate'),0);
-      const diesel=Number(host.querySelector('[name=diesel]').value||0),munshi=Number(host.querySelector('[name=munshi]').value||0),sgst=Number(host.querySelector('[name=sgst]').value||0),cgst=Number(host.querySelector('[name=cgst]').value||0),subtotal=freight+diesel+munshi,gst=subtotal*(sgst+cgst)/100,total=subtotal+gst;
-      host.querySelector('#invoiceFormSummary').innerHTML=`<span>Trucks <b>${rows.length}</b></span><span>Loading <b>${number3(loading)}</b></span><span>Unloading <b>${number3(unloading)}</b></span><span>Shortage <b>${number3(shortage)}</b></span><span>Invoice Total <b>${money(total)}</b></span>`;
-    }
+    const typeInput=host.querySelector('[name=invoiceType]');
+    const numberInput=host.querySelector('[name=invoiceNo]');
+
     function addLine(item={}){
-      const load=item.loading_weight??item.loadingWeight??item.weight??0,unload=item.unloading_weight??item.unloadingWeight??item.weight??0,bill=item.weight??unload??0;
       const row=document.createElement('div');row.className='invoice-line';
       row.innerHTML=`<label class="field"><span>Trip</span><select name="tripId"><option value="">Manual</option>${d.trips.map(t=>`<option value="${esc(t.id)}" ${String(t.id)===String(item.trip_id||item.tripId||'')?'selected':''}>${esc(t.id+' · '+t.truck_no+' · '+t.party_name)}</option>`).join('')}</select></label>
       ${masterSelectField('Truck No.','truckNo',d.trucks.map(t=>t.truck_no),item.truck_no||item.truckNo||'','truck','required')}
-      ${field('Description / Route','description',item.description||'','','required')}
-      ${field('Loading Wt.','loadingWeight',load,'number','step="0.001" required')}
-      ${field('Unloading Wt.','unloadingWeight',unload,'number','step="0.001" required')}
-      ${field('Shortage','shortage',item.shortage||0,'number','step="0.001" readonly')}
-      ${field('Billing Wt.','weight',bill,'number','step="0.001" required')}
-      ${field('Rate / Ton','rate',item.rate||0,'number','step="0.01" required')}
-      <div class="line-total"><span>Total</span><b data-line-total>${money(Number(bill||0)*Number(item.rate||0))}</b></div>
+      ${field('Description','description',item.description||'','','required')}
+      ${field('Weight','weight',item.weight||0,'number','step="0.001" required')}
+      ${field('Rate','rate',item.rate||0,'number','step="0.01" required')}
       <button type="button" class="mini danger">Remove</button>`;
-      row.querySelector('button').onclick=()=>{row.remove();recalcInvoice()};
-      row.querySelector('select').onchange=e=>{
+      row.querySelector('button.mini').onclick=()=>{row.remove();recalcInvoice()};
+      row.querySelector('select[name=tripId]').onchange=e=>{
         const t=d.trips.find(t=>String(t.id)===String(e.target.value));if(!t)return;
         row.querySelector('[name=truckNo]').value=t.truck_no;
         row.querySelector('[name=description]').value=`${t.loading_point} TO ${t.unloading_point}`;
-        row.querySelector('[name=loadingWeight]').value=Number(t.weight||0).toFixed(3);
-        row.querySelector('[name=unloadingWeight]').value=Number(t.weight||0).toFixed(3);
-        row.querySelector('[name=weight]').value=Number(t.weight||0).toFixed(3);
+        row.querySelector('[name=weight]').value=t.weight;
+        row.querySelector('[name=rate]').value=t.rate||0;
         const party=host.querySelector('[name=partyName]');if(!party.value)party.value=t.party_name;
         const material=host.querySelector('[name=material]');if(!material.value)material.value=t.material;
-        recalcRow(row,'unloadingWeight');
+        recalcInvoice();
       };
-      row.querySelectorAll('input').forEach(input=>input.addEventListener('input',()=>recalcRow(row,input.name)));
-      lines.appendChild(row);wireMasterSelects(row);recalcRow(row);
+      row.querySelectorAll('input').forEach(i=>i.addEventListener('input',recalcInvoice));
+      lines.appendChild(row);wireMasterSelects(row);recalcInvoice();
     }
-    items.forEach(addLine);host.querySelector('#addLine').onclick=()=>addLine({});
-    host.querySelector('#addTripFromInvoice').onclick=()=>{
-      tripForm({},(newTripId,fresh)=>{
-        const trip=fresh.trips.find(t=>String(t.id)===String(newTripId));
-        if(!trip)return;
-        addLine({
-          trip_id:trip.id,tripId:trip.id,
-          truck_no:trip.truck_no,truckNo:trip.truck_no,
-          description:`${trip.loading_point} TO ${trip.unloading_point}`,
-          loading_weight:trip.weight,loadingWeight:trip.weight,
-          unloading_weight:trip.weight,unloadingWeight:trip.weight,
-          weight:trip.weight,rate:trip.rate
-        });
-        const party=host.querySelector('[name=partyName]');
-        const material=host.querySelector('[name=material]');
-        if(party&&!party.value)party.value=trip.party_name;
-        if(material&&!material.value)material.value=trip.material;
-      });
-    };
-    const typeSelect=host.querySelector('[name=invoiceType]');
-    const numberInput=host.querySelector('[name=invoiceNo]');
-    const applyInvoiceType=()=>{
-      const nonGst=typeSelect.value==='NON_GST';
-      host.querySelectorAll('.gst-only').forEach(el=>el.style.display=nonGst?'none':'');
+
+    function recalcInvoice(){
+      const subtotal=[...lines.querySelectorAll('.invoice-line')].reduce((a,r)=>a+Number(r.querySelector('[name=weight]').value||0)*Number(r.querySelector('[name=rate]').value||0),0)+Number(host.querySelector('[name=diesel]').value||0)+Number(host.querySelector('[name=munshi]').value||0);
+      const nonGst=typeInput.value==='NON_GST';
+      const gst=nonGst?0:subtotal*(Number(host.querySelector('[name=sgst]').value||0)+Number(host.querySelector('[name=cgst]').value||0))/100;
+      host.querySelector('#sumSubtotal').textContent=money(subtotal);
+      host.querySelector('#sumGst').textContent=money(gst);
+      host.querySelector('#sumTotal').textContent=money(subtotal+gst);
+    }
+
+    function applyType(type,forceNumber=true){
+      typeInput.value=type;
+      host.querySelectorAll('[data-type-choice]').forEach(b=>b.classList.toggle('active',b.dataset.typeChoice===type));
+      const nonGst=type==='NON_GST';
+      host.querySelectorAll('.gst-field').forEach(el=>el.style.display=nonGst?'none':'');
+      host.querySelectorAll('.gst-summary').forEach(el=>el.style.display=nonGst?'none':'');
       if(nonGst){
         host.querySelector('[name=sgst]').value=0;
         host.querySelector('[name=cgst]').value=0;
-        if(!edit||!numberInput.value||numberInput.value.startsWith('ML'))numberInput.value=d.nextNonGstInvoiceNo;
+        if(forceNumber && (!edit || !numberInput.value || /^ML/i.test(numberInput.value)))numberInput.value=d.nextNonGstInvoiceNo||'JAY 001';
       }else{
-        if(Number(host.querySelector('[name=sgst]').value)===0)host.querySelector('[name=sgst]').value=9;
-        if(Number(host.querySelector('[name=cgst]').value)===0)host.querySelector('[name=cgst]').value=9;
-        if(!edit||!numberInput.value||numberInput.value.startsWith('JAY'))numberInput.value=d.nextInvoiceNo;
+        if(Number(host.querySelector('[name=sgst]').value||0)===0)host.querySelector('[name=sgst]').value=9;
+        if(Number(host.querySelector('[name=cgst]').value||0)===0)host.querySelector('[name=cgst]').value=9;
+        if(forceNumber && (!edit || !numberInput.value || /^JAY/i.test(numberInput.value)))numberInput.value=d.nextInvoiceNo||'ML - 1';
       }
       recalcInvoice();
-    };
-    typeSelect.addEventListener('change',applyInvoiceType);
-    applyInvoiceType();
+    }
+
+    host.querySelectorAll('[data-type-choice]').forEach(b=>b.onclick=()=>applyType(b.dataset.typeChoice,true));
+    items.forEach(addLine);
+    host.querySelector('#addLine').onclick=()=>addLine({});
+    host.querySelector('#addTripFromInvoice').onclick=()=>tripForm({},(newTripId,fresh)=>{
+      const trip=fresh.trips.find(t=>String(t.id)===String(newTripId));
+      if(!trip)return;
+      addLine({tripId:trip.id,truckNo:trip.truck_no,description:`${trip.loading_point} TO ${trip.unloading_point}`,weight:trip.weight,rate:trip.rate});
+    });
 
     host.querySelector('[name=partyName]').addEventListener('change',e=>{
       const p=getPartyDetails(e.target.value);
-      const gst=host.querySelector('[name=partyGst]');
-      const address=host.querySelector('[name=partyAddress]');
-      gst.value=p.gst_no||'';
-      address.value=p.address||'';
-      gst.readOnly=true;
-      address.readOnly=true;
+      host.querySelector('[name=partyGst]').value=p.gst_no||'';
+      host.querySelector('[name=partyAddress]').value=p.address||'';
     });
-    const invoicePartySelect=host.querySelector('[name=partyName]');
-    if(invoicePartySelect.value)invoicePartySelect.dispatchEvent(new Event('change',{bubbles:true}));
     ['diesel','munshi','sgst','cgst'].forEach(n=>host.querySelector(`[name=${n}]`).addEventListener('input',recalcInvoice));
+    applyType(initialType,false);
+
     host.querySelector('[data-close-form]').onclick=()=>host.remove();
     host.querySelector('#invoiceForm').onsubmit=async e=>{
       e.preventDefault();const body=formDataObject(e.target);
-      body.items=[...lines.querySelectorAll('.invoice-line')].map(r=>({tripId:r.querySelector('[name=tripId]').value,truckNo:r.querySelector('[name=truckNo]').value,description:r.querySelector('[name=description]').value,loadingWeight:r.querySelector('[name=loadingWeight]').value,unloadingWeight:r.querySelector('[name=unloadingWeight]').value,shortage:r.querySelector('[name=shortage]').value,weight:r.querySelector('[name=weight]').value,rate:r.querySelector('[name=rate]').value}));
+      body.items=[...lines.querySelectorAll('.invoice-line')].map(r=>({
+        tripId:r.querySelector('[name=tripId]').value,
+        truckNo:r.querySelector('[name=truckNo]').value,
+        description:r.querySelector('[name=description]').value,
+        weight:r.querySelector('[name=weight]').value,
+        rate:r.querySelector('[name=rate]').value
+      }));
       if(await mutate('/invoices'+(edit?'/'+x.id:''),edit?'PUT':'POST',body,e.submitter))host.remove();
     };
-    recalcInvoice();
   }});
-}
-
-function pmBillForm(x={}){
-  x=x||{};
-  const d=state.data,edit=!!x.id;
-  const items=(x.items&&x.items.length?x.items:[{truck_no:'',loading_point:'',unloading_point:'',weight:0,party_rate:0,supplier_rate:0}]);
-  const suppliers=[...new Set(d.trucks.map(t=>t.owner_name).filter(Boolean))];
-  const host=modal(edit?'Edit PM Bill':'New PM Non-GST Bill',`<form class="form-grid" id="pmBillForm">
-    ${field('PM Bill Number','billNo',x.bill_no||d.nextPmBillNo,'text','required')}
-    ${field('Bill Date','billDate',x.bill_date||today(),'date','required')}
-    ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||'','party','required')}
-    ${datalistField('Supplier / Truck Malik (Supplier Khata)','supplierName',x.supplier_name||'','pmSupplierList',suppliers,'required')}
-    <label class="field span2"><span>Party Address</span><textarea name="partyAddress" readonly>${esc(x.party_address||'')}</textarea></label>
-
-    <div class="span2"><div class="section-title"><h3>Truck Lines</h3><button type="button" class="btn soft" id="addPmLine">+ Add Truck</button></div><div class="invoice-lines" id="pmLines"></div></div>
-    ${textarea('Notes','notes',x.notes||'','span2')}
-    <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">${edit?'Update':'Save'} PM Bill</button></div>
-  </form>`,{onMount:host=>{
-    wireMasterSelects(host);
-    const lines=host.querySelector('#pmLines');
-    function addLine(item={}){
-      const row=document.createElement('div');
-      row.className='invoice-line pm-line';
-      row.innerHTML=`
-        ${masterSelectField('Truck No.','truckNo',d.trucks.map(t=>t.truck_no),item.truck_no||item.truckNo||'','truck','required')}
-        ${masterSelectField('Loading','loadingPoint',[...new Set(d.routes.map(r=>r.loading_point))],item.loading_point||item.loadingPoint||'','route-loading','required')}
-        ${masterSelectField('Unloading','unloadingPoint',[...new Set(d.routes.map(r=>r.unloading_point))],item.unloading_point||item.unloadingPoint||'','route-unloading','required')}
-        ${field('Weight','weight',item.weight||0,'number','step="0.001" required')}
-        ${field('Party Rate','partyRate',item.party_rate||item.partyRate||0,'number','step="0.01" required')}
-        ${field('Supplier Rate','supplierRate',item.supplier_rate||item.supplierRate||0,'number','step="0.01" required')}
-        <button type="button" class="mini danger">Remove</button>`;
-      row.querySelector('button.mini').onclick=()=>row.remove();
-      lines.appendChild(row);
-      wireMasterSelects(row);
-    }
-    items.forEach(addLine);
-    host.querySelector('#addPmLine').onclick=()=>addLine({});
-    const party=host.querySelector('[name=partyName]');
-    party.addEventListener('change',()=>{host.querySelector('[name=partyAddress]').value=getPartyDetails(party.value).address||''});
-    if(party.value)party.dispatchEvent(new Event('change',{bubbles:true}));
-    host.querySelector('[data-close-form]').onclick=()=>host.remove();
-    host.querySelector('#pmBillForm').onsubmit=async e=>{
-      e.preventDefault();
-      const body=formDataObject(e.target);
-      body.items=[...lines.querySelectorAll('.pm-line')].map(r=>({
-        truckNo:r.querySelector('[name=truckNo]').value,
-        loadingPoint:r.querySelector('[name=loadingPoint]').value,
-        unloadingPoint:r.querySelector('[name=unloadingPoint]').value,
-        weight:r.querySelector('[name=weight]').value,
-        partyRate:r.querySelector('[name=partyRate]').value,
-        supplierRate:r.querySelector('[name=supplierRate]').value
-      }));
-      if(await mutate('/pm-bills'+(edit?'/'+x.id:''),edit?'PUT':'POST',body,e.submitter))host.remove();
-    };
-  }});
-}
-function pmBillPrintHtml(b){
-  return `<div class="print-sheet pm-print">
-    <div class="invoice-header"><div class="invoice-company"><h1>MEERA LOGISTICS</h1><div>NON-GST TRANSPORT BILL</div><div>Jamnagar, Gujarat</div></div><div class="invoice-meta"><b>${esc(b.bill_no)}</b><div>${esc(b.bill_date)}</div></div></div>
-    <div class="invoice-party"><div><b>Bill To</b><div>${esc(b.party_name)}</div><div>${esc(b.party_address||'')}</div></div><div><b>Supplier:</b> ${esc(b.supplier_name||'-')}<br><b>GST:</b> Not Applicable</div></div>
-    ${table(['Truck No','Route','Weight','Party Rate','Party Amount','Supplier Rate','Supplier Amount'],(b.items||[]).map(i=>[
-      esc(i.truck_no),`${esc(i.loading_point)} → ${esc(i.unloading_point)}`,esc(i.weight),money(i.party_rate),money(i.party_amount),money(i.supplier_rate),money(i.supplier_amount)
-    ]),'850px')}
-    <div class="invoice-total">
-      <div><span>Party Bill Total</span><b>${money(b.subtotal)}</b></div>
-      <div><span>Supplier Payable</span><b>${money(b.supplier_total)}</b></div>
-      <div class="grand"><span>Profit</span><span>${money(b.profit)}</span></div>
-    </div>
-    <p style="white-space:pre-line">${esc(b.notes||'')}</p>
-  </div>`;
-}
-function viewPmBill(b){
-  if(!b)return;
-  modal(`PM Bill ${b.bill_no}`,`${pmBillPrintHtml(b)}<div class="form-actions no-print"><button class="btn primary" onclick="window.print()">Print / Save PDF</button></div>`);
-}
-function downloadPmBill(b){
-  if(!b)return;
-  const w=window.open('','_blank');
-  w.document.write(`<!doctype html><html><head><title>${esc(b.bill_no)}</title><link rel="stylesheet" href="/src/styles.css?v=22"></head><body>${pmBillPrintHtml(b)}<script>setTimeout(()=>window.print(),500)<\/script></body></html>`);
-  w.document.close();
 }
 
 function partyForm(x={}){

@@ -273,3 +273,12 @@ V24 JAY NON-GST INVOICE
 - Both types save in Party Khata, Supplier Khata, Outstanding and history.
 - GST fields and GST amount are disabled for NON_GST invoices.
 - Separate PM section is removed from navigation to avoid duplicate accounting.
+
+
+V25 NON-GST VISIBLE FIX
+- New Invoice visibly shows GST Invoice and Non-GST Invoice buttons at the top.
+- Non-GST selection switches invoice series to JAY 001.
+- GST fields and GST summary hide immediately.
+- GST amount becomes zero.
+- Switching back to GST restores ML series and GST fields.
+- New Invoice screen was rebuilt to guarantee visible behavior.
