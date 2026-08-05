@@ -293,6 +293,23 @@ function wireCommon(){
   };
   document.getElementById('menuBtn').onclick=()=>document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('refreshBtn').onclick=()=>loadData();
+  const globalSearch=document.getElementById('globalSearch');
+  if(globalSearch)globalSearch.onkeydown=e=>{
+    if(e.key!=='Enter')return;
+    const q=norm(globalSearch.value);
+    if(!q)return;
+    const invoice=state.data.invoices.find(x=>norm(x.invoice_no)===q);
+    if(invoice)return viewInvoice(invoice);
+    const trip=state.data.trips.find(x=>norm(x.trip_no)===q||norm(x.id)===q);
+    if(trip)return universalTripScreen(trip);
+    const supplier=state.data.supplierLedger.find(x=>norm(x.ledger_no)===q||norm(x.owner_name).includes(q));
+    if(supplier)return viewSupplierLedger(supplier.owner_name);
+    const party=state.data.parties.find(x=>norm(x.party_name).includes(q));
+    if(party)return viewPartyLedger(party.party_name);
+    const truck=state.data.trucks.find(x=>norm(x.truck_no).includes(q));
+    if(truck){state.panel='trucks';state.search=truck.truck_no.toLowerCase();return render()}
+    alert('No matching invoice, trip, party, supplier or truck found.');
+  };
   document.getElementById('logoutBtn').onclick=async()=>{try{await api('/logout',{method:'POST'})}catch{}clearToken();clearCache();loginView()};
   document.getElementById('backupBtn').onclick=async()=>download(`meera-logistics-backup-${today()}.json`,JSON.stringify(await api('/export'),null,2));
   document.querySelectorAll('[data-search]').forEach(input=>input.oninput=()=>{state.search=input.value.toLowerCase();render()});
@@ -335,9 +352,12 @@ function dashboardPanel(d){
   </section>`;
 }
 function tripsPanel(d){
-  const rows=filterRows(d.trips,['trip_date','party_name','truck_no','material','loading_point','unloading_point','status']);
-  return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Transport Khata</h2><small>Trip booking, status and POD</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search trips…"><button class="btn primary" data-action="new-trip">New Trip</button></div></div>${table(['Date','Trip ID','Party','Truck / Driver','Route','Material','Weight × Rate','Status','POD','Action'],rows.map(t=>[
-    esc(t.trip_date),`<button class="link-btn" data-action="view-trip" data-id="${esc(t.id)}"><b>${esc(t.id)}</b></button>`,esc(t.party_name),`<b>${esc(t.truck_no)}</b><br><small>${esc(t.driver_name||'')}</small>`,`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,esc(t.material),`${esc(t.weight)} × ${money(t.rate)}`,statusBadge(t.status),t.pod_file_name?`<span class="badge info">${esc(t.pod_file_name)}</span>`:'-',`<div class="action-set"><button class="mini green" data-action="view-trip" data-id="${esc(t.id)}">Open Trip</button><button class="mini" data-action="edit-trip" data-id="${esc(t.id)}">Edit</button><button class="mini danger" data-action="delete-trip" data-id="${esc(t.id)}">Delete</button></div>`
+  const rows=filterRows(d.trips,['trip_no','invoice_no','trip_date','party_name','truck_no','material','loading_point','unloading_point','status'])
+    .sort((a,b)=>Number(String(b.trip_no||'').replace(/\D/g,''))-Number(String(a.trip_no||'').replace(/\D/g,'')));
+  return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Transport Khata</h2><small>Trip booking, status and POD</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search trips…"><button class="btn primary" data-action="new-trip">New Trip</button></div></div>${table(['Trip No.','Invoice','Date','Party','Truck / Driver','Route','Material','Weight × Rate','Status','POD','Action'],rows.map(t=>[
+    `<button class="link-btn" data-action="view-trip" data-id="${esc(t.id)}"><b>${esc(t.trip_no||t.id)}</b></button>`,
+    t.invoice_no?`<button class="link-btn" data-action="view-linked-invoice" data-id="${esc(t.invoice_id)}">${esc(t.invoice_no)}</button>`:'-',
+    esc(t.trip_date),esc(t.party_name),`<b>${esc(t.truck_no)}</b><br><small>${esc(t.driver_name||'')}</small>`,`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,esc(t.material),`${esc(t.weight)} × ${money(t.rate)}`,statusBadge(t.status),t.pod_file_name?`<span class="badge info">${esc(t.pod_file_name)}</span>`:'-',`<div class="action-set"><button class="mini green" data-action="view-trip" data-id="${esc(t.id)}">Open Trip</button><button class="mini" data-action="edit-trip" data-id="${esc(t.id)}">Edit</button><button class="mini danger" data-action="delete-trip" data-id="${esc(t.id)}">Delete</button></div>`
   ]),'1250px')}</div></section>`;
 }
 function invoicesPanel(d){
@@ -447,7 +467,7 @@ function partyPaymentsPanel(d){
 }
 function suppliersPanel(d){
   const rows=filterRows(d.supplierLedger,['owner_name']);
-  return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Supplier Khata</h2><small>Truck malik payable and payment ledger</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search supplier…"><button class="btn green" data-action="new-supplier-payment">Pay Supplier</button></div></div><div class="row-list">${rows.map(s=>`<button class="ledger-row" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}"><div><b>${esc(s.owner_name)}</b><small>${s.entries} freight entries · ${s.pm_bills||0} PM bills · ${s.payments} payments · ${s.truck_count} trucks</small></div><div class="money-right"><b>${money(s.pending)}</b><small>Payable ${money(s.payable)}</small></div></button>`).join('')}</div></div></section>`;
+  return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Supplier Khata</h2><small>Truck malik payable and payment ledger</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search supplier…"><button class="btn green" data-action="new-supplier-payment">Pay Supplier</button></div></div><div class="row-list">${rows.map(s=>`<button class="ledger-row" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}"><div><b>${esc((s.ledger_no?s.ledger_no+' · ':'')+s.owner_name)}</b><small>${s.entries} freight entries · ${s.pm_bills||0} PM bills · ${s.payments} payments · ${s.truck_count} trucks</small></div><div class="money-right"><b>${money(s.pending)}</b><small>Payable ${money(s.payable)}</small></div></button>`).join('')}</div></div></section>`;
 }
 function truckEntriesPanel(d){
   const rows=filterRows(d.truckEntries,['entry_date','truck_no','owner_name','loading_point','unloading_point']);
@@ -567,6 +587,7 @@ function tdsDeclarationHtml(x){
         <p><b>Date:</b> ${esc(dateText)}</p>
       </div>
       <div class="tds-sign">
+        <div class="tds-digital-stamp"><b>MEERA</b><span>LOGISTICS</span><small>JAMNAGAR</small></div>
         <div class="tds-sign-line"></div>
         <b>Authorized Partner</b>
         <div>${esc(x.authorizedPartner||'')}</div>
@@ -599,6 +620,7 @@ function reportsPanel(d){
 function handleAction(action,id){
   if(action==='new-trip'||action==='edit-trip')return tripForm(action==='edit-trip'?(find('trip',id)||{}):{});
   if(action==='view-trip')return universalTripScreen(find('trip',id));
+  if(action==='view-linked-invoice')return viewInvoice(find('invoice',id));
   if(action==='trip-create-invoice'){const t=find('trip',id);return invoiceForm({},t||{});}
   if(action==='trip-party-payment'){const t=find('trip',id);return partyPaymentForm({},t||{});}
   if(action==='trip-supplier-payment'){
@@ -696,7 +718,7 @@ function universalTripScreen(trip){
   const partyPending=f.revenue-f.partyPaid;
   const supplierPending=f.supplierPayable-f.supplierPaid;
 
-  const host=modal(`Trip Details · ${trip.id}`,`
+  const host=modal(`Trip Details · ${trip.trip_no||trip.id}`,`
     <div class="ut-shell">
       <div class="ut-top">
         <div class="ut-truck"><b>🚚 ${esc(trip.truck_no)}</b><span>${esc(trip.material||'MARKET')}</span></div>
@@ -708,7 +730,7 @@ function universalTripScreen(trip){
           <small>PARTY</small>
           <h2>${esc(trip.party_name)}</h2>
           <div class="ut-route"><b>${esc(trip.loading_point)}</b><span>→</span><b>${esc(trip.unloading_point)}</b></div>
-          <p>${esc(trip.trip_date)} · ${esc(trip.id)}</p>
+          <p>${esc(trip.trip_date)} · ${esc(trip.trip_no||trip.id)}</p>
         </div>
         <strong>${money(f.revenue)}</strong>
       </div>
@@ -799,8 +821,19 @@ function tripForm(x={},afterSave=null){
   x=x||{};
   const d=state.data,edit=!!x.id;
   const linkedInvoice=d.invoices.find(inv=>(inv.items||[]).some(it=>String(it.trip_id||'')===String(x.id||'')))||null;
+  const initialType=linkedInvoice?.invoice_type||'GST';
   const partyMaster=getPartyDetails(x.party_name||'');
+
   const host=modal(edit?'Edit Universal Trip':'New Universal Trip',`<form class="form-grid" id="tripForm">
+    <div class="span2 invoice-type-switch">
+      <span>Trip Type</span>
+      <div class="invoice-type-buttons">
+        <button type="button" class="type-choice ${initialType==='GST'?'active':''}" data-trip-type="GST">GST Trip</button>
+        <button type="button" class="type-choice ${initialType==='NON_GST'?'active':''}" data-trip-type="NON_GST">Non-GST Trip</button>
+      </div>
+      <input type="hidden" name="tripType" value="${esc(initialType)}">
+    </div>
+
     <div class="span2 universal-section-title"><b>TRIP DETAILS</b><small>એક જ entryમાંથી Trip, Invoice, Party અને Supplier બધે લાગુ પડશે</small></div>
     ${field('Trip Date','tripDate',x.trip_date||today(),'date','required')}
     ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||'','party','required')}
@@ -815,17 +848,17 @@ function tripForm(x={},afterSave=null){
     ${field('Party Billing Rate','rate',x.rate||0,'number','step="0.01" required')}
     ${selectField('Trip Status','status',['BOOKED','LOADED','IN_TRANSIT','DELIVERED'],x.status||'BOOKED')}
 
-    <div class="span2 universal-section-title billing"><b>INVOICE & GST</b><small>Invoice number અને GST આ Trip સાથે જ save થશે</small></div>
+    <div class="span2 universal-section-title billing"><b>INVOICE DETAILS</b><small>Trip Type પ્રમાણે ML અથવા JAY series આવશે</small></div>
     <label class="field span2 universal-check">
       <span>Create / Update Invoice With This Trip</span>
       <input name="createInvoice" type="checkbox" ${linkedInvoice||!edit?'checked':''}>
     </label>
-    <label class="field"><span>Invoice Number (Auto, Editable)</span><input name="invoiceNo" type="text" value="${esc(linkedInvoice?.invoice_no||d.nextInvoiceNo)}" required></label>
+    ${field('Invoice Number','invoiceNo',linkedInvoice?.invoice_no||(initialType==='NON_GST'?d.nextNonGstInvoiceNo:d.nextInvoiceNo),'text','required')}
     ${field('Invoice Date','invoiceDate',linkedInvoice?.invoice_date||x.trip_date||today(),'date','required')}
-    ${field('Party GST Number','partyGst',linkedInvoice?.party_gst||partyMaster.gst_no||'','text','readonly')}
+    <div class="trip-gst-field">${field('Party GST Number','partyGst',linkedInvoice?.party_gst||partyMaster.gst_no||'','text','readonly')}</div>
     ${field('LR Number','lrNo',linkedInvoice?.lr_no||'')}
-    ${field('SGST %','sgst',linkedInvoice?.sgst??9,'number','step="0.01"')}
-    ${field('CGST %','cgst',linkedInvoice?.cgst??9,'number','step="0.01"')}
+    <div class="trip-gst-field">${field('SGST %','sgst',linkedInvoice?.sgst??9,'number','step="0.01"')}</div>
+    <div class="trip-gst-field">${field('CGST %','cgst',linkedInvoice?.cgst??9,'number','step="0.01"')}</div>
     ${field('Diesel','diesel',linkedInvoice?.diesel||0,'number','step="0.01"')}
     ${field('Munshi Charges','munshi',linkedInvoice?.munshi||0,'number','step="0.01"')}
     <label class="field span2"><span>Party Address</span><textarea name="partyAddress" readonly>${esc(linkedInvoice?.party_address||partyMaster.address||'')}</textarea></label>
@@ -841,17 +874,45 @@ function tripForm(x={},afterSave=null){
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">${edit?'Update':'Save'} Universal Trip</button></div>
   </form>`,{onMount:host=>{
     wireMasterSelects(host);
+
+    const tripTypeInput=host.querySelector('[name=tripType]');
+    const invoiceNoInput=host.querySelector('[name=invoiceNo]');
     const partySelect=host.querySelector('[name=partyName]');
+
+    const applyTripType=(type,forceNumber=true)=>{
+      tripTypeInput.value=type;
+      host.querySelectorAll('[data-trip-type]').forEach(b=>b.classList.toggle('active',b.dataset.tripType===type));
+      const nonGst=type==='NON_GST';
+      host.querySelectorAll('.trip-gst-field').forEach(el=>el.style.display=nonGst?'none':'');
+      if(nonGst){
+        host.querySelector('[name=sgst]').value=0;
+        host.querySelector('[name=cgst]').value=0;
+        host.querySelector('[name=partyGst]').value='';
+        if(forceNumber && (!edit || !invoiceNoInput.value || /^ML/i.test(invoiceNoInput.value)))invoiceNoInput.value=d.nextNonGstInvoiceNo||'JAY 001';
+      }else{
+        const p=getPartyDetails(partySelect.value);
+        host.querySelector('[name=partyGst]').value=p.gst_no||'';
+        if(Number(host.querySelector('[name=sgst]').value||0)===0)host.querySelector('[name=sgst]').value=9;
+        if(Number(host.querySelector('[name=cgst]').value||0)===0)host.querySelector('[name=cgst]').value=9;
+        if(forceNumber && (!edit || !invoiceNoInput.value || /^JAY/i.test(invoiceNoInput.value)))invoiceNoInput.value=d.nextInvoiceNo||'ML - 1';
+      }
+    };
+
+    host.querySelectorAll('[data-trip-type]').forEach(b=>b.onclick=()=>applyTripType(b.dataset.tripType,true));
+
     partySelect.addEventListener('change',()=>{
       const p=getPartyDetails(partySelect.value);
       const gst=host.querySelector('[name=partyGst]');
       const address=host.querySelector('[name=partyAddress]');
-      gst.value=p.gst_no||'';
+      if(tripTypeInput.value==='GST')gst.value=p.gst_no||'';
       address.value=p.address||'';
       gst.readOnly=true;
       address.readOnly=true;
     });
+
+    applyTripType(initialType,false);
     if(partySelect.value)partySelect.dispatchEvent(new Event('change',{bubbles:true}));
+
     host.querySelector('[data-close-form]').onclick=()=>host.remove();
     host.querySelector('#tripForm').onsubmit=async e=>{
       e.preventDefault();
@@ -860,6 +921,7 @@ function tripForm(x={},afterSave=null){
       const loading=Number(body.loadingWeight||0);
       const unloading=Number(body.unloadingWeight||0);
       body.weight=unloading||loading;
+
       const files=[...host.querySelector('#podFiles').files];
       if(files.length){
         const compressed=[];
@@ -879,8 +941,6 @@ function tripForm(x={},afterSave=null){
         });
         const tripId=tripResult.id||x.id;
 
-        // Universal invoice: use an existing invoice number to add this truck
-        // to that invoice; otherwise create a new invoice.
         if(e.target.createInvoice.checked){
           const freshBeforeInvoice=await api('/bootstrap');
           const sameNumber=freshBeforeInvoice.invoices.find(inv=>String(inv.invoice_no)===String(body.invoiceNo));
@@ -895,18 +955,19 @@ function tripForm(x={},afterSave=null){
             weight:unloading||loading,
             rate:Number(body.rate||0)
           });
+
           const invoiceBody={
             invoiceNo:body.invoiceNo,
-            invoiceType:'GST',
+            invoiceType:body.tripType,
             invoiceDate:body.invoiceDate,
             partyName:body.partyName,
             partyAddress:body.partyAddress||'',
-            partyGst:body.partyGst||'',
+            partyGst:body.tripType==='NON_GST'?'':body.partyGst||'',
             lrNo:body.lrNo||'',
             material:body.material,
             loadingDate:body.tripDate,
-            sgst:Number(body.sgst||0),
-            cgst:Number(body.cgst||0),
+            sgst:body.tripType==='NON_GST'?0:Number(body.sgst||0),
+            cgst:body.tripType==='NON_GST'?0:Number(body.cgst||0),
             diesel:Number(body.diesel||0),
             munshi:Number(body.munshi||0),
             comments:body.comments||'',
@@ -920,13 +981,13 @@ function tripForm(x={},afterSave=null){
               rate:it.rate
             }))
           };
+
           await api('/invoices'+(targetInvoice?'/'+targetInvoice.id:''),{
             method:targetInvoice?'PUT':'POST',
             body:JSON.stringify(invoiceBody)
           });
         }
 
-        // Universal supplier payable entry.
         const supplierRate=Number(body.supplierRate||0);
         if(supplierRate>0){
           const freshSupplier=await api('/bootstrap');
@@ -1233,51 +1294,88 @@ async function viewDocument(id){
   try{const d=await api('/documents/'+id);modal(`${d.truck_no} · ${d.kind}`,`<div style="text-align:center">${d.file_type==='application/pdf'?`<iframe src="${esc(d.file_data)}" style="width:100%;height:70vh;border:0"></iframe>`:`<img src="${esc(d.file_data)}" alt="${esc(d.file_name)}" style="max-width:100%;max-height:70vh;border-radius:10px">`}<p>${esc(d.file_name)}</p></div>`)}
   catch(e){alert(e.message)}
 }
-async function viewPartyLedger(name){
-  try{const x=await api('/party-ledger/'+encodeURIComponent(name));modal(`Party Ledger · ${name}`,`<div class="cards">${metric('Total Billing',x.invoices.reduce((a,v)=>a+Number(v.total||0),0))}${metric('Received',x.payments.reduce((a,v)=>a+Number(v.amount||0),0))}${metric('Outstanding',x.balance)}</div>${table(['Date','Type','Reference','Debit','Credit','Balance','Notes','Action'],x.lines.map(l=>{
-    const inv=state.data.invoices.find(i=>i.invoice_no===l.reference);
-    return [esc(l.date),statusBadge(l.type),esc(l.reference),l.debit?money(l.debit):'-',l.credit?money(l.credit):'-',`<b>${money(l.balance)}</b>`,esc(l.notes||'-'),inv?`<div class="action-set"><button class="mini green" data-action="view-invoice" data-id="${esc(inv.id)}">View</button><button class="mini" data-action="edit-invoice" data-id="${esc(inv.id)}">Edit</button><button class="mini gray" data-action="download-invoice" data-id="${esc(inv.id)}">PDF</button><button class="mini danger" data-action="delete-invoice" data-id="${esc(inv.id)}">Delete</button></div>`:'-'];
-  }),'1100px')}`)}
-  catch(e){alert(e.message)}
+
+function safeFileName(value){return String(value||'LEDGER').replace(/[\\/:*?"<>|]+/g,' ').trim()}
+function downloadTextFile(name,text,type='text/csv;charset=utf-8'){
+  const blob=new Blob([text],{type});const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
 }
+function ledgerExcelHtml(title,headers,rows){
+  return `<html><head><meta charset="utf-8"></head><body><h2>${esc(title)}</h2><table border="1"><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td>${String(c??'')}</td>`).join('')}</tr>`).join('')}</table></body></html>`;
+}
+function openLedgerPrint(title,content){
+  const w=window.open('','_blank');
+  w.document.write(`<!doctype html><html><head><title>${esc(title)}</title><link rel="stylesheet" href="/src/styles.css?v=30"></head><body>${content}<script>setTimeout(()=>window.print(),500)<\/script></body></html>`);
+  w.document.close();
+}
+function manualWhatsApp(message){
+  window.open(`https://wa.me/?text=${encodeURIComponent(message)}`,'_blank');
+}
+
+async function viewPartyLedger(name){
+  try{
+    const x=await api('/party-ledger/'+encodeURIComponent(name));
+    const party=getPartyDetails(name);
+    const rows=x.lines.map(l=>[
+      l.date,l.type,l.reference,l.debit||'',l.credit||'',l.balance,l.notes||''
+    ]);
+    const content=`<div class="ledger-print">
+      <h1>${esc(name)}</h1>
+      <div>${esc(party.address||'')}</div>
+      <div>GST NO.: ${esc(party.gst_no||'-')}</div>
+      <h2>Meera Logistics — Party Ledger</h2>
+      <div class="cards">${metric('Total Billing',x.invoices.reduce((a,v)=>a+Number(v.total||0),0))}${metric('Received',x.payments.reduce((a,v)=>a+Number(v.amount||0),0))}${metric('Outstanding',x.balance)}</div>
+      ${table(['Date','Type','Invoice / Ref','Debit','Credit','Balance','Notes'],rows.map(r=>[
+        esc(r[0]),statusBadge(r[1]),esc(r[2]),r[3]?money(r[3]):'-',r[4]?money(r[4]):'-',`<b>${money(r[5])}</b>`,esc(r[6])
+      ]),'950px')}
+    </div>`;
+    modal(`Party Ledger · ${name}`,`
+      <div class="toolbar no-print">
+        <button class="btn primary" id="partyPdf">PDF / Print</button>
+        <button class="btn green" id="partyExcel">Excel</button>
+        <button class="btn soft" id="partyWhatsApp">WhatsApp</button>
+      </div>${content}
+    `,{onMount:host=>{
+      host.querySelector('#partyPdf').onclick=()=>openLedgerPrint(`${name} PARTY LEDGER`,content);
+      host.querySelector('#partyExcel').onclick=()=>downloadTextFile(
+        `${safeFileName(name)} PARTY LEDGER.xls`,
+        ledgerExcelHtml(`${name} PARTY LEDGER`,['Date','Type','Reference','Debit','Credit','Balance','Notes'],rows),
+        'application/vnd.ms-excel'
+      );
+      host.querySelector('#partyWhatsApp').onclick=()=>manualWhatsApp(`MEERA LOGISTICS\nPARTY LEDGER\n${name}\nOutstanding: ${money(x.balance)}\nPDF/Excel can be attached manually.`);
+    }});
+  }catch(e){alert(e.message)}
+}
+
 async function viewSupplierLedger(name){
   try{
     const x=await api('/supplier-ledger/'+encodeURIComponent(name));
-    const pmPayable=(x.pmBills||[]).reduce((a,v)=>a+Number(v.supplier_total||0),0);
-    modal(`Supplier Ledger · ${name}`,`
-      <div class="cards">
-        ${metric('Freight Payable',x.entries.reduce((a,v)=>a+Number(v.payable||0),0))}
-        ${metric('PM Bill Payable',pmPayable)}
-        ${metric('Paid',x.payments.reduce((a,v)=>a+Number(v.amount||0),0))}
-        ${metric('Pending',x.balance)}
-      </div>
-      ${(x.pmBills||[]).length?`<div class="card" style="margin-bottom:12px">
-        <div class="section-title"><h3>PM Non-GST Bills</h3></div>
-        ${table(['Bill No.','Date','Party','Supplier Payable','Profit','Action'],
-          x.pmBills.map(b=>[
-            `<b>${esc(b.bill_no)}</b>`,
-            esc(b.bill_date),
-            esc(b.party_name),
-            money(b.supplier_total),
-            money(b.profit),
-            `<div class="action-set">
-              <button class="mini green" data-action="view-pm-bill" data-id="${esc(b.id)}">View</button>
-              <button class="mini" data-action="edit-pm-bill" data-id="${esc(b.id)}">Edit</button>
-              <button class="mini gray" data-action="download-pm-bill" data-id="${esc(b.id)}">PDF</button>
-            </div>`
-          ]),'850px')}
-      </div>`:''}
-      ${table(['Date','Type','Reference','Debit','Credit','Balance','Notes'],
-        x.lines.map(l=>[
-          esc(l.date),statusBadge(l.type),esc(l.reference),
-          l.debit?money(l.debit):'-',l.credit?money(l.credit):'-',
-          `<b>${money(l.balance)}</b>`,esc(l.notes||'-')
-        ]),'850px')}
+    const summary=state.data.supplierLedger.find(s=>s.owner_name===name)||{};
+    const ledgerTitle=`${summary.ledger_no||'PML'} ${name} SUPPLIER LEDGER`;
+    const rows=x.lines.map(l=>[l.date,l.type,l.reference,l.debit||'',l.credit||'',l.balance,l.notes||'']);
+    const content=`<div class="ledger-print">
+      <h1>${esc(summary.ledger_no||'')} ${esc(name)}</h1>
+      <h2>Meera Logistics — Supplier Ledger</h2>
+      <div class="cards">${metric('Payable',x.entries.reduce((a,v)=>a+Number(v.payable||0),0))}${metric('Paid',x.payments.reduce((a,v)=>a+Number(v.amount||0),0))}${metric('Pending',x.balance)}</div>
+      ${table(['Date','Type','Trip / Reference','Debit','Credit','Balance','Notes'],rows.map(r=>[
+        esc(r[0]),statusBadge(r[1]),esc(r[2]),r[3]?money(r[3]):'-',r[4]?money(r[4]):'-',`<b>${money(r[5])}</b>`,esc(r[6])
+      ]),'950px')}
+    </div>`;
+    modal(`Supplier Ledger · ${summary.ledger_no||''} ${name}`,`
+      <div class="toolbar no-print">
+        <button class="btn primary" id="supplierPdf">PDF / Print</button>
+        <button class="btn green" id="supplierExcel">Excel</button>
+        <button class="btn soft" id="supplierWhatsApp">WhatsApp</button>
+      </div>${content}
     `,{onMount:host=>{
-      host.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>{
-        host.remove();
-        handleAction(b.dataset.action,b.dataset.id);
-      });
+      host.querySelector('#supplierPdf').onclick=()=>openLedgerPrint(ledgerTitle,content);
+      host.querySelector('#supplierExcel').onclick=()=>downloadTextFile(
+        `${safeFileName(ledgerTitle)}.xls`,
+        ledgerExcelHtml(ledgerTitle,['Date','Type','Reference','Debit','Credit','Balance','Notes'],rows),
+        'application/vnd.ms-excel'
+      );
+      host.querySelector('#supplierWhatsApp').onclick=()=>manualWhatsApp(`MEERA LOGISTICS\nSUPPLIER LEDGER\n${summary.ledger_no||''} ${name}\nAmount Due: ${money(x.balance)}\nPDF/Excel can be attached manually.`);
     }});
   }catch(e){alert(e.message)}
 }

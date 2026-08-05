@@ -282,3 +282,24 @@ V25 NON-GST VISIBLE FIX
 - GST amount becomes zero.
 - Switching back to GST restores ML series and GST fields.
 - New Invoice screen was rebuilt to guarantee visible behavior.
+
+
+V26 TRIP GST / NON-GST
+- New/Edit Trip visibly shows GST Trip and Non-GST Trip buttons.
+- GST Trip creates/updates ML-series GST invoice.
+- Non-GST Trip creates/updates JAY-series invoice.
+- Party GST, SGST and CGST hide for Non-GST Trip.
+- GST values are zero for Non-GST Trip.
+- Trip Type and linked Invoice Type always remain the same.
+
+
+V30 CORE FINAL
+- Every invoice truck line creates one separate TR-series trip.
+- Existing invoice lines are migrated to missing trips automatically.
+- Old trips receive permanent TR 001, TR 002... numbers.
+- Invoice edit/add/delete synchronizes linked trip history.
+- Trip edit/delete synchronizes the linked invoice line and totals.
+- Supplier ledger numbers use permanent PML 001, PML 002... identities.
+- Party and Supplier Ledgers include View, PDF/Print, Excel-compatible XLS and WhatsApp.
+- Universal Search supports ML/JAY invoice, TR trip, PML supplier, party and truck.
+- TDS declaration includes the Meera Logistics digital stamp.
