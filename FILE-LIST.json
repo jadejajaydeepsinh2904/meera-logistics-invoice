@@ -1,24 +1,41 @@
 {
-  "version": "V36-ACTUAL-REPO-INVOICE-REFERENCE",
+  "version": "V37-A4-INVOICE-TABLE-STAMP-FIX",
   "login_backend_modified": false,
   "core_app_modified": false,
-  "visual_pdf_test": "passed",
-  "total_files": 25,
+  "checks": {
+    "node:public/src/app.js": "passed",
+    "node:public/src/invoice-v36.js": "passed",
+    "node:public/src/core/api.js": "passed",
+    "node:worker/src/index.js": "passed",
+    "node:worker/src/seed-data.js": "passed",
+    "login_backend_core_unchanged": "passed",
+    "invoice_table_compact_no_trip_no_no_line_lr": "passed",
+    "summary_lr_retained": "passed",
+    "a4_landscape_layout": "passed",
+    "supplied_partner_stamp_asset": "passed",
+    "totals_rows_fixed": "passed"
+  },
+  "total_files": 26,
   "files": [
     {
       "path": "README.md",
-      "size": 13809,
-      "sha256": "0f1c9d1a788e658e23f29db9a214a5b620150073ae568c6f6e9d142c82c8fe13"
+      "size": 14377,
+      "sha256": "fefd50286eb2c1e321c640e91ee4fbe94579280fceb15f77dacda72f9adcc7fb"
     },
     {
       "path": "START-HERE.txt",
-      "size": 12593,
-      "sha256": "df42cc4e8d50044a124bd5a8eaa4a0b91862619cc947cd9f21dd6fa03f7c3e9d"
+      "size": 13161,
+      "sha256": "a0cba631537ceba35ea4dcefbdda911d59c2faea843dc0c7a5584c2780c774b9"
     },
     {
       "path": "public/assets/meera-logo.png",
       "size": 409508,
       "sha256": "3b0d2414c0a4b63876149d6c98d471f97d5362f0cd35979baf386ae492c61238"
+    },
+    {
+      "path": "public/assets/meera-partner-stamp.png",
+      "size": 103399,
+      "sha256": "c79b6f6a60394e5dc4f2d1a528f57ef52cf37f44c764794f942897cfa283d1c1"
     },
     {
       "path": "public/data/invoices.json",
@@ -68,7 +85,7 @@
     {
       "path": "public/index.html",
       "size": 647,
-      "sha256": "a2bc701bcec73626f476671db1db4467f8d88afe43d929c18559ec354e1f9404"
+      "sha256": "4a2d2d6d2cd879521a3836c052f00e57057b74f6a0705852f3af4d827d0ca7c3"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -87,13 +104,13 @@
     },
     {
       "path": "public/src/invoice-v36.css",
-      "size": 5885,
-      "sha256": "26d892283d32e36f403b808c491c8e3bbb3d232f1143cf00a58f058ba0e7a2fc"
+      "size": 6811,
+      "sha256": "d9fc54b0b743dd1c6bfedf8460735f623fe255e51749dce3f43199e37689a936"
     },
     {
       "path": "public/src/invoice-v36.js",
-      "size": 10752,
-      "sha256": "b33b7fc183d797ca0acadbe24add8913489d2e1eddd0d092ebd69ed8a5baeea2"
+      "size": 10875,
+      "sha256": "73203a1e5c44bf03b3b955c9187a54f7e801f24b843ee24509b3de0868b98946"
     },
     {
       "path": "public/src/styles.css",

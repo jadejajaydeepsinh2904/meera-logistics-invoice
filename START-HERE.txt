@@ -302,3 +302,14 @@ V36 REFERENCE INVOICE LAYER
 - Added reference-matched Invoice View/Print/PDF without modifying login, app core or Worker backend.
 - Per-truck LR Number, TR Number, loading/unloading/difference/billing weights, rate and amount are printed line-wise.
 - Invoice WhatsApp and CSV export use line-wise LR/truck details.
+
+
+V37 A4 INVOICE LAYOUT FIX
+- Login, D1 migration and Worker backend are unchanged.
+- Removed Trip Number and LR Number columns from the truck table.
+- LR numbers remain in the invoice summary.
+- Compact truck table follows the original reference layout.
+- Bottom totals always show Total, GST (when applicable), Diesel, Munshi Charges and final Total.
+- Exact A4 landscape print/PDF sizing.
+- Removed the generated round stamp and replaced it with the supplied Meera Logistics / J.K. Jadeja / Partner stamp-signature image.
+- Fixed table sizing, spacing and overlap.

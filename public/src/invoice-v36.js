@@ -35,6 +35,8 @@ function invoiceMarkup(invoice,data){
   const items=invoice.items||[];
   const nonGst=invoiceType(invoice)==='NON-GST';
   const lrNumbers=[...new Set(items.map(item=>String(item.lr_number||'').trim()).filter(Boolean))];
+  if(!lrNumbers.length && String(invoice.lr_no||'').trim())lrNumbers.push(String(invoice.lr_no).trim());
+  const rowClass=items.length>14?' v36-very-many-lines':items.length>8?' v36-many-lines':'';
   const loadingTotal=items.reduce((sum,item)=>sum+Number(item.loading_weight??item.weight??0),0);
   const unloadingTotal=items.reduce((sum,item)=>sum+Number(item.unloading_weight??item.weight??0),0);
   const shortageTotal=items.reduce((sum,item)=>sum+Number(item.shortage??Math.max(0,Number(item.loading_weight||0)-Number(item.unloading_weight||0))),0);
@@ -44,7 +46,7 @@ function invoiceMarkup(invoice,data){
   const cgstAmount=nonGst?0:taxable*Number(invoice.cgst||0)/100;
   const comments=esc(invoice.comments||'').replace(/\\n|\n/g,'<br>');
 
-  return `<article class="v36-invoice">
+  return `<article class="v36-invoice${rowClass}">
     <header class="v36-head">
       <img class="v36-logo" src="/assets/meera-logo.png" alt="Meera Logistics logo">
       <div class="v36-company-name">MEERA LOGISTICS</div>
@@ -82,30 +84,31 @@ function invoiceMarkup(invoice,data){
 
     <table class="v36-lines">
       <thead><tr>
-        <th>SR.</th><th>LR NUMBER</th><th>TRIP NO.</th><th>TRUCK NO.</th><th>DESCRIPTION</th>
-        <th>LOADING WT.</th><th>UNLOADING WT.</th><th>DIFF.</th><th>BILLING WT./TON</th><th>RATE PER TONE</th><th>TOTAL</th>
+        <th>SR.</th><th>TRUCK NO.</th><th>DESCRIPTION</th><th>LOADING WT.</th>
+        <th>UNLOADING WT.</th><th>DIFF.</th><th>WEIGHT / TON</th><th>RATE PER TONE</th><th>TOTAL</th>
       </tr></thead>
       <tbody>${items.map((item,index)=>`<tr>
-        <td>${index+1}</td><td>${esc(item.lr_number||'-')}</td><td>${esc(tripNumber(data,item.trip_id))}</td><td>${esc(item.truck_no||'-')}</td>
-        <td>${esc(item.description||'-')}</td><td>${number3(item.loading_weight??item.weight)}</td><td>${number3(item.unloading_weight??item.weight)}</td>
-        <td>${number3(item.shortage||0)}</td><td>${number3(item.weight)}</td><td>${money(item.rate)}</td><td>${money(item.amount)}</td>
+        <td>${index+1}</td><td>${esc(item.truck_no||'-')}</td><td>${esc(item.description||'-')}</td>
+        <td>${number3(item.loading_weight??item.weight)}</td><td>${number3(item.unloading_weight??item.weight)}</td>
+        <td>${number3(item.shortage??Math.max(0,Number(item.loading_weight||0)-Number(item.unloading_weight||0)))}</td>
+        <td>${number3(item.weight)}</td><td>${money(item.rate)}</td><td>${money(item.amount)}</td>
       </tr>`).join('')}</tbody>
     </table>
 
     <section class="v36-bottom">
       <div class="v36-comments"><b>Comments</b><div>${comments||'1. Payment due within 30 days.<br>2. Mention invoice number in payment reference.'}</div></div>
       <table class="v36-totals"><tbody>
-        <tr><th>Freight Total</th><td>${money(freightTotal)}</td></tr>
-        ${Number(invoice.diesel||0)?`<tr><th>Diesel</th><td>${money(invoice.diesel)}</td></tr>`:''}
-        ${Number(invoice.munshi||0)?`<tr><th>Munshi Charges</th><td>${money(invoice.munshi)}</td></tr>`:''}
+        <tr><th>Total</th><td>${money(freightTotal)}</td></tr>
         ${nonGst?'':`<tr><th>SGST ${Number(invoice.sgst||0)}%</th><td>${money(sgstAmount)}</td></tr><tr><th>CGST ${Number(invoice.cgst||0)}%</th><td>${money(cgstAmount)}</td></tr>`}
-        <tr class="grand"><th>Grand Total</th><td>${money(invoice.total)}</td></tr>
+        <tr><th>Diesel</th><td>${money(invoice.diesel||0)}</td></tr>
+        <tr><th>Munshi Charges</th><td>${money(invoice.munshi||0)}</td></tr>
+        <tr class="grand"><th>Total</th><td>${money(invoice.total)}</td></tr>
       </tbody></table>
     </section>
 
     <footer class="v36-signatures">
       <div><span></span><b>Signature of the Customer</b></div>
-      <div><div class="v36-stamp"><strong>MEERA</strong><small>LOGISTICS</small><em>JAMNAGAR</em></div><span></span><b>Signature of the Supplier</b></div>
+      <div><img class="v36-partner-stamp" src="/assets/meera-partner-stamp.png" alt="Meera Logistics partner stamp and signature"><span></span><b>Signature of the Supplier</b></div>
     </footer>
   </article>`;
 }
@@ -130,7 +133,7 @@ function openViewer(invoice,data){
 function printInvoice(invoice,data){
   const win=window.open('','_blank','width=1280,height=900');
   if(!win){alert('Please allow pop-ups to print/download invoice.');return}
-  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(invoice.invoice_no)}</title><link rel="stylesheet" href="${location.origin}/src/invoice-v36.css?v=36"></head><body class="v36-print-body">${invoiceMarkup(invoice,data)}<script>window.onload=()=>setTimeout(()=>window.print(),450)<\/script></body></html>`);
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(invoice.invoice_no)}</title><link rel="stylesheet" href="${location.origin}/src/invoice-v36.css?v=37"></head><body class="v36-print-body">${invoiceMarkup(invoice,data)}<script>window.onload=()=>setTimeout(()=>window.print(),450)<\/script></body></html>`);
   win.document.close();
 }
 function shareInvoice(invoice){
