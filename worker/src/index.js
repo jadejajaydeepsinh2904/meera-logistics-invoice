@@ -270,7 +270,7 @@ async function ensureDatabase(env){
       `CREATE INDEX IF NOT EXISTS idx_document_truck ON truck_documents(truck_no)`,
       `CREATE INDEX IF NOT EXISTS idx_party_payment_trip ON party_payments(trip_id)`,
       `CREATE INDEX IF NOT EXISTS idx_supplier_payment_trip ON supplier_payments(trip_id)`,
-      `CREATE INDEX IF NOT EXISTS idx_expense_trip ON expenses(trip_id)`
+      `CREATE INDEX IF NOT EXISTS idx_expense_trip ON expenses(trip_id)`,
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_no ON trips(trip_no)`,
       `CREATE INDEX IF NOT EXISTS idx_trip_invoice ON trips(invoice_id)`,
       `CREATE INDEX IF NOT EXISTS idx_trip_invoice_item ON trips(invoice_item_id)`,

@@ -259,3 +259,10 @@ V31 LOGIN ALTER FIX
 - Cause was a missing comma between D1 migration template strings.
 - CREATE TABLE, ALTER TABLE and CREATE INDEX arrays were normalized and syntax-checked.
 - Existing D1 data is preserved.
+
+
+V32 MIGRATION RUNTIME FIX
+- Fixed: "CREATE INDEX IF NOT EXISTS idx_expense_trip ON expenses(trip_id)" is not a function.
+- Audited CREATE TABLE, ALTER TABLE, CREATE INDEX and CREATE TRIGGER arrays for missing commas.
+- Added a runtime Worker health test with a mock D1 database, not only a syntax check.
+- Existing D1 records are preserved.
