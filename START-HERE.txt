@@ -330,3 +330,12 @@ V39 STABLE INVOICE VIEW / PRINT / DOWNLOAD
 4. Invoice View has separate Print and Download buttons.
 5. LR Number appears in each Truck line, not in the top summary box.
 6. Download creates a one-page A4 landscape PDF with complete values and totals.
+
+
+V40 PARTY LEDGER — SAMPLE FORMAT
+- Every Party Khata card now shows separate Ledger View and Download buttons below the party summary.
+- Ledger View follows the supplied Party Ledger sample: party name/address/GST, Meera Logistics Ledger Account heading, date range, voucher table and Closing Balance.
+- Invoice entries appear as Purchase credits; Party receipts appear as Receipt debits, with running Cr/Dr balance.
+- Download creates a direct A4 portrait PDF named “PARTY NAME PARTY LEDGER.pdf”.
+- Long ledgers automatically continue across multiple PDF pages with page numbering.
+- Login, authentication, D1 migration, Worker backend, invoice logic and existing data were not modified.

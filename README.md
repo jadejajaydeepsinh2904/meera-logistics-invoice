@@ -383,3 +383,12 @@ V39 STABLE INVOICE VIEW / PRINT / DOWNLOAD
 - Partner stamp/signature is positioned higher and clear of the total table.
 - WhatsApp uses the same properly generated invoice PDF on supported mobile share sheets.
 - Login, D1 migration, authentication and Worker backend were not modified.
+
+
+V40 PARTY LEDGER — SAMPLE FORMAT
+- Every Party Khata card now shows separate Ledger View and Download buttons below the party summary.
+- Ledger View follows the supplied Party Ledger sample: party name/address/GST, Meera Logistics Ledger Account heading, date range, voucher table and Closing Balance.
+- Invoice entries appear as Purchase credits; Party receipts appear as Receipt debits, with running Cr/Dr balance.
+- Download creates a direct A4 portrait PDF named “PARTY NAME PARTY LEDGER.pdf”.
+- Long ledgers automatically continue across multiple PDF pages with page numbering.
+- Login, authentication, D1 migration, Worker backend, invoice logic and existing data were not modified.
