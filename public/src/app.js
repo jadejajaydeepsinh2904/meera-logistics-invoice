@@ -363,7 +363,7 @@ function tripsPanel(d){
 function invoicesPanel(d){
   const rows=sortInvoicesSeries(filterRows(d.invoices,['invoice_no','invoice_date','party_name','lr_no','material']),true);
   return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Invoice Desk</h2><small>GST invoices linked with trips</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search invoices…"><button class="btn primary" data-action="new-invoice">New Invoice</button><button class="btn light" data-action="export-invoices">Excel CSV</button></div></div>${table(['Invoice','Type','Date','Party','LR / Material','Trips','Subtotal','GST','Total','Action'],rows.map(i=>[
-    `<b>${esc(i.invoice_no)}</b>`,statusBadge(invoiceTypeLabel(i)),esc(i.invoice_date),esc(i.party_name),`${esc(i.lr_no||'-')}<br><small>${esc(i.material)}</small>`,String(i.items.length),money(i.subtotal),money(i.gst_amount),`<b>${money(i.total)}</b>`,`<div class="action-set"><button class="mini green" data-action="view-invoice" data-id="${esc(i.id)}">View</button><button class="mini" data-action="edit-invoice" data-id="${esc(i.id)}">Edit</button><button class="mini gray" data-action="download-invoice" data-id="${esc(i.id)}">Download</button><button class="mini gray" data-action="share-invoice" data-id="${esc(i.id)}">WhatsApp</button><button class="mini danger" data-action="delete-invoice" data-id="${esc(i.id)}">Delete</button></div>`
+    `<b>${esc(i.invoice_no)}</b>`,statusBadge(invoiceTypeLabel(i)),esc(i.invoice_date),esc(i.party_name),`${esc(i.lr_no||'-')}<br><small>${esc(i.material)}</small>`,String(i.items.length),money(i.subtotal),money(i.gst_amount),`<b>${money(i.total)}</b>`,`<div class="action-set"><button class="mini green" data-action="view-invoice" data-id="${esc(i.id)}">View</button><button class="mini" data-action="edit-invoice" data-id="${esc(i.id)}">Edit</button><button class="mini gray" data-action="print-invoice" data-id="${esc(i.id)}">Print</button><button class="mini gray" data-action="download-invoice" data-id="${esc(i.id)}">Download</button><button class="mini gray" data-action="share-invoice" data-id="${esc(i.id)}">WhatsApp</button><button class="mini danger" data-action="delete-invoice" data-id="${esc(i.id)}">Delete</button></div>`
   ]),'1100px')}</div></section>`;
 }
 
@@ -445,6 +445,7 @@ function partiesPanel(d){
                   `<div class="action-set">
                     <button class="mini green" data-action="view-invoice" data-id="${esc(i.id)}">View</button>
                     <button class="mini" data-action="edit-invoice" data-id="${esc(i.id)}">Edit</button>
+                    <button class="mini gray" data-action="print-invoice" data-id="${esc(i.id)}">Print</button>
                     <button class="mini gray" data-action="download-invoice" data-id="${esc(i.id)}">Download</button>
                     <button class="mini danger" data-action="delete-invoice" data-id="${esc(i.id)}">Delete</button>
                   </div>`

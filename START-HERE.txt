@@ -322,3 +322,11 @@ V38 REAL PDF DOWNLOAD & WHATSAPP SHARE
 - On desktop browsers that cannot share files, the PDF is downloaded and WhatsApp opens as a safe fallback.
 - Partner stamp/signature area is moved upward.
 - Login, D1 migrations and Worker backend are unchanged.
+
+V39 STABLE INVOICE VIEW / PRINT / DOWNLOAD
+1. Upload/replace every file from this ZIP in GitHub main root.
+2. Keep the public, worker and data folder structure exactly as supplied.
+3. Vercel serves the public folder; Cloudflare Worker/D1 login code is unchanged.
+4. Invoice View has separate Print and Download buttons.
+5. LR Number appears in each Truck line, not in the top summary box.
+6. Download creates a one-page A4 landscape PDF with complete values and totals.

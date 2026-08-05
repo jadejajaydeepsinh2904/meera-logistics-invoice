@@ -373,3 +373,13 @@ V38 REAL PDF DOWNLOAD & WHATSAPP SHARE
 - On desktop browsers that cannot share files, the PDF is downloaded and WhatsApp opens as a safe fallback.
 - Partner stamp/signature area is moved upward.
 - Login, D1 migrations and Worker backend are unchanged.
+
+V39 STABLE INVOICE VIEW / PRINT / DOWNLOAD
+- Separate Print and Download buttons are available in Invoice View and invoice action lists.
+- Print uses the exact browser invoice layout and A4 landscape print CSS.
+- Download uses a self-contained vector PDF generator; html2canvas/jsPDF CDN rendering was removed.
+- LR Number is removed from the top summary and shown line-wise beside each Truck entry.
+- Downloaded PDF contains all summary values, totals and line details without right-side clipping.
+- Partner stamp/signature is positioned higher and clear of the total table.
+- WhatsApp uses the same properly generated invoice PDF on supported mobile share sheets.
+- Login, D1 migration, authentication and Worker backend were not modified.

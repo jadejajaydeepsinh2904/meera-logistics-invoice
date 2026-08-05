@@ -1,31 +1,55 @@
 {
-  "version": "V38-REAL-PDF-WHATSAPP-SHARE",
+  "version": "V39-STABLE-INVOICE-VIEW-PRINT-DOWNLOAD",
+  "source": "V38 full deployment project",
+  "protected_backend_changed": false,
   "checks": {
-    "invoice_button_only_download": "passed",
-    "real_pdf_blob_generation": "passed",
-    "invoice_named_pdf": "passed",
-    "web_share_pdf_file": "passed",
-    "desktop_fallback": "passed",
-    "signature_moved_up": "passed",
-    "login_backend_unchanged": "passed",
-    "cache_version_38": "passed"
+    "public/src/app.js": "passed",
+    "public/src/invoice-v36.js": "passed",
+    "public/src/invoice-pdf-v39.js": "passed",
+    "public/src/core/api.js": "passed",
+    "worker/src/index.js": "passed",
+    "worker/src/seed-data.js": "passed",
+    "json_validation": "passed",
+    "separate_print_button": "passed",
+    "separate_download_button": "passed",
+    "invoice_list_print": "passed",
+    "line_lr_number": "passed",
+    "top_lr_removed": "passed",
+    "vector_pdf": "passed",
+    "a4_media_box": "passed",
+    "signature_higher": "passed",
+    "old_canvas_pdf_removed": "passed",
+    "login_d1_worker_unchanged": "passed",
+    "non_gst_pdf_render": "passed",
+    "gst_10_line_pdf_render": "passed",
+    "pdf_page_size": "A4 landscape 841.89 x 595.28 pt"
   },
-  "total_files": 26,
+  "total_files": 29,
   "files": [
     {
       "path": "README.md",
-      "size": 14875,
-      "sha256": "722f35847a0332ba1b73afd575cf1a8860e762416dde60e1ed619b1ddf281b78"
+      "size": 15618,
+      "sha256": "6130f41406325ea5065aea0f3737efaa5c752b48ebd6588ea47b2a719e392fe8"
     },
     {
       "path": "START-HERE.txt",
-      "size": 13659,
-      "sha256": "b6d30289b113ae8e0b403ea7279289792683abee26d3bdeecfc03cad90971738"
+      "size": 14130,
+      "sha256": "df193b0de903791b2461b0e9d6fe099a0126d4b369b542106b1f5e69c650cd51"
+    },
+    {
+      "path": "public/assets/meera-logo-pdf.jpg",
+      "size": 42940,
+      "sha256": "79d5159e83ba965a971726fced7f3190b1933f7c3a262a90afbdb0fdf086a3a0"
     },
     {
       "path": "public/assets/meera-logo.png",
       "size": 409508,
       "sha256": "3b0d2414c0a4b63876149d6c98d471f97d5362f0cd35979baf386ae492c61238"
+    },
+    {
+      "path": "public/assets/meera-partner-stamp-pdf.jpg",
+      "size": 63025,
+      "sha256": "483cad13fd1d570c14279d1185ffe94390ab8004576540b17eab1dd808de2ae0"
     },
     {
       "path": "public/assets/meera-partner-stamp.png",
@@ -80,7 +104,7 @@
     {
       "path": "public/index.html",
       "size": 647,
-      "sha256": "38910c07d23f8d0e0c17464f34dd7b84f2b57c53987b2914c6b010e8c02d7e3e"
+      "sha256": "27b4da317d1b371c85c4fdbb1e53fc1f453fcf0fa485c12e9442f11612a27903"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -89,8 +113,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 103383,
-      "sha256": "b98afa12cdf008e33b47d082e63715794ef0daaa072aad5bebc85c67373ae63e"
+      "size": 103586,
+      "sha256": "74a3e9b51a38776372d30a9182f9e180b96b5e61eba655c159691a050b74eef8"
     },
     {
       "path": "public/src/core/api.js",
@@ -98,14 +122,19 @@
       "sha256": "78b89ffbd733cb742a716e7cc818f1e8d186c9fbae26b5a7e85fb8a625a3bb8b"
     },
     {
+      "path": "public/src/invoice-pdf-v39.js",
+      "size": 14313,
+      "sha256": "d0734017ccc08cb65614f668b3ab9d774b5f4419e37cde0d40d950a9a5acecf3"
+    },
+    {
       "path": "public/src/invoice-v36.css",
-      "size": 7114,
-      "sha256": "2620e17b254cbd4b53dd7a803e773265ccf07b9e275163aa0fc0289494a17089"
+      "size": 7064,
+      "sha256": "c190ab492eb4150f43fde9ecbe562116bb3494cac3308b8c29dcf41ae5b58f99"
     },
     {
       "path": "public/src/invoice-v36.js",
-      "size": 15364,
-      "sha256": "144407ffa84da542ba9962308b64e5261dbbdd1fe63927c30626504b7040ad95"
+      "size": 12615,
+      "sha256": "eff61f949c90187c94fc838a5d3675f9a80c465854d9b54ad672dd33e07b343e"
     },
     {
       "path": "public/src/styles.css",
