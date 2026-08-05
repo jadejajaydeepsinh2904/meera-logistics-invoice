@@ -347,3 +347,9 @@ V35 LR & WEIGHT LINES
 - Billing Weight remains editable and is used for Amount calculation.
 - Every Invoice line synchronizes these values to its linked Trip.
 - Operational columns are added lazily only when Trip/Invoice is used, not during login.
+
+
+V36 REFERENCE INVOICE LAYER
+- Added reference-matched Invoice View/Print/PDF without modifying login, app core or Worker backend.
+- Per-truck LR Number, TR Number, loading/unloading/difference/billing weights, rate and amount are printed line-wise.
+- Invoice WhatsApp and CSV export use line-wise LR/truck details.

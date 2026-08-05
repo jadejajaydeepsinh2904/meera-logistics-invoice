@@ -1,25 +1,19 @@
 {
-  "version": "V35-LR-WEIGHT-LINES",
-  "checks": {
-    "javascript_syntax": "passed",
-    "login_schema_version_v34_unchanged": "passed",
-    "manual_trip_dropdown_removed": "passed",
-    "per_truck_lr": "passed",
-    "loading_unloading_difference_billing_weights": "passed",
-    "trip_invoice_sync_fields": "passed",
-    "json_validation": "passed"
-  },
-  "total_files": 23,
+  "version": "V36-ACTUAL-REPO-INVOICE-REFERENCE",
+  "login_backend_modified": false,
+  "core_app_modified": false,
+  "visual_pdf_test": "passed",
+  "total_files": 25,
   "files": [
     {
       "path": "README.md",
-      "size": 13492,
-      "sha256": "a26899bb1b2b281e1742282bff13a67ae78fe27de2ca68a9fa1df009fb1416dc"
+      "size": 13809,
+      "sha256": "0f1c9d1a788e658e23f29db9a214a5b620150073ae568c6f6e9d142c82c8fe13"
     },
     {
       "path": "START-HERE.txt",
-      "size": 12276,
-      "sha256": "5315897a50c863fc316a90dca9d2db2bce327a84d66996e5efb1eb3849cc2754"
+      "size": 12593,
+      "sha256": "df42cc4e8d50044a124bd5a8eaa4a0b91862619cc947cd9f21dd6fa03f7c3e9d"
     },
     {
       "path": "public/assets/meera-logo.png",
@@ -73,8 +67,8 @@
     },
     {
       "path": "public/index.html",
-      "size": 523,
-      "sha256": "fac27d51a3ae206349b96e17226b1280da1a91c2efb1a47daf99faee8a3a2891"
+      "size": 647,
+      "sha256": "a2bc701bcec73626f476671db1db4467f8d88afe43d929c18559ec354e1f9404"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -90,6 +84,16 @@
       "path": "public/src/core/api.js",
       "size": 1048,
       "sha256": "78b89ffbd733cb742a716e7cc818f1e8d186c9fbae26b5a7e85fb8a625a3bb8b"
+    },
+    {
+      "path": "public/src/invoice-v36.css",
+      "size": 5885,
+      "sha256": "26d892283d32e36f403b808c491c8e3bbb3d232f1143cf00a58f058ba0e7a2fc"
+    },
+    {
+      "path": "public/src/invoice-v36.js",
+      "size": 10752,
+      "sha256": "b33b7fc183d797ca0acadbe24add8913489d2e1eddd0d092ebd69ed8a5baeea2"
     },
     {
       "path": "public/src/styles.css",
