@@ -150,10 +150,10 @@ async function repairTripSeriesAndInvoiceLinks(env){
         continue;
       }
     }
-    await run(env,`UPDATE trips SET trip_no='' WHERE id=?`,t.id);
+    await run(env,`UPDATE trips SET trip_no=NULL WHERE id=?`,t.id);
   }
 
-  const needsNumber=await all(env,`SELECT id FROM trips WHERE COALESCE(TRIM(trip_no),'')='' ORDER BY trip_date,created_at,id`);
+  const needsNumber=await all(env,`SELECT id FROM trips WHERE trip_no IS NULL OR TRIM(trip_no)='' ORDER BY trip_date,created_at,id`);
   for(const t of needsNumber){
     let assigned=false;
     while(!assigned){
@@ -220,7 +220,7 @@ async function ensureDatabase(env){
     // statements on every Worker cold start.
     try{
       const ready=await first(env,`SELECT value FROM app_meta WHERE key='schema_version'`);
-      if(ready?.value==='33'){
+      if(ready?.value==='34'){
         await first(env,`SELECT trip_no,invoice_id,invoice_item_id FROM trips LIMIT 1`);
         await first(env,`SELECT ledger_no FROM supplier_accounts LIMIT 1`);
         return;
@@ -236,7 +236,7 @@ async function ensureDatabase(env){
       `CREATE TABLE IF NOT EXISTS trucks(id TEXT PRIMARY KEY,truck_no TEXT UNIQUE NOT NULL,owner_name TEXT,owner_mobile TEXT DEFAULT '',bank_details TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY,loading_point TEXT NOT NULL,unloading_point TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS materials(id TEXT PRIMARY KEY,material_name TEXT UNIQUE NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
-      `CREATE TABLE IF NOT EXISTS trips(id TEXT PRIMARY KEY,trip_no TEXT UNIQUE DEFAULT '',invoice_id TEXT DEFAULT '',invoice_item_id TEXT DEFAULT '',trip_date TEXT,party_name TEXT,truck_no TEXT,driver_name TEXT DEFAULT '',driver_mobile TEXT DEFAULT '',material TEXT,loading_point TEXT,unloading_point TEXT,weight REAL DEFAULT 0,rate REAL DEFAULT 0,status TEXT DEFAULT 'BOOKED',notes TEXT DEFAULT '',pod_file_name TEXT DEFAULT '',pod_data TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+      `CREATE TABLE IF NOT EXISTS trips(id TEXT PRIMARY KEY,trip_no TEXT DEFAULT NULL,invoice_id TEXT DEFAULT '',invoice_item_id TEXT DEFAULT '',trip_date TEXT,party_name TEXT,truck_no TEXT,driver_name TEXT DEFAULT '',driver_mobile TEXT DEFAULT '',material TEXT,loading_point TEXT,unloading_point TEXT,weight REAL DEFAULT 0,rate REAL DEFAULT 0,status TEXT DEFAULT 'BOOKED',notes TEXT DEFAULT '',pod_file_name TEXT DEFAULT '',pod_data TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS invoices(id TEXT PRIMARY KEY,invoice_no TEXT UNIQUE NOT NULL,invoice_type TEXT DEFAULT 'GST',invoice_date TEXT,party_name TEXT,party_address TEXT DEFAULT '',party_gst TEXT DEFAULT '',lr_no TEXT DEFAULT '',material TEXT DEFAULT '',loading_date TEXT DEFAULT '',sgst REAL DEFAULT 9,cgst REAL DEFAULT 9,diesel REAL DEFAULT 0,munshi REAL DEFAULT 0,subtotal REAL DEFAULT 0,gst_amount REAL DEFAULT 0,total REAL DEFAULT 0,comments TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS pm_bills(id TEXT PRIMARY KEY,bill_no TEXT UNIQUE NOT NULL,bill_date TEXT,party_name TEXT NOT NULL,party_address TEXT DEFAULT '',supplier_name TEXT DEFAULT '',notes TEXT DEFAULT '',subtotal REAL DEFAULT 0,supplier_total REAL DEFAULT 0,profit REAL DEFAULT 0,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS pm_bill_items(id TEXT PRIMARY KEY,bill_id TEXT NOT NULL,truck_no TEXT DEFAULT '',loading_point TEXT DEFAULT '',unloading_point TEXT DEFAULT '',weight REAL DEFAULT 0,party_rate REAL DEFAULT 0,supplier_rate REAL DEFAULT 0,party_amount REAL DEFAULT 0,supplier_amount REAL DEFAULT 0,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
@@ -293,11 +293,15 @@ async function ensureDatabase(env){
       `ALTER TABLE invoice_items ADD COLUMN loading_weight REAL DEFAULT 0`,
       `ALTER TABLE invoice_items ADD COLUMN unloading_weight REAL DEFAULT 0`,
       `ALTER TABLE invoice_items ADD COLUMN shortage REAL DEFAULT 0`,
-      `ALTER TABLE trips ADD COLUMN trip_no TEXT DEFAULT ''`,
+      `ALTER TABLE trips ADD COLUMN trip_no TEXT DEFAULT NULL`,
       `ALTER TABLE trips ADD COLUMN invoice_id TEXT DEFAULT ''`,
       `ALTER TABLE trips ADD COLUMN invoice_item_id TEXT DEFAULT ''`,
     ];
     for(const sql of alters) await safe(env, sql);
+
+    // Old V30-V33 builds created a unique index before legacy Trip numbers
+    // were normalized. Drop it first so duplicates/blanks can be repaired safely.
+    await safe(env,`DROP INDEX IF EXISTS idx_trip_no`);
 
     const indexes = [
       `CREATE INDEX IF NOT EXISTS idx_trip_party ON trips(party_name)`,
@@ -317,7 +321,6 @@ async function ensureDatabase(env){
       `CREATE INDEX IF NOT EXISTS idx_party_payment_trip ON party_payments(trip_id)`,
       `CREATE INDEX IF NOT EXISTS idx_supplier_payment_trip ON supplier_payments(trip_id)`,
       `CREATE INDEX IF NOT EXISTS idx_expense_trip ON expenses(trip_id)`,
-      `CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_no ON trips(trip_no)`,
       `CREATE INDEX IF NOT EXISTS idx_trip_invoice ON trips(invoice_id)`,
       `CREATE INDEX IF NOT EXISTS idx_trip_invoice_item ON trips(invoice_item_id)`,
       `CREATE INDEX IF NOT EXISTS idx_supplier_ledger_no ON supplier_accounts(ledger_no)`,
@@ -381,8 +384,8 @@ async function ensureDatabase(env){
         await run(env, `INSERT OR IGNORE INTO materials(id,material_name) VALUES(?,?)`,m.id,m.material_name);
       }
       for(const t of SEED_DATA.trips){
-        await run(env, `INSERT OR IGNORE INTO trips(id,trip_date,party_name,truck_no,driver_name,driver_mobile,material,loading_point,unloading_point,weight,rate,status,notes,pod_file_name) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-          t.id,t.trip_date,t.party_name,t.truck_no,t.driver_name,t.driver_mobile,t.material,t.loading_point,t.unloading_point,t.weight,t.rate,t.status,t.notes,t.pod_file_name);
+        await run(env, `INSERT OR IGNORE INTO trips(id,trip_no,trip_date,party_name,truck_no,driver_name,driver_mobile,material,loading_point,unloading_point,weight,rate,status,notes,pod_file_name) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          t.id,null,t.trip_date,t.party_name,t.truck_no,t.driver_name,t.driver_mobile,t.material,t.loading_point,t.unloading_point,t.weight,t.rate,t.status,t.notes,t.pod_file_name);
       }
       for(const i of SEED_DATA.invoices){
         await run(env, `INSERT OR IGNORE INTO invoices(id,invoice_no,invoice_date,party_name,party_address,party_gst,lr_no,material,loading_date,sgst,cgst,diesel,munshi,subtotal,gst_amount,total,comments) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -409,7 +412,10 @@ async function ensureDatabase(env){
     await backfillPartyMaster(env);
     await ensureSupplierAccounts(env);
     await repairTripSeriesAndInvoiceLinks(env);
-    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','33',CURRENT_TIMESTAMP)`);
+    await run(env,`CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_no
+      ON trips(trip_no)
+      WHERE trip_no IS NOT NULL AND TRIM(trip_no)<>''`);
+    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','34',CURRENT_TIMESTAMP)`);
   })().catch(e=>{ initPromise=null; throw e; });
   return initPromise;
 }

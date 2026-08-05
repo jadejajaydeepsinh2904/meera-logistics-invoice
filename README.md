@@ -326,3 +326,13 @@ V33 TRIP NUMBER IDEMPOTENT FIX
 - Trip number allocation retries safely on UNIQUE collisions.
 - Historical repair does not replay on every successful login.
 - Existing data is preserved.
+
+
+V34 TRIP UNIQUE MIGRATION FIX
+- Fixed repeated D1 UNIQUE constraint failed: trips.trip_no.
+- Drops the old named TR unique index before repairing legacy rows.
+- Blank and duplicate legacy trip numbers are temporarily stored as NULL.
+- TR 001, TR 002... are assigned first; the partial unique index is created afterward.
+- Fresh databases no longer use trip_no UNIQUE DEFAULT ''.
+- Seed Trips explicitly use NULL until TR numbering is assigned.
+- Existing invoices, trips, payments and ledgers are preserved.
