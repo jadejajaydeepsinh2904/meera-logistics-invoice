@@ -1,23 +1,16 @@
 {
-  "version": "V18-FINAL-CHECKED",
+  "version": "V20-PARTY-INVOICE-SERIES",
   "total_files": 23,
-  "checks": {
-    "javascript_syntax": "passed",
-    "json_validation": "passed",
-    "old_d1_upgrade": "passed",
-    "party_gst_address_backfill": "passed",
-    "universal_trip_static_checks": "passed"
-  },
   "files": [
     {
       "path": "README.md",
-      "size": 7927,
-      "sha256": "19e36b92edd4fbe352b6570b71a25e2196b6244b6586ccbb7d03b9dc1bc9812f"
+      "size": 8479,
+      "sha256": "834da42317b3d2fe71814fd55251f1948eb4750ae911e67b6da726d166979ec5"
     },
     {
       "path": "START-HERE.txt",
-      "size": 6711,
-      "sha256": "8a092b53c63dbbe72bf20d5bcdd26ab81ec12ddf8f905e294868702daca070f6"
+      "size": 7263,
+      "sha256": "d61ed8faa36e31007973109ab12db3a2ab5291abea9f669da42aab0037de9d88"
     },
     {
       "path": "public/assets/meera-logo.png",
@@ -72,7 +65,7 @@
     {
       "path": "public/index.html",
       "size": 523,
-      "sha256": "d2a023570480459971c07f0507d19a168691e2e093337de26758d8b689d256d4"
+      "sha256": "fac1f3c6b7d7d15f2e94b049c7d3d53a0793d15cb55315d78168e0474ef14b46"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -81,8 +74,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 80981,
-      "sha256": "3720038251205e3633966da243de47e6355a09961a047e397ad2be53cd8ec080"
+      "size": 92427,
+      "sha256": "38842e5bca07f559e26fcf68a9289e3e4032517b1d294025a7bf97098f14ef19"
     },
     {
       "path": "public/src/core/api.js",
@@ -91,8 +84,8 @@
     },
     {
       "path": "public/src/styles.css",
-      "size": 27013,
-      "sha256": "bf5e7c1f099e145b9501f200ad3b545d0ccfdd1c02bee2379eb49fedfc5bb11e"
+      "size": 28772,
+      "sha256": "28bfa736074d46fc05385b07d072e086772c69b796d97e2715bd7441abad1583"
     },
     {
       "path": "vercel.json",

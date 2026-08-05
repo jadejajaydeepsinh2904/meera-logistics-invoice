@@ -10,6 +10,33 @@ const clearCache=()=>{try{localStorage.removeItem(CACHE_KEY)}catch{}};
 const money=n=>'₹'+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const today=()=>new Date().toISOString().slice(0,10);
+
+function parseInvoiceNumber(value){
+  const text=String(value||'').trim();
+  const m=text.match(/^(.*?)(\d+)\s*$/);
+  return m?{prefix:m[1],number:Number(m[2]),width:m[2].length,raw:text}:{prefix:text,number:-1,width:0,raw:text};
+}
+function sortInvoicesSeries(items,desc=true){
+  return [...items].sort((a,b)=>{
+    const A=parseInvoiceNumber(a.invoice_no),B=parseInvoiceNumber(b.invoice_no);
+    if(A.prefix!==B.prefix)return A.prefix.localeCompare(B.prefix);
+    return desc?B.number-A.number:A.number-B.number;
+  });
+}
+function invoiceStatus(total,received){
+  const t=Number(total||0),r=Number(received||0);
+  if(r<=0)return 'PENDING';
+  if(r+0.01>=t)return 'PAID';
+  return 'PARTIAL';
+}
+function invoiceReceivedAmount(invoice){
+  const linked=state.data.partyPayments.filter(p=>
+    (p.trip_id && (invoice.items||[]).some(i=>String(i.trip_id||'')===String(p.trip_id))) ||
+    (!p.trip_id && p.party_name===invoice.party_name && p.payment_date>=invoice.invoice_date)
+  );
+  return linked.reduce((a,x)=>a+Number(x.amount||0),0);
+}
+
 const invoiceDate=s=>{if(!s)return '';const p=String(s).split('-');return p.length===3?`${p[2]}-${p[1]}-${p[0]}`:s};
 const number3=n=>Number(n||0).toFixed(3);
 const norm=s=>String(s||'').trim().toUpperCase();
@@ -222,14 +249,14 @@ async function loadData({background=false}={}){
 function navButton(id,label){return `<button class="${state.panel===id?'active':''}" data-panel="${id}"><span class="dot"></span>${label}</button>`}
 function render(){
   const d=state.data;
-  const titles={dashboard:'Dashboard',trips:'Transport Khata',invoices:'Invoice Desk',parties:'Party Khata',partyPayments:'Party Payments',suppliers:'Supplier Khata',truckEntries:'Truck / Supplier Entries',supplierPayments:'Supplier Payments',trucks:'Truck & Documents',masters:'Masters',expenses:'Office Expenses',reports:'Reports & Audit'};
+  const titles={dashboard:'Dashboard',trips:'Transport Khata',invoices:'Invoice Desk',parties:'Party Khata',partyPayments:'Party Payments',suppliers:'Supplier Khata',truckEntries:'Truck / Supplier Entries',supplierPayments:'Supplier Payments',trucks:'Truck & Documents',masters:'Masters',forms:'Forms',expenses:'Office Expenses',reports:'Reports & Audit'};
   app.innerHTML=`<div class="erp">
     <aside class="sidebar" id="sidebar">
       <div class="brand"><div class="brand-mark">ML</div><div><b>MEERA LOGISTICS</b><small>TRANSPORT ERP</small></div></div>
       <div class="nav-group-title">Overview</div><div class="nav">${navButton('dashboard','Dashboard')}</div>
       <div class="nav-group-title">Transport</div><div class="nav">${navButton('trips','Transport Khata')}${navButton('invoices','Invoice Desk')}</div>
       <div class="nav-group-title">Accounts</div><div class="nav">${navButton('parties','Party Khata')}${navButton('partyPayments','Party Payments')}${navButton('suppliers','Supplier Khata')}${navButton('truckEntries','Truck / Supplier Entries')}${navButton('supplierPayments','Supplier Payments')}</div>
-      <div class="nav-group-title">Office</div><div class="nav">${navButton('trucks','Truck & Documents')}${navButton('masters','Masters')}${navButton('expenses','Office Expenses')}${navButton('reports','Reports & Audit')}</div>
+      <div class="nav-group-title">Office</div><div class="nav">${navButton('trucks','Truck & Documents')}${navButton('masters','Masters')}${navButton('forms','Forms')}${navButton('expenses','Office Expenses')}${navButton('reports','Reports & Audit')}</div>
     </aside>
     <main class="main">
       <div class="topbar no-print"><div style="display:flex;gap:9px;align-items:center"><button class="btn light mobile-menu" id="menuBtn">☰</button><div class="top-title"><h1>${titles[state.panel]}</h1><p>Live online data · ${esc(d.user.username)} · ${esc(d.version)}</p></div></div>
@@ -285,6 +312,7 @@ function panelHtml(){
   if(state.panel==='supplierPayments')return supplierPaymentsPanel(d);
   if(state.panel==='trucks')return trucksPanel(d);
   if(state.panel==='masters')return mastersPanel(d);
+  if(state.panel==='forms')return formsPanel(d);
   if(state.panel==='expenses')return expensesPanel(d);
   return reportsPanel(d);
 }
@@ -299,7 +327,10 @@ function dashboardPanel(d){
       <button type="button" class="quick" data-action="new-supplier-payment"><b>Pay Supplier</b><small>Truck malik payment</small></button>
     </div>
     <div class="grid2" style="margin-top:12px"><div class="card"><div class="section-title"><h2>Recent Trips</h2><button class="btn soft" data-panel="trips">View all</button></div>${table(['Date','Party','Truck','Route','Status'],d.trips.slice(0,8).map(t=>[esc(t.trip_date),`<b>${esc(t.party_name)}</b>`,esc(t.truck_no),`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,statusBadge(t.status)]),'700px')}</div>
-    <div class="card"><div class="section-title"><h2>Party Outstanding</h2></div><div class="row-list">${d.partyLedger.slice(0,8).map(p=>`<button class="ledger-row" data-action="view-party-ledger" data-id="${encodeURIComponent(p.party_name)}"><div><b>${esc((p.ledger_no?p.ledger_no+' · ':'')+p.party_name)}</b><small>${p.invoices} invoices · ${p.payments} payments</small></div><div class="money-right"><b>${money(p.outstanding)}</b><small>Outstanding</small></div></button>`).join('')}</div></div></div>
+    <div class="card"><div class="section-title"><h2>Party Outstanding</h2></div><div class="row-list">${d.partyLedger.slice(0,8).map(p=>{
+      const lastInvoice=sortInvoicesSeries(d.invoices.filter(i=>i.party_name===p.party_name),true)[0];
+      return `<div class="ledger-row"><button style="all:unset;cursor:pointer;flex:1" data-action="view-party-ledger" data-id="${encodeURIComponent(p.party_name)}"><b>${esc((p.ledger_no?p.ledger_no+' · ':'')+p.party_name)}</b><small>${lastInvoice?`Last Invoice ${esc(lastInvoice.invoice_no)} · `:''}${p.invoices} invoices · ${p.payments} payments</small></button><div class="money-right"><b>${money(p.outstanding)}</b><small>Outstanding</small></div></div>`;
+    }).join('')}</div></div></div>
   </section>`;
 }
 function tripsPanel(d){
@@ -309,15 +340,67 @@ function tripsPanel(d){
   ]),'1250px')}</div></section>`;
 }
 function invoicesPanel(d){
-  const rows=filterRows(d.invoices,['invoice_no','invoice_date','party_name','lr_no','material']);
+  const rows=sortInvoicesSeries(filterRows(d.invoices,['invoice_no','invoice_date','party_name','lr_no','material']),true);
   return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Invoice Desk</h2><small>GST invoices linked with trips</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search invoices…"><button class="btn primary" data-action="new-invoice">New Invoice</button><button class="btn light" data-action="export-invoices">Excel CSV</button></div></div>${table(['Invoice','Date','Party','LR / Material','Trips','Subtotal','GST','Total','Action'],rows.map(i=>[
     `<b>${esc(i.invoice_no)}</b>`,esc(i.invoice_date),esc(i.party_name),`${esc(i.lr_no||'-')}<br><small>${esc(i.material)}</small>`,String(i.items.length),money(i.subtotal),money(i.gst_amount),`<b>${money(i.total)}</b>`,`<div class="action-set"><button class="mini green" data-action="view-invoice" data-id="${esc(i.id)}">View</button><button class="mini" data-action="edit-invoice" data-id="${esc(i.id)}">Edit</button><button class="mini gray" data-action="download-invoice" data-id="${esc(i.id)}">Download PDF</button><button class="mini gray" data-action="share-invoice" data-id="${esc(i.id)}">WhatsApp</button><button class="mini danger" data-action="delete-invoice" data-id="${esc(i.id)}">Delete</button></div>`
   ]),'1100px')}</div></section>`;
 }
+
 function partiesPanel(d){
   const rows=filterRows(d.partyLedger,['party_name','ledger_no']);
-  return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Party Khata</h2><small>Billing, receipts and outstanding</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search party…"><button class="btn primary" data-action="new-party">New Party</button><button class="btn green" data-action="new-party-payment">Receive Payment</button></div></div><div class="row-list">${rows.map(p=>`<div class="ledger-row"><button style="all:unset;cursor:pointer;flex:1" data-action="view-party-ledger" data-id="${encodeURIComponent(p.party_name)}"><b>${esc((p.ledger_no?p.ledger_no+' · ':'')+p.party_name)}</b><small>Billed ${money(p.billed)} · Received ${money(p.received)} · ${p.invoices} invoices</small></button><div class="money-right"><b>${money(p.outstanding)}</b><small>Outstanding</small></div></div>`).join('')}</div></div></section>`;
+  return `<section class="panel active">
+    <div class="card">
+      <div class="section-title">
+        <div><h2>Party Khata</h2><small>Invoice-wise billing, receipts and outstanding</small></div>
+        <div class="toolbar">
+          <input class="search" data-search value="${esc(state.search)}" placeholder="Search party or invoice…">
+          <button class="btn primary" data-action="new-party">New Party</button>
+          <button class="btn green" data-action="new-party-payment">Receive Payment</button>
+        </div>
+      </div>
+      <div class="row-list">
+        ${rows.map(p=>{
+          const invoices=sortInvoicesSeries(d.invoices.filter(i=>i.party_name===p.party_name),true);
+          return `<div class="party-account-card">
+            <div class="party-account-head">
+              <button class="party-account-title" data-action="view-party-ledger" data-id="${encodeURIComponent(p.party_name)}">
+                <b>${esc((p.ledger_no?p.ledger_no+' · ':'')+p.party_name)}</b>
+                <small>Billed ${money(p.billed)} · Received ${money(p.received)} · ${invoices.length} invoices</small>
+              </button>
+              <div class="money-right"><b>${money(p.outstanding)}</b><small>Outstanding</small></div>
+            </div>
+            ${invoices.length?table(
+              ['Invoice No.','Date','Truck / Route','Bill','Received','Pending','Status','Action'],
+              invoices.map(i=>{
+                const received=invoiceReceivedAmount(i);
+                const pending=Math.max(0,Number(i.total||0)-received);
+                const trucks=(i.items||[]).map(x=>x.truck_no).filter(Boolean).join(', ')||'-';
+                const route=(i.items||[])[0]?.description||i.material||'-';
+                return [
+                  `<b>${esc(i.invoice_no)}</b>`,
+                  esc(i.invoice_date),
+                  `<b>${esc(trucks)}</b><br><small>${esc(route)}</small>`,
+                  money(i.total),
+                  money(received),
+                  `<b>${money(pending)}</b>`,
+                  statusBadge(invoiceStatus(i.total,received)),
+                  `<div class="action-set">
+                    <button class="mini green" data-action="view-invoice" data-id="${esc(i.id)}">View</button>
+                    <button class="mini" data-action="edit-invoice" data-id="${esc(i.id)}">Edit</button>
+                    <button class="mini gray" data-action="download-invoice" data-id="${esc(i.id)}">PDF</button>
+                    <button class="mini danger" data-action="delete-invoice" data-id="${esc(i.id)}">Delete</button>
+                  </div>`
+                ];
+              }),
+              '1050px'
+            ):'<div class="notice">No invoices for this party.</div>'}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </section>`;
 }
+
 function partyPaymentsPanel(d){
   const rows=filterRows(d.partyPayments,['receipt_no','party_name','payment_date','payment_mode','reference']);
   return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Party Payment History</h2><small>TransportBook-style receipt register</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search payments…"><button class="btn green" data-action="new-party-payment">Receive Payment</button></div></div>${table(['Receipt','Date','Party','Mode','Reference','Notes','Amount','Action'],rows.map(p=>[
@@ -351,6 +434,88 @@ function mastersPanel(d){
   <div class="card"><div class="section-title"><h3>Route Master</h3><button class="btn soft" data-action="new-route">Add</button></div>${d.routes.map(r=>`<div class="ledger-row"><div><b>${esc(r.loading_point)}</b><small>→ ${esc(r.unloading_point)}</small></div><div class="action-set"><button class="mini" data-action="edit-route" data-id="${esc(r.id)}">Edit</button><button class="mini danger" data-action="delete-route" data-id="${esc(r.id)}">Delete</button></div></div>`).join('')}</div>
   <div class="card"><div class="section-title"><h3>Material Master</h3><button class="btn soft" data-action="new-material">Add</button></div>${d.materials.map(m=>`<div class="ledger-row"><b>${esc(m.material_name)}</b><button class="mini danger" data-action="delete-material" data-id="${esc(m.id)}">Delete</button></div>`).join('')}</div></div></section>`;
 }
+
+function formsPanel(d){
+  return `<section class="panel active"><div class="grid3">
+    <div class="card form-card">
+      <div class="form-card-icon">📄</div>
+      <h3>TDS Declaration</h3>
+      <p>Transporter Declaration Format for Non-Deduction of TDS u/s 194C(6).</p>
+      <button class="btn primary" data-action="new-tds-declaration">Create Form</button>
+    </div>
+    <div class="card form-card muted-card">
+      <div class="form-card-icon">＋</div>
+      <h3>More Forms</h3>
+      <p>બીજા office forms અહીં આગળ add કરી શકાશે.</p>
+    </div>
+  </div></section>`;
+}
+function tdsDeclarationForm(){
+  const d=state.data;
+  const defaultDate=today();
+  const y=Number(defaultDate.slice(0,4));
+  const fy=(new Date(defaultDate).getMonth()+1)>=4?`${y}-${String(y+1).slice(-2)}`:`${y-1}-${String(y).slice(-2)}`;
+  const host=modal('TDS Declaration Form',`<form class="form-grid" id="tdsForm">
+    ${masterSelectField('Payer / Party','partyName',d.parties.map(p=>p.party_name),'','party','required')}
+    ${field('Date','declarationDate',defaultDate,'date','required')}
+    <label class="field span2"><span>Payer Address</span><textarea name="payerAddress" readonly></textarea></label>
+    ${field('Place','place','JAMNAGAR','text','required')}
+    ${field('Financial Year','financialYear',fy,'text','required')}
+    ${field('Proprietor Name','proprietorName','JADEJA JAYDEEPSINH KHORSINH','text','required')}
+    ${field('Proprietor Address','proprietorAddress','Bhandra, Ta. Kalavad, Dist. Jamnagar, Gujarat - 361160','text','required')}
+    ${field('PAN Number','panNumber','BXFPJ4148D','text','required')}
+    ${field('Maximum Goods Carriages','maxVehicles','10','number','min="1" required')}
+    <div class="form-actions">
+      <button type="button" class="btn light" data-close-form>Cancel</button>
+      <button type="button" class="btn soft" id="previewTds">Preview</button>
+      <button type="button" class="btn primary" id="downloadTds">Download PDF</button>
+    </div>
+  </form>`,{onMount:host=>{
+    wireMasterSelects(host);
+    const party=host.querySelector('[name=partyName]');
+    const address=host.querySelector('[name=payerAddress]');
+    party.addEventListener('change',()=>{address.value=getPartyDetails(party.value).address||''});
+    host.querySelector('[data-close-form]').onclick=()=>host.remove();
+    const data=()=>formDataObject(host.querySelector('#tdsForm'));
+    host.querySelector('#previewTds').onclick=()=>viewTdsDeclaration(data());
+    host.querySelector('#downloadTds').onclick=()=>downloadTdsDeclaration(data());
+  }});
+}
+function tdsDeclarationHtml(x){
+  const dateText=String(x.declarationDate||'').split('-').reverse().join('/');
+  const fy=esc(x.financialYear||'');
+  const startYear=String(x.financialYear||'').split('-')[0]||'';
+  const endShort=String(x.financialYear||'').split('-')[1]||'';
+  const endYear=endShort.length===2?`${String(startYear).slice(0,2)}${endShort}`:endShort;
+  return `<div class="tds-sheet">
+    <h1>Transporter Declaration Format For Non-Deduction of<br>TDS u/s 194C (6)</h1>
+    <div class="tds-to">To,</div>
+    <p><b>Name of the Payer:</b> ${esc(x.partyName||'')}</p>
+    <p><b>Address of the Payer:</b> ${esc(x.payerAddress||'')}</p>
+    <h2>Declaration u/s 194C (6) For Non-Deduction of TDS</h2>
+    <p>I, <b>${esc(x.proprietorName||'')}</b>, Proprietor, Address: ${esc(x.proprietorAddress||'')}, hereby make the following declaration as required by sub-section (6) of section 194C of the Income Tax Act, 1961 for receiving payments from the payer without deduction of tax at source (TDS).</p>
+    <ol>
+      <li>That name of party authorized to make this declaration in the capacity as proprietor/partner/director.</li>
+      <li>That the contractor is engaged by the payer for hiring or leasing of goods carriage for its business.</li>
+      <li>That I have not owned more than ${esc(x.maxVehicles||'10')} goods carriage vehicles as on date.</li>
+      <li>That if the number of goods carriages owned by the contractor exceeds ${esc(x.maxVehicles||'10')} at any time during the previous year ${fy} (01-04-${esc(startYear)} to 31-03-${esc(endYear)}), the contractor shall forthwith, in writing intimate the payer of this fact.</li>
+      <li>That the Income Tax Permanent Account Number (PAN) of the contractor is <b>${esc(x.panNumber||'')}</b>. A self-attested photocopy of the same is furnished to the payer along with this declaration.</li>
+    </ol>
+    <div class="tds-bottom">
+      <div><p><b>Place:</b> ${esc(x.place||'')}</p><p><b>Date:</b> ${esc(dateText)}</p></div>
+      <div class="tds-sign"><div class="tds-sign-line"></div><b>Sign.</b></div>
+    </div>
+  </div>`;
+}
+function viewTdsDeclaration(data){
+  modal('TDS Declaration Preview',`${tdsDeclarationHtml(data)}<div class="form-actions no-print"><button class="btn primary" onclick="window.print()">Print / Save PDF</button></div>`);
+}
+function downloadTdsDeclaration(data){
+  const w=window.open('','_blank');
+  w.document.write(`<!doctype html><html><head><title>TDS Declaration</title><link rel="stylesheet" href="/src/styles.css?v=19"></head><body class="invoice-download-body">${tdsDeclarationHtml(data)}<script>setTimeout(()=>window.print(),500)<\/script></body></html>`);
+  w.document.close();
+}
+
 function expensesPanel(d){
   const rows=filterRows(d.expenses,['expense_date','category','notes']);
   return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Office Expenses</h2><small>Expense register used in profit calculation</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search expenses…"><button class="btn primary" data-action="new-expense">New Expense</button></div></div>${table(['Date','Category','Notes','Amount','Action'],rows.map(e=>[
@@ -380,6 +545,7 @@ function handleAction(action,id){
   if(action==='view-invoice')return viewInvoice(find('invoice',id));
   if(action==='download-invoice')return downloadInvoicePdf(find('invoice',id));
   if(action==='share-invoice')return shareInvoice(find('invoice',id));
+  if(action==='download-invoice')return downloadInvoice(find('invoice',id));
   if(action==='new-party'||action==='edit-party')return partyForm(action==='edit-party'?(find('party',id)||{}):{});
   if(action==='delete-party')return remove(`/parties/${id}`,'Delete this party?');
   if(action==='view-party-ledger')return viewPartyLedger(decodeURIComponent(id));
@@ -399,6 +565,7 @@ function handleAction(action,id){
   if(action==='delete-route')return remove(`/routes/${id}`,'Delete this route?');
   if(action==='new-material')return materialForm();
   if(action==='delete-material')return remove(`/materials/${id}`,'Delete this material?');
+  if(action==='new-tds-declaration')return tdsDeclarationForm();
   if(action==='new-expense'||action==='edit-expense')return expenseForm(action==='edit-expense'?(find('expense',id)||{}):{});
   if(action==='delete-expense')return remove(`/expenses/${id}`,'Delete this expense?');
   if(action==='restore-backup')return restoreBackup();
@@ -971,11 +1138,17 @@ async function viewDocument(id){
   catch(e){alert(e.message)}
 }
 async function viewPartyLedger(name){
-  try{const x=await api('/party-ledger/'+encodeURIComponent(name));modal(`Party Ledger · ${name}`,`<div class="cards">${metric('Total Billing',x.invoices.reduce((a,v)=>a+Number(v.total||0),0))}${metric('Received',x.payments.reduce((a,v)=>a+Number(v.amount||0),0))}${metric('Outstanding',x.balance)}</div>${table(['Date','Type','Reference','Debit','Credit','Balance','Notes'],x.lines.map(l=>[esc(l.date),statusBadge(l.type),esc(l.reference),l.debit?money(l.debit):'-',l.credit?money(l.credit):'-',`<b>${money(l.balance)}</b>`,esc(l.notes||'-')]),'850px')}`)}
+  try{const x=await api('/party-ledger/'+encodeURIComponent(name));modal(`Party Ledger · ${name}`,`<div class="cards">${metric('Total Billing',x.invoices.reduce((a,v)=>a+Number(v.total||0),0))}${metric('Received',x.payments.reduce((a,v)=>a+Number(v.amount||0),0))}${metric('Outstanding',x.balance)}</div>${table(['Date','Type','Reference','Debit','Credit','Balance','Notes','Action'],x.lines.map(l=>{
+    const inv=state.data.invoices.find(i=>i.invoice_no===l.reference);
+    return [esc(l.date),statusBadge(l.type),esc(l.reference),l.debit?money(l.debit):'-',l.credit?money(l.credit):'-',`<b>${money(l.balance)}</b>`,esc(l.notes||'-'),inv?`<div class="action-set"><button class="mini green" data-action="view-invoice" data-id="${esc(inv.id)}">View</button><button class="mini" data-action="edit-invoice" data-id="${esc(inv.id)}">Edit</button><button class="mini gray" data-action="download-invoice" data-id="${esc(inv.id)}">PDF</button><button class="mini danger" data-action="delete-invoice" data-id="${esc(inv.id)}">Delete</button></div>`:'-'];
+  }),'1100px')}`)}
   catch(e){alert(e.message)}
 }
 async function viewSupplierLedger(name){
-  try{const x=await api('/supplier-ledger/'+encodeURIComponent(name));modal(`Supplier Ledger · ${name}`,`<div class="cards">${metric('Payable',x.entries.reduce((a,v)=>a+Number(v.payable||0),0))}${metric('Paid',x.payments.reduce((a,v)=>a+Number(v.amount||0),0))}${metric('Pending',x.balance)}</div>${table(['Date','Type','Reference','Debit','Credit','Balance','Notes'],x.lines.map(l=>[esc(l.date),statusBadge(l.type),esc(l.reference),l.debit?money(l.debit):'-',l.credit?money(l.credit):'-',`<b>${money(l.balance)}</b>`,esc(l.notes||'-')]),'850px')}`)}
+  try{const x=await api('/supplier-ledger/'+encodeURIComponent(name));modal(`Supplier Ledger · ${name}`,`<div class="cards">${metric('Payable',x.entries.reduce((a,v)=>a+Number(v.payable||0),0))}${metric('Paid',x.payments.reduce((a,v)=>a+Number(v.amount||0),0))}${metric('Pending',x.balance)}</div>${table(['Date','Type','Reference','Debit','Credit','Balance','Notes','Action'],x.lines.map(l=>{
+    const inv=state.data.invoices.find(i=>i.invoice_no===l.reference);
+    return [esc(l.date),statusBadge(l.type),esc(l.reference),l.debit?money(l.debit):'-',l.credit?money(l.credit):'-',`<b>${money(l.balance)}</b>`,esc(l.notes||'-'),inv?`<div class="action-set"><button class="mini green" data-action="view-invoice" data-id="${esc(inv.id)}">View</button><button class="mini" data-action="edit-invoice" data-id="${esc(inv.id)}">Edit</button><button class="mini gray" data-action="download-invoice" data-id="${esc(inv.id)}">PDF</button><button class="mini danger" data-action="delete-invoice" data-id="${esc(inv.id)}">Delete</button></div>`:'-'];
+  }),'1100px')}`)}
   catch(e){alert(e.message)}
 }
 function invoiceTemplate(i){
@@ -1001,6 +1174,20 @@ function downloadInvoicePdf(i){
   if(!win){alert('Please allow pop-ups to download invoice PDF.');return}
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(i.invoice_no)}</title><link rel="stylesheet" href="${location.origin}/src/styles.css"></head><body class="invoice-download-body">${invoiceTemplate(i)}<script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`);win.document.close();
 }
+
+function downloadInvoice(i){
+  if(!i)return;
+  const w=window.open('','_blank');
+  w.document.write(`<!doctype html><html><head><title>${esc(i.invoice_no)}</title><link rel="stylesheet" href="/src/styles.css?v=20"></head><body class="invoice-download-body">${invoicePrintHtml(i)}<script>setTimeout(()=>window.print(),500)<\/script></body></html>`);
+  w.document.close();
+}
+function invoicePrintHtml(i){
+  return `<div class="print-sheet"><div class="invoice-header"><div class="invoice-company"><h1>MEERA LOGISTICS</h1><div>Transport & Logistics Services</div><div>Jamnagar, Gujarat</div></div><div class="invoice-meta"><b>TAX INVOICE</b><div>${esc(i.invoice_no)}</div><div>${esc(i.invoice_date)}</div></div></div>
+  <div class="invoice-party"><div><b>Bill To</b><div>${esc(i.party_name)}</div><div>${esc(i.party_address||'')}</div><div>GST: ${esc(i.party_gst||'-')}</div></div><div><b>LR No:</b> ${esc(i.lr_no||'-')}<br><b>Material:</b> ${esc(i.material||'-')}<br><b>Loading Date:</b> ${esc(i.loading_date||'-')}</div></div>
+  ${table(['Truck No','Description','Weight','Rate','Amount'],(i.items||[]).map(x=>[esc(x.truck_no),esc(x.description),esc(x.weight),money(x.rate),money(x.amount)]),'650px')}
+  <div class="invoice-total"><div><span>Subtotal</span><b>${money(i.subtotal)}</b></div><div><span>Diesel</span><b>${money(i.diesel)}</b></div><div><span>Munshi</span><b>${money(i.munshi)}</b></div><div><span>SGST ${i.sgst}%</span><b>${money(i.subtotal*i.sgst/100)}</b></div><div><span>CGST ${i.cgst}%</span><b>${money(i.subtotal*i.cgst/100)}</b></div><div class="grand"><span>Total</span><span>${money(i.total)}</span></div></div><p style="white-space:pre-line">${esc(i.comments||'')}</p></div>`;
+}
+
 function shareInvoice(i){
   const text=`Meera Logistics\nInvoice: ${i.invoice_no}\nDate: ${i.invoice_date}\nParty: ${i.party_name}\nTotal: ${money(i.total)}`;
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');

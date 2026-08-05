@@ -171,3 +171,18 @@ V18 FINAL CHECKED
 - GST and Address remain readonly; edit them only in Party Master.
 - Cache version updated to v18.
 - JavaScript syntax, JSON configuration and old-D1 upgrade were validated.
+
+
+V19 FORMS - TDS DECLARATION
+- Added Forms section.
+- Party dropdown auto-fills payer address.
+- Preview and PDF download included.
+
+
+V20 PARTY INVOICE + SERIES
+- Party Khata now shows invoice number, date, trucks/routes, bill, received, pending and status.
+- View, Edit, PDF and Delete are available from Party Khata and Party Ledger.
+- Dashboard Party Outstanding shows the latest invoice number.
+- Invoice Desk is sorted series-wise.
+- New invoice number continues after the highest number in the current series.
+- Invoice number remains editable.
