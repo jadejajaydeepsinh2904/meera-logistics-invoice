@@ -1,0 +1,17 @@
+/* V40 sample-matched Party Ledger. Login, D1 and Worker are unchanged. */
+.pl40-card-actions{display:flex;gap:8px;justify-content:flex-end;padding:10px 12px;border-top:1px solid #e3e9f1;background:#f8fafc}
+.pl40-card-actions button,.pl40-modal-head button{border:0;border-radius:8px;padding:8px 13px;font-weight:800;cursor:pointer}
+.pl40-view-btn{background:#e8f1ff;color:#1453a4}.pl40-download-btn,.pl40-download-head{background:#1764c0;color:#fff}
+.pl40-card-actions button:disabled,.pl40-modal-head button:disabled{opacity:.6;cursor:wait}
+.pl40-overlay{position:fixed;inset:0;z-index:100200;background:#0009;display:grid;place-items:center;padding:12px}
+.pl40-modal{width:min(1180px,99vw);max-height:98vh;background:#eef2f6;border-radius:13px;overflow:hidden;box-shadow:0 24px 80px #0008}
+.pl40-modal-head{background:#0d1d39;color:#fff;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pl40-modal-head>div{display:flex;gap:8px}.pl40-close{background:#fff;color:#111}
+.pl40-modal-body{max-height:calc(98vh - 54px);overflow:auto;padding:14px}
+.pl40-loading,.pl40-error{padding:50px;text-align:center;font-weight:800}.pl40-error{color:#a52020}
+.pl40-sheet{box-sizing:border-box;width:1050px;min-height:742px;margin:0 auto;background:#fff;color:#111;padding:28px 20px 24px;font-family:Arial,Helvetica,sans-serif}
+.pl40-ledger-head{text-align:center}.pl40-ledger-head h1{font-size:27px;margin:0 0 4px;text-transform:uppercase}.pl40-ledger-head p{margin:3px 0;font-size:14px;line-height:1.25}.pl40-ledger-head .pl40-gst{margin-top:17px}.pl40-ledger-head h2{font-size:17px;margin:18px 0 0}.pl40-ledger-head h3{font-size:16px;font-weight:400;margin:0}.pl40-ledger-head .pl40-range{margin-top:22px;font-size:14px}.pl40-page{text-align:right;margin:22px 7px 7px;font-size:12px}
+.pl40-table-wrap{overflow:auto}.pl40-table{width:100%;border-collapse:collapse;table-layout:fixed}.pl40-table th,.pl40-table td{border:1px solid #222;padding:8px 5px;text-align:center;font-size:12px;vertical-align:middle}.pl40-table thead th{font-weight:400}.pl40-table th:nth-child(1){width:10%}.pl40-table th:nth-child(2){width:25%}.pl40-table th:nth-child(3){width:10%}.pl40-table th:nth-child(4){width:9%}.pl40-table th:nth-child(5){width:7%}.pl40-table th:nth-child(6),.pl40-table th:nth-child(7){width:12%}.pl40-table th:nth-child(8){width:15%}.pl40-left{text-align:left!important}.pl40-money{text-align:right!important;white-space:nowrap}.pl40-table tfoot th{font-weight:800}.pl40-empty{padding:25px!important;color:#687385}
+@media(max-width:900px){.pl40-card-actions{justify-content:flex-start}.pl40-sheet{transform:scale(.68);transform-origin:top left;margin:0}.pl40-modal-body{min-height:520px}}
+@media(max-width:600px){.pl40-modal-head{align-items:flex-start;flex-direction:column}.pl40-sheet{transform:scale(.42)}.pl40-modal-body{min-height:340px;padding:7px}}
+@media print{@page{size:A4 portrait;margin:8mm}.pl40-overlay,.pl40-modal-head{display:none!important}.pl40-sheet{width:100%;min-height:0;padding:0}.pl40-table th,.pl40-table td{font-size:9px;padding:5px 3px}}

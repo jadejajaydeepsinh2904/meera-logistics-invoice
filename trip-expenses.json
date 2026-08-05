@@ -1,0 +1,69 @@
+{
+  "routes": [
+    {
+      "id": "13",
+      "loadingPoint": "ANJAR",
+      "unloadingPoint": "SIKKA"
+    },
+    {
+      "id": "7",
+      "loadingPoint": "ANKLESHWAR",
+      "unloadingPoint": "PIPAVAV"
+    },
+    {
+      "id": "5",
+      "loadingPoint": "BHUJ",
+      "unloadingPoint": "WANKANER"
+    },
+    {
+      "id": "2",
+      "loadingPoint": "DAHEJ",
+      "unloadingPoint": "KANDLA"
+    },
+    {
+      "id": "8",
+      "loadingPoint": "DAHEJ",
+      "unloadingPoint": "PIPAVAV"
+    },
+    {
+      "id": "12",
+      "loadingPoint": "DAHEJ",
+      "unloadingPoint": "SANAND"
+    },
+    {
+      "id": "11",
+      "loadingPoint": "DHANETI",
+      "unloadingPoint": "JAMNAGAR"
+    },
+    {
+      "id": "9",
+      "loadingPoint": "DHANETI",
+      "unloadingPoint": "LALPAR"
+    },
+    {
+      "id": "10",
+      "loadingPoint": "ESAAR",
+      "unloadingPoint": "HALOL"
+    },
+    {
+      "id": "6",
+      "loadingPoint": "RELINCE",
+      "unloadingPoint": "JAGHADIA"
+    },
+    {
+      "id": "1",
+      "loadingPoint": "WELPSUN",
+      "unloadingPoint": "SIKKA"
+    },
+    {
+      "id": "3",
+      "loadingPoint": "WELSPUN",
+      "unloadingPoint": "DCC"
+    },
+    {
+      "id": "4",
+      "loadingPoint": "WELSPUN",
+      "unloadingPoint": "SIKKA"
+    }
+  ]
+}

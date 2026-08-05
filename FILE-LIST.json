@@ -1,47 +1,27 @@
 {
-  "version": "V41-SUPPLIER-LEDGER-SAMPLE-VIEW-DOWNLOAD",
-  "source": "V40 Party Ledger full project",
+  "version": "V42-CLEAN-DASHBOARD-MENU",
+  "source": "V41 Supplier Ledger full project",
   "protected_backend_changed": false,
   "checks": {
-    "supplier_card_ledger_view_button": "passed",
-    "supplier_card_ledger_download_button": "passed",
-    "sample_supplier_header_layout": "passed",
-    "trip_wise_13_column_table": "passed",
-    "lr_trip_invoice_resolution": "passed",
-    "commission_deduction_mapping": "passed",
-    "linked_advance_payment_mapping": "passed",
-    "general_payment_fifo_allocation": "passed",
-    "pm_bill_rows": "passed",
-    "a4_portrait_vector_pdf": "passed",
-    "sample_2_trip_pdf_render": "passed",
-    "multi_page_pdf_60_entries": "passed",
-    "javascript_syntax": "passed",
-    "json_validation": "passed",
+    "approved_sidebar_only": "passed",
+    "dashboard_group": "Dashboard, Trip History (Transport Khata), Invoice History",
+    "account_group": "Party Khata, Supplier Khata",
+    "office_group": "Truck & Document, Master, Forms, Reports & Audit",
+    "removed_from_sidebar": "Party Payments, Supplier Payments, Truck / Supplier Entries, Office Expenses",
+    "data_modules_deleted": false,
     "login_d1_worker_unchanged": "passed"
-  },
-  "javascript_files": {
-    "public/src/app.js": "passed",
-    "public/src/core/api.js": "passed",
-    "public/src/invoice-pdf-v39.js": "passed",
-    "public/src/invoice-v36.js": "passed",
-    "public/src/party-ledger-pdf-v40.js": "passed",
-    "public/src/party-ledger-v40.js": "passed",
-    "public/src/supplier-ledger-pdf-v41.js": "passed",
-    "public/src/supplier-ledger-v41.js": "passed",
-    "worker/src/index.js": "passed",
-    "worker/src/seed-data.js": "passed"
   },
   "total_files": 35,
   "files": [
     {
       "path": "README.md",
-      "size": 17374,
-      "sha256": "8ec71e26355109230ef75f615c80da1391123597c54e4141c0273adfb51ee291"
+      "size": 17878,
+      "sha256": "d830351b1e05e659abac9de79645134624ed9db51676a4c3f097736c0a248bcf"
     },
     {
       "path": "START-HERE.txt",
-      "size": 15295,
-      "sha256": "217018cc4556d4419b300c77eb954d819c5541c54cdbddca74141553d88e6c0e"
+      "size": 15799,
+      "sha256": "ed7c5e967189349ca5f84779a386be062d728c5afb81ea8d008147ca52580a16"
     },
     {
       "path": "public/assets/meera-logo-pdf.jpg",
@@ -111,7 +91,7 @@
     {
       "path": "public/index.html",
       "size": 921,
-      "sha256": "59a07369ca978ba95a8450c70821da9d89f2a59115159740187aaf97821c1da7"
+      "sha256": "1dd4b732247e86a4817ffc76e08f81c8a041ab83b094fe17256e66d27b1f419b"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -120,8 +100,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 103586,
-      "sha256": "74a3e9b51a38776372d30a9182f9e180b96b5e61eba655c159691a050b74eef8"
+      "size": 103349,
+      "sha256": "c70ebbb8ed99cb5c5ae1158d7ef428229480ba00c69428f80ef0c3237f457304"
     },
     {
       "path": "public/src/core/api.js",

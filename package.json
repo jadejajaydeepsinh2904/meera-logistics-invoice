@@ -1,9 +1,656 @@
 {
-  "name": "meera-logistics-erp-v3",
-  "version": "3.0.0",
-  "private": true,
-  "scripts": {
-    "start": "npx serve .",
-    "dev": "npx serve ."
-  }
+  "nextInvoiceNo": "ML - 125",
+  "invoices": [
+    {
+      "id": "19",
+      "invoiceNo": "ML - 124",
+      "date": "2026-08-03",
+      "company": {
+        "id": "5d5cfdc1-6cf9-4cc6-aca5-3a17356f79a8",
+        "name": "MANOJ & CO.",
+        "company": "MANOJ & CO.",
+        "address": "D.C.C. COLONY , D.C.C. MARKET SIKKA, JAMNAGAR, GUJARAT, 361140",
+        "gst": "24AACH1790E1Z5"
+      },
+      "total": 34739.2,
+      "data": {
+        "invoiceNo": "ML - 124",
+        "invoiceDate": "2026-08-03",
+        "lrNo": "360",
+        "material": "SLAG",
+        "loadingDate": "2026-08-01",
+        "loadingWeight": 36.8,
+        "unloadingWeight": 36.8,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "tripLinkId": "1",
+        "trips": [
+          {
+            "id": "1959d955-f7d4-453f-b3c5-4c6cd88e5800",
+            "truck": "GJ 37 V 2626",
+            "description": "ANJAR TO SIKKA",
+            "weight": 36.8,
+            "rate": 800
+          }
+        ]
+      }
+    },
+    {
+      "id": "18",
+      "invoiceNo": "ML - 123",
+      "date": "2026-08-03",
+      "company": {
+        "id": "5d5cfdc1-6cf9-4cc6-aca5-3a17356f79a8",
+        "name": "MANOJ & CO.",
+        "company": "MANOJ & CO.",
+        "address": "D.C.C. COLONY , D.C.C. MARKET SIKKA, JAMNAGAR, GUJARAT, 361140",
+        "gst": "24AACH1790E1Z5"
+      },
+      "total": 31114.239999999998,
+      "data": {
+        "invoiceNo": "ML - 123",
+        "invoiceDate": "2026-08-03",
+        "lrNo": "361",
+        "material": "SLAG",
+        "loadingDate": "2026-08-01",
+        "loadingWeight": 32.96,
+        "unloadingWeight": 32.96,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "tripLinkId": "2",
+        "trips": [
+          {
+            "id": "18517636-0428-436f-bf1d-1823206ebbaf",
+            "truck": "GJ 37 V 6970",
+            "description": "ANJAR TO SIKKA",
+            "weight": 32.96,
+            "rate": 800
+          }
+        ]
+      }
+    },
+    {
+      "id": "17",
+      "invoiceNo": "ML - 122",
+      "date": "2026-08-01",
+      "company": {
+        "id": "saanavi",
+        "name": "SAANAVI ENTERPRISE",
+        "company": "SAANAVI ENTERPRISE",
+        "address": "SAIDHAM RESIDANCY AA/22 ANKLESHWAR, 393001, NEAR MULAD CHOWKDI, GUJARAT-393001",
+        "gst": "24BESPD3841P1Z1"
+      },
+      "total": 43542,
+      "data": {
+        "invoiceNo": "ML - 122",
+        "invoiceDate": "2026-08-01",
+        "lrNo": "SE",
+        "material": "COPPER SLAG",
+        "loadingDate": "2026-07-28",
+        "loadingWeight": 41,
+        "unloadingWeight": 41,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "trips": [
+          {
+            "id": "e6b8234c-f487-49d4-b243-25678ece9b65",
+            "truck": "GJ 39 TB 4255",
+            "description": "DAHEJ TO PIPAVAV",
+            "weight": 41,
+            "rate": 900
+          }
+        ]
+      }
+    },
+    {
+      "id": "16",
+      "invoiceNo": "ML - 121",
+      "date": "2026-07-31",
+      "company": {
+        "id": "saanavi",
+        "name": "SAANAVI ENTERPRISE",
+        "company": "SAANAVI ENTERPRISE",
+        "address": "SAIDHAM RESIDANCY AA/22 ANKLESHWAR, 393001, NEAR MULAD CHOWKDI, GUJARAT-393001",
+        "gst": "24BESPD3841P1Z1"
+      },
+      "total": 30302.4,
+      "data": {
+        "invoiceNo": "ML - 121",
+        "invoiceDate": "2026-07-31",
+        "lrNo": "SE",
+        "material": "COPPER SLAG",
+        "loadingDate": "2026-07-28",
+        "loadingWeight": 42.8,
+        "unloadingWeight": 42.8,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "trips": [
+          {
+            "id": "trip-1",
+            "truck": "GJ 03 CW 1006",
+            "description": "DAHEJ TO SANAND",
+            "weight": 42.8,
+            "rate": 600
+          }
+        ]
+      }
+    },
+    {
+      "id": "15",
+      "invoiceNo": "ML - 120",
+      "date": "2026-08-01",
+      "company": {
+        "id": "1e5b2917-a677-4d23-befe-009715708630",
+        "name": "JAY RAJESHBHAI THAKER",
+        "company": "YADUNANDAN LOGISTICS",
+        "address": "SHOP NO-3, HARI OM AVENUE, NR SHAINIK BHAVAN,KAHMBHALIYA ROA , JAMNAGAR, GUJARAT - 361005",
+        "gst": "24AXPPT9220P1ZL"
+      },
+      "total": 25809.550000000003,
+      "data": {
+        "invoiceNo": "ML - 120",
+        "invoiceDate": "2026-08-01",
+        "lrNo": "TRIP-3",
+        "material": "SILICA",
+        "loadingDate": "2026-08-01",
+        "loadingWeight": 33.65,
+        "unloadingWeight": 33.65,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "tripLinkId": "3",
+        "trips": [
+          {
+            "id": "502b420c-b1d8-4d28-a3e0-302d949eff7d",
+            "truck": "GJ 37 V 5002",
+            "description": "DHANETI TO JAMNAGAR",
+            "weight": 33.65,
+            "rate": 650
+          }
+        ]
+      }
+    },
+    {
+      "id": "13",
+      "invoiceNo": "ML - 118",
+      "date": "2026-07-25",
+      "company": {
+        "id": "9a30e2e5-4b40-4299-af9a-571c3c92c291",
+        "name": "SHREE SATGURU TRANSPORT",
+        "company": "SHREE SATGURU TRANSPORT",
+        "address": "plot no 23, sadguru smart village, moti bhujpur, taluka mundra, dist : kachchh, pincode - 370405\n",
+        "gst": "24EQAPS4036L1ZN"
+      },
+      "total": 39185.44,
+      "data": {
+        "invoiceNo": "ML - 118",
+        "invoiceDate": "2026-07-25",
+        "lrNo": "328",
+        "material": "SLAG",
+        "loadingDate": "2026-07-10",
+        "loadingWeight": 41.51,
+        "unloadingWeight": 41.51,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "trips": [
+          {
+            "id": "59ff9aec-67ed-461f-8c15-e1904c7dc000",
+            "truck": "GJ 39 TB 9252",
+            "description": "WELSPUN TO DCC",
+            "weight": 41.51,
+            "rate": 800
+          }
+        ]
+      }
+    },
+    {
+      "id": "12",
+      "invoiceNo": "ML - 117",
+      "date": "2026-07-25",
+      "company": {
+        "id": "9a30e2e5-4b40-4299-af9a-571c3c92c291",
+        "name": "SHREE SATGURU TRANSPORT",
+        "company": "SHREE SATGURU TRANSPORT",
+        "address": "plot no 23, sadguru smart village, moti bhujpur, taluka mundra, dist : kachchh, pincode - 370405\n",
+        "gst": "24EQAPS4036L1ZN"
+      },
+      "total": 40488.16,
+      "data": {
+        "invoiceNo": "ML - 117",
+        "invoiceDate": "2026-07-25",
+        "lrNo": "332",
+        "material": "SLAG",
+        "loadingDate": "2026-07-10",
+        "loadingWeight": 42.89,
+        "unloadingWeight": 42.89,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "trips": [
+          {
+            "id": "trip-1",
+            "truck": "GJ 39 TB 9251",
+            "description": "WELSPUN TO DCC",
+            "weight": 42.89,
+            "rate": 800
+          }
+        ]
+      }
+    },
+    {
+      "id": "11",
+      "invoiceNo": "ML - 116",
+      "date": "2026-07-25",
+      "company": {
+        "id": "024e619d-8393-4370-b1f8-aa4966a9deb9",
+        "name": "SHREE DWARKADHISH ENTERPRISE",
+        "company": "SHREE DWARKADHISH ENTERPRISE",
+        "address": "SECOND FLOOR, NEAR J M BAXI, THE PRIME, SHOP NO. SF/201, BEDI, JAMNAGAR 361009\n",
+        "gst": "24AACPH1792G1ZZ"
+      },
+      "total": 63007.28,
+      "data": {
+        "invoiceNo": "ML - 116",
+        "invoiceDate": "2026-07-25",
+        "lrNo": "144",
+        "material": "SULPHUR",
+        "loadingDate": "2026-07-08",
+        "loadingWeight": 38.14,
+        "unloadingWeight": 38.14,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "trips": [
+          {
+            "id": "trip-1",
+            "truck": "GJ 03 CU 6679",
+            "description": "RELINCE TO JHAGADIA",
+            "weight": 38.14,
+            "rate": 1400
+          }
+        ]
+      }
+    },
+    {
+      "id": "10",
+      "invoiceNo": "ML - 115",
+      "date": "2026-07-23",
+      "company": {
+        "id": "cb1b921d-6992-4714-ad3a-16a2d90dcbca",
+        "name": "DIGVIJAY MINERALS",
+        "company": "DIGVIJAY MINERALS",
+        "address": "SURVEY NO 93/P1 AND 93/P2 LAKHOND KALI TALAVDI ROAD, KALI TALAVDI, BHUJ,KUTCHCHH,GUJARAT, 370001",
+        "gst": "24AASFD1386N1ZV"
+      },
+      "total": 31930.800000000003,
+      "data": {
+        "invoiceNo": "ML - 115",
+        "invoiceDate": "2026-07-23",
+        "lrNo": "DM",
+        "material": "AEMRI",
+        "loadingDate": "2026-07-21",
+        "loadingWeight": 49.2,
+        "unloadingWeight": 49.2,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "trips": [
+          {
+            "id": "adf79485-a340-43f0-a652-84cfd7ea87b6",
+            "truck": "GJ 03 CU 9886",
+            "description": "DHANETI TO LALPAR",
+            "weight": 49.2,
+            "rate": 550
+          }
+        ]
+      }
+    },
+    {
+      "id": "9",
+      "invoiceNo": "ML - 114",
+      "date": "2026-07-23",
+      "company": {
+        "id": "cb1b921d-6992-4714-ad3a-16a2d90dcbca",
+        "name": "DIGVIJAY MINERALS",
+        "company": "DIGVIJAY MINERALS",
+        "address": "SURVEY NO 93/P1 AND 93/P2 LAKHOND KALI TALAVDI ROAD, KALI TALAVDI, BHUJ,KUTCHCHH,GUJARAT, 370001",
+        "gst": "24AASFD1386N1ZV"
+      },
+      "total": 32839.4,
+      "data": {
+        "invoiceNo": "ML - 114",
+        "invoiceDate": "2026-07-23",
+        "lrNo": "DM",
+        "material": "AEMRI",
+        "loadingDate": "2026-07-20",
+        "loadingWeight": 50.6,
+        "unloadingWeight": 50.6,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "trips": [
+          {
+            "id": "73d7fbdc-7306-4048-a9f7-2fd2381ec234",
+            "truck": "GJ 39 TA 6199",
+            "description": "DHANETI TO LALPAR",
+            "weight": 50.6,
+            "rate": 550
+          }
+        ]
+      }
+    },
+    {
+      "id": "8",
+      "invoiceNo": "ML - 113",
+      "date": "2026-07-18",
+      "company": {
+        "id": "024e619d-8393-4370-b1f8-aa4966a9deb9",
+        "name": "SHREE DWARKADHISH ENTERPRISE",
+        "company": "SHREE DWARKADHISH ENTERPRISE",
+        "address": "SECOND FLOOR, NEAR J M BAXI, THE PRIME, SHOP NO. SF/201, BEDI, JAMNAGAR 361009\n",
+        "gst": "24AACPH1792G1ZZ"
+      },
+      "total": 65369.64,
+      "data": {
+        "invoiceNo": "ML - 113",
+        "invoiceDate": "2026-07-18",
+        "lrNo": "147",
+        "material": "SULPHUR",
+        "loadingDate": "2026-07-10",
+        "loadingWeight": 39.67,
+        "unloadingWeight": 39.57,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "trips": [
+          {
+            "id": "1d99b612-8e2f-419a-a4cc-650acdfabe4b",
+            "truck": "GJ 03 CU 7919",
+            "description": "RELINCE TO JHAGADIA",
+            "weight": 39.57,
+            "rate": 1400
+          }
+        ]
+      }
+    },
+    {
+      "id": "7",
+      "invoiceNo": "ML - 112",
+      "date": "2026-07-18",
+      "company": {
+        "id": "024e619d-8393-4370-b1f8-aa4966a9deb9",
+        "name": "SHREE DWARKADHISH ENTERPRISE",
+        "company": "SHREE DWARKADHISH ENTERPRISE",
+        "address": "SECOND FLOOR, NEAR J M BAXI, THE PRIME, SHOP NO. SF/201, BEDI, JAMNAGAR 361009\n",
+        "gst": "24AACPH1792G1ZZ"
+      },
+      "total": 63073.36,
+      "data": {
+        "invoiceNo": "ML - 112",
+        "invoiceDate": "2026-07-18",
+        "lrNo": "146",
+        "material": "SULPHUR",
+        "loadingDate": "2026-07-09",
+        "loadingWeight": 38.25,
+        "unloadingWeight": 38.18,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "trips": [
+          {
+            "id": "d4922580-32f1-482e-ad65-5672a464a7fd",
+            "truck": "GJ 03 CU 9064",
+            "description": "RELINCE TO JHAGADIA",
+            "weight": 38.18,
+            "rate": 1400
+          }
+        ]
+      }
+    },
+    {
+      "id": "6",
+      "invoiceNo": "ML - 111",
+      "date": "2026-07-18",
+      "company": {
+        "id": "024e619d-8393-4370-b1f8-aa4966a9deb9",
+        "name": "SHREE DWARKADHISH ENTERPRISE",
+        "company": "SHREE DWARKADHISH ENTERPRISE",
+        "address": "SECOND FLOOR, NEAR J M BAXI, THE PRIME, SHOP NO. SF/201, BEDI, JAMNAGAR 361009\n",
+        "gst": "24AACPH1792G1ZZ"
+      },
+      "total": 63602,
+      "data": {
+        "invoiceNo": "ML - 111",
+        "invoiceDate": "2026-07-18",
+        "lrNo": "145",
+        "material": "SULPHUR",
+        "loadingDate": "2026-07-09",
+        "loadingWeight": 38.58,
+        "unloadingWeight": 38.5,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "trips": [
+          {
+            "id": "48a1eb26-0729-4cd5-976e-0f44328664ac",
+            "truck": "GJ 03 CU 5608",
+            "description": "RELINCE TO JHAGADIA",
+            "weight": 38.5,
+            "rate": 1400
+          }
+        ]
+      }
+    },
+    {
+      "id": "5",
+      "invoiceNo": "ML - 110",
+      "date": "2026-07-18",
+      "company": {
+        "id": "5d5cfdc1-6cf9-4cc6-aca5-3a17356f79a8",
+        "name": "MANOJ & CO.",
+        "company": "MANOJ & CO.",
+        "address": "D.C.C. COLONY , D.C.C. MARKET SIKKA, JAMNAGAR, GUJARAT, 361140",
+        "gst": "24AACH1790E1Z5"
+      },
+      "total": 34323.84,
+      "data": {
+        "invoiceNo": "ML - 110",
+        "invoiceDate": "2026-07-18",
+        "lrNo": "280",
+        "material": "SALG",
+        "loadingDate": "2026-07-03",
+        "loadingWeight": 36.58,
+        "unloadingWeight": 36.36,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "trips": [
+          {
+            "id": "trip-1",
+            "truck": "GJ 37 V 8587",
+            "description": "WELSPU ANJAR TO DCC SIKKA",
+            "weight": 36.36,
+            "rate": 800
+          }
+        ]
+      }
+    },
+    {
+      "id": "4",
+      "invoiceNo": "ML - 109",
+      "date": "2026-07-25",
+      "company": {
+        "id": "saanavi",
+        "name": "SAANAVI ENTERPRISE",
+        "company": "SAANAVI ENTERPRISE",
+        "address": "SAIDHAM RESIDANCY AA/22 ANKLESHWAR, 393001, NEAR MULAD CHOWKDI, GUJARAT-393001",
+        "gst": "24BESPD3841P1Z1"
+      },
+      "total": 38062.08,
+      "data": {
+        "invoiceNo": "ML - 109",
+        "invoiceDate": "2026-07-25",
+        "lrNo": "SE",
+        "material": "COPPER SLAG",
+        "loadingDate": "2026-07-23",
+        "loadingWeight": 35.84,
+        "unloadingWeight": 35.84,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "trips": [
+          {
+            "id": "c588c70c-1119-46e3-9dee-282f542c3f2a",
+            "truck": "GJ 03 BT 5925",
+            "description": "DAHEJ TO KANDLA",
+            "weight": 35.84,
+            "rate": 900
+          }
+        ]
+      }
+    },
+    {
+      "id": "3",
+      "invoiceNo": "ML - 108",
+      "date": "2026-07-18",
+      "company": {
+        "id": "saanavi",
+        "name": "SAANAVI ENTERPRISE",
+        "company": "SAANAVI ENTERPRISE",
+        "address": "SAIDHAM RESIDANCY AA/22 ANKLESHWAR, 393001, NEAR MULAD CHOWKDI, GUJARAT-393001",
+        "gst": "24BESPD3841P1Z1"
+      },
+      "total": 37170,
+      "data": {
+        "invoiceNo": "ML - 108",
+        "invoiceDate": "2026-07-18",
+        "lrNo": "SE",
+        "material": "COPPER SLAG",
+        "loadingDate": "2026-07-16",
+        "loadingWeight": 35,
+        "unloadingWeight": 35,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "trips": [
+          {
+            "id": "c20040b9-821a-4692-bfc6-2f5e3a478886",
+            "truck": "GJ 03 BW 4387",
+            "description": "DAHEJ TO PIPAVAV",
+            "weight": 35,
+            "rate": 900
+          }
+        ]
+      }
+    },
+    {
+      "id": "2",
+      "invoiceNo": "ML - 107",
+      "date": "2026-07-18",
+      "company": {
+        "id": "saanavi",
+        "name": "SAANAVI ENTERPRISE",
+        "company": "SAANAVI ENTERPRISE",
+        "address": "SAIDHAM RESIDANCY AA/22 ANKLESHWAR, 393001, NEAR MULAD CHOWKDI, GUJARAT-393001",
+        "gst": "24BESPD3841P1Z1"
+      },
+      "total": 37701,
+      "data": {
+        "invoiceNo": "ML - 107",
+        "invoiceDate": "2026-07-18",
+        "lrNo": "SE",
+        "material": "COPPER SLAG",
+        "loadingDate": "2026-07-13",
+        "loadingWeight": 35.5,
+        "unloadingWeight": 35.5,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "trips": [
+          {
+            "id": "77ca4ab3-8d55-44a5-9ab7-399b68924082",
+            "truck": "GJ 32 V 1503",
+            "description": "DAHEJ TO PIPAVAV",
+            "weight": 35.5,
+            "rate": 900
+          }
+        ]
+      }
+    },
+    {
+      "id": "1",
+      "invoiceNo": "ML - 106",
+      "date": "2026-07-18",
+      "company": {
+        "id": "saanavi",
+        "name": "SAANAVI ENTERPRISE",
+        "company": "SAANAVI ENTERPRISE",
+        "address": "SAIDHAM RESIDANCY AA/22 ANKLESHWAR, 393001, NEAR MULAD CHOWKDI, GUJARAT-393001",
+        "gst": "24BESPD3841P1Z1"
+      },
+      "total": 48480.3,
+      "data": {
+        "invoiceNo": "ML - 106",
+        "invoiceDate": "2026-07-18",
+        "lrNo": "SE",
+        "material": "COPPER SLAG",
+        "loadingDate": "2026-07-08",
+        "loadingWeight": 45.65,
+        "unloadingWeight": 45.65,
+        "sgst": 9,
+        "cgst": 9,
+        "diesel": 0,
+        "munshi": 0,
+        "comments": "1. In 30 days, you must pay the total.\n2. In the check, please include your invoice number.",
+        "trips": [
+          {
+            "id": "2eb99f4d-e27c-4b34-9bbe-1131922dc712",
+            "truck": "GJ 03 CU 3351",
+            "description": "DAHEJ TO KANDLA",
+            "weight": 45.65,
+            "rate": 900
+          }
+        ]
+      }
+    }
+  ]
 }

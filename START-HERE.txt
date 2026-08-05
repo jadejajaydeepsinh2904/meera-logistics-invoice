@@ -346,3 +346,12 @@ V41 SUPPLIER LEDGER — SAMPLE FORMAT
 3. Open Supplier Khata: every supplier has Ledger View and Download buttons below the supplier summary.
 4. Supplier PDF follows the supplied trip-wise ledger format and downloads as "PML 001 - SUPPLIER NAME SUPPLIER LEDGER.pdf".
 5. Login, D1 migration and Cloudflare Worker files are unchanged.
+
+
+V42 CLEAN DASHBOARD MENU
+- Sidebar now contains only the approved sections.
+- Dashboard: Dashboard, Trip History (Transport Khata), Invoice History.
+- Account: Party Khata, Supplier Khata.
+- Office: Truck & Document, Master, Forms, Reports & Audit.
+- Party Payments, Supplier Payments, Truck/Supplier Entries and Office Expenses are hidden from the sidebar only; existing records and internal workflows are preserved.
+- Login, D1, Worker, Invoice, Party Ledger and Supplier Ledger logic are unchanged.

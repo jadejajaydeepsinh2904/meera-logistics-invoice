@@ -403,3 +403,12 @@ V41 SUPPLIER LEDGER — SAMPLE FORMAT
 - PM/non-GST supplier bills are included in the same ledger where applicable.
 - Download creates an A4 portrait PDF named with PML number and Supplier name; long ledgers continue across pages.
 - Login, authentication, D1 migration, Worker backend, Party Ledger and Invoice modules were not modified.
+
+
+V42 CLEAN DASHBOARD MENU
+- Sidebar now contains only the approved sections.
+- Dashboard: Dashboard, Trip History (Transport Khata), Invoice History.
+- Account: Party Khata, Supplier Khata.
+- Office: Truck & Document, Master, Forms, Reports & Audit.
+- Party Payments, Supplier Payments, Truck/Supplier Entries and Office Expenses are hidden from the sidebar only; existing records and internal workflows are preserved.
+- Login, D1, Worker, Invoice, Party Ledger and Supplier Ledger logic are unchanged.
