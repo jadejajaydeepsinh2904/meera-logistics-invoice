@@ -456,15 +456,24 @@ function tdsDeclarationForm(){
   const y=Number(defaultDate.slice(0,4));
   const fy=(new Date(defaultDate).getMonth()+1)>=4?`${y}-${String(y+1).slice(-2)}`:`${y-1}-${String(y).slice(-2)}`;
   const host=modal('TDS Declaration Form',`<form class="form-grid" id="tdsForm">
+    <div class="span2 universal-section-title"><b>PAYER DETAILS</b><small>Party dropdownથી name અને address automatic આવશે</small></div>
     ${masterSelectField('Payer / Party','partyName',d.parties.map(p=>p.party_name),'','party','required')}
     ${field('Date','declarationDate',defaultDate,'date','required')}
     <label class="field span2"><span>Payer Address</span><textarea name="payerAddress" readonly></textarea></label>
+
+    <div class="span2 universal-section-title billing"><b>MEERA LOGISTICS DETAILS</b><small>બધી details editable છે</small></div>
+    ${selectField('Entity Type','entityType',['PARTNERSHIP FIRM','PROPRIETORSHIP','COMPANY','LLP'],'PARTNERSHIP FIRM')}
+    ${field('Firm Name','firmName','MEERA LOGISTICS','text','required')}
+    ${field('Firm PAN','firmPan','ACFFM2544N','text','required')}
+    ${field('Firm GST Number','firmGst','24ACFFM2544N1Z1','text')}
+    ${field('Phone','firmPhone','9558959579','tel')}
+    ${field('Email','firmEmail','meera.logistics99@gmail.com','email')}
+    ${textarea('Firm Address','firmAddress','OFFICE NO.101, MOMAI COMPLEX, BEDI BANDAR ROAD, JAMNAGAR','span2')}
+    ${field('Authorized Partner Name','authorizedPartner','AUTHORIZED PARTNER','text','required')}
     ${field('Place','place','JAMNAGAR','text','required')}
     ${field('Financial Year','financialYear',fy,'text','required')}
-    ${field('Proprietor Name','proprietorName','JADEJA JAYDEEPSINH KHORSINH','text','required')}
-    ${field('Proprietor Address','proprietorAddress','Bhandra, Ta. Kalavad, Dist. Jamnagar, Gujarat - 361160','text','required')}
-    ${field('PAN Number','panNumber','BXFPJ4148D','text','required')}
     ${field('Maximum Goods Carriages','maxVehicles','10','number','min="1" required')}
+
     <div class="form-actions">
       <button type="button" class="btn light" data-close-form>Cancel</button>
       <button type="button" class="btn soft" id="previewTds">Preview</button>
@@ -474,7 +483,8 @@ function tdsDeclarationForm(){
     wireMasterSelects(host);
     const party=host.querySelector('[name=partyName]');
     const address=host.querySelector('[name=payerAddress]');
-    party.addEventListener('change',()=>{address.value=getPartyDetails(party.value).address||''});
+    const sync=()=>{address.value=getPartyDetails(party.value).address||''};
+    party.addEventListener('change',sync);
     host.querySelector('[data-close-form]').onclick=()=>host.remove();
     const data=()=>formDataObject(host.querySelector('#tdsForm'));
     host.querySelector('#previewTds').onclick=()=>viewTdsDeclaration(data());
@@ -487,23 +497,43 @@ function tdsDeclarationHtml(x){
   const startYear=String(x.financialYear||'').split('-')[0]||'';
   const endShort=String(x.financialYear||'').split('-')[1]||'';
   const endYear=endShort.length===2?`${String(startYear).slice(0,2)}${endShort}`:endShort;
+  const entity=esc(x.entityType||'PARTNERSHIP FIRM');
   return `<div class="tds-sheet">
     <h1>Transporter Declaration Format For Non-Deduction of<br>TDS u/s 194C (6)</h1>
     <div class="tds-to">To,</div>
     <p><b>Name of the Payer:</b> ${esc(x.partyName||'')}</p>
     <p><b>Address of the Payer:</b> ${esc(x.payerAddress||'')}</p>
+
     <h2>Declaration u/s 194C (6) For Non-Deduction of TDS</h2>
-    <p>I, <b>${esc(x.proprietorName||'')}</b>, Proprietor, Address: ${esc(x.proprietorAddress||'')}, hereby make the following declaration as required by sub-section (6) of section 194C of the Income Tax Act, 1961 for receiving payments from the payer without deduction of tax at source (TDS).</p>
+
+    <p>We, <b>${esc(x.firmName||'MEERA LOGISTICS')}</b>, a ${entity}, having its office at ${esc(x.firmAddress||'')}, through its authorized partner <b>${esc(x.authorizedPartner||'')}</b>, hereby make the following declaration as required by sub-section (6) of section 194C of the Income Tax Act, 1961 for receiving payments from the payer without deduction of tax at source (TDS).</p>
+
     <ol>
-      <li>That name of party authorized to make this declaration in the capacity as proprietor/partner/director.</li>
+      <li>That the person signing this declaration is duly authorized to make this declaration on behalf of the partnership firm.</li>
       <li>That the contractor is engaged by the payer for hiring or leasing of goods carriage for its business.</li>
-      <li>That I have not owned more than ${esc(x.maxVehicles||'10')} goods carriage vehicles as on date.</li>
-      <li>That if the number of goods carriages owned by the contractor exceeds ${esc(x.maxVehicles||'10')} at any time during the previous year ${fy} (01-04-${esc(startYear)} to 31-03-${esc(endYear)}), the contractor shall forthwith, in writing intimate the payer of this fact.</li>
-      <li>That the Income Tax Permanent Account Number (PAN) of the contractor is <b>${esc(x.panNumber||'')}</b>. A self-attested photocopy of the same is furnished to the payer along with this declaration.</li>
+      <li>That the firm has not owned more than ${esc(x.maxVehicles||'10')} goods carriage vehicles as on date.</li>
+      <li>That if the number of goods carriages owned by the contractor exceeds ${esc(x.maxVehicles||'10')} at any time during the previous year ${fy} (01-04-${esc(startYear)} to 31-03-${esc(endYear)}), the contractor shall forthwith intimate the payer in writing.</li>
+      <li>That the Permanent Account Number (PAN) of the contractor is <b>${esc(x.firmPan||'')}</b>. A self-attested photocopy of the same is furnished to the payer along with this declaration.</li>
     </ol>
+
+    <div class="tds-firm-info">
+      <div><b>Firm:</b> ${esc(x.firmName||'')}</div>
+      <div><b>GST:</b> ${esc(x.firmGst||'-')}</div>
+      <div><b>Phone:</b> ${esc(x.firmPhone||'-')}</div>
+      <div><b>Email:</b> ${esc(x.firmEmail||'-')}</div>
+    </div>
+
     <div class="tds-bottom">
-      <div><p><b>Place:</b> ${esc(x.place||'')}</p><p><b>Date:</b> ${esc(dateText)}</p></div>
-      <div class="tds-sign"><div class="tds-sign-line"></div><b>Sign.</b></div>
+      <div>
+        <p><b>Place:</b> ${esc(x.place||'')}</p>
+        <p><b>Date:</b> ${esc(dateText)}</p>
+      </div>
+      <div class="tds-sign">
+        <div class="tds-sign-line"></div>
+        <b>Authorized Partner</b>
+        <div>${esc(x.authorizedPartner||'')}</div>
+        <div>For ${esc(x.firmName||'MEERA LOGISTICS')}</div>
+      </div>
     </div>
   </div>`;
 }

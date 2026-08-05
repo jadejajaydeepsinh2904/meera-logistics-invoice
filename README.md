@@ -237,3 +237,11 @@ V20 PARTY INVOICE + SERIES
 - Invoice Desk is sorted series-wise.
 - New invoice number continues after the highest number in the current series.
 - Invoice number remains editable.
+
+
+V21 TDS PARTNERSHIP
+- Removed Jaydeepsinh personal/proprietor auto-fill.
+- Default entity is Partnership Firm.
+- Meera Logistics firm details auto-fill by default.
+- Firm name, address, PAN, GST, phone, email and authorized partner are editable.
+- Declaration wording is partnership-based.

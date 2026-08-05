@@ -308,3 +308,6 @@ select option[value="__ADD_NEW__"]{font-weight:800;color:#2457d2}
 .party-account-head{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:10px}
 .party-account-title{all:unset;cursor:pointer;flex:1}
 .party-account-title b{display:block;font-size:14px}.party-account-title small{display:block;color:var(--muted);margin-top:4px}
+
+.tds-firm-info{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;border:1px solid #aaa;padding:10px 12px;margin-top:24px;font-size:13px}
+.tds-sign div{font-size:12px;margin-top:4px}
