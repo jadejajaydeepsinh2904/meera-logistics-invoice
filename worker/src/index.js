@@ -92,6 +92,19 @@ function splitRoute(description=''){
   const parts=text.split(/\s+(?:TO|→|-)\s+/i);
   return {loading:upper(parts[0]||''),unloading:upper(parts.slice(1).join(' TO ')||'')};
 }
+
+async function ensureTripWeightColumns(env){
+  const statements=[
+    `ALTER TABLE trips ADD COLUMN lr_number TEXT DEFAULT ''`,
+    `ALTER TABLE trips ADD COLUMN loading_weight REAL DEFAULT 0`,
+    `ALTER TABLE trips ADD COLUMN unloading_weight REAL DEFAULT 0`,
+    `ALTER TABLE trips ADD COLUMN shortage REAL DEFAULT 0`,
+    `ALTER TABLE trips ADD COLUMN billing_weight REAL DEFAULT 0`,
+    `ALTER TABLE invoice_items ADD COLUMN lr_number TEXT DEFAULT ''`
+  ];
+  for(const sql of statements)await safe(env,sql);
+}
+
 async function recalcInvoiceById(env,invoiceId){
   const inv=await first(env,`SELECT * FROM invoices WHERE id=?`,invoiceId);
   if(!inv)return;
@@ -737,6 +750,7 @@ export default {
 
       // TRIPS
       if(resource==='trips'){
+        await ensureTripWeightColumns(env);
         if(req.method==='POST'||(req.method==='PUT'&&id)){
           const b=await requestBody(req);await upsertMasters(env,b);
           if(req.method==='POST'){
@@ -747,12 +761,16 @@ export default {
             const tripNo=await reserveNextTripNumber(env);
             await run(env,`INSERT INTO trips(
               id,trip_no,trip_date,party_name,truck_no,driver_name,driver_mobile,material,
-              loading_point,unloading_point,weight,rate,status,notes,pod_file_name,pod_data
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+              loading_point,unloading_point,lr_number,loading_weight,unloading_weight,shortage,
+              billing_weight,weight,rate,status,notes,pod_file_name,pod_data
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
               newId,tripNo,b.tripDate,upper(b.partyName),upper(b.truckNo),upper(b.driverName),
               b.driverMobile||'',upper(b.material),upper(b.loadingPoint),upper(b.unloadingPoint),
-              round2(b.weight),round2(b.rate),upper(b.status||'BOOKED'),b.notes||'',
-              b.podFileName||'',b.podData||''
+              clean(b.lrNumber),round2(b.loadingWeight),round2(b.unloadingWeight),
+              round2(Math.max(0,num(b.loadingWeight)-num(b.unloadingWeight))),
+              round2(b.billingWeight||b.unloadingWeight||b.loadingWeight),
+              round2(b.billingWeight||b.unloadingWeight||b.loadingWeight),round2(b.rate),
+              upper(b.status||'BOOKED'),b.notes||'',b.podFileName||'',b.podData||''
             );
             await audit(env,user,'CREATE','trip',newId,b);
             return json({ok:true,id:newId,tripNo});
@@ -761,23 +779,31 @@ export default {
           const old=await first(env,`SELECT * FROM trips WHERE id=?`,id);
           await run(env,`UPDATE trips SET
             trip_date=?,party_name=?,truck_no=?,driver_name=?,driver_mobile=?,material=?,
-            loading_point=?,unloading_point=?,weight=?,rate=?,status=?,notes=?,pod_file_name=?,
+            loading_point=?,unloading_point=?,lr_number=?,loading_weight=?,unloading_weight=?,
+            shortage=?,billing_weight=?,weight=?,rate=?,status=?,notes=?,pod_file_name=?,
             pod_data=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
             b.tripDate,upper(b.partyName),upper(b.truckNo),upper(b.driverName),b.driverMobile||'',
-            upper(b.material),upper(b.loadingPoint),upper(b.unloadingPoint),round2(b.weight),
-            round2(b.rate),upper(b.status||'BOOKED'),b.notes||'',b.podFileName||'',
-            b.podData||'',id
+            upper(b.material),upper(b.loadingPoint),upper(b.unloadingPoint),clean(b.lrNumber),
+            round2(b.loadingWeight),round2(b.unloadingWeight),
+            round2(Math.max(0,num(b.loadingWeight)-num(b.unloadingWeight))),
+            round2(b.billingWeight||b.unloadingWeight||b.loadingWeight),
+            round2(b.billingWeight||b.unloadingWeight||b.loadingWeight),round2(b.rate),
+            upper(b.status||'BOOKED'),b.notes||'',b.podFileName||'',b.podData||'',id
           );
 
           // Keep the linked invoice line synchronized.
           if(old?.invoice_item_id){
             const description=`${upper(b.loadingPoint)} TO ${upper(b.unloadingPoint)}`;
-            const amount=round2(num(b.weight)*num(b.rate));
+            const loadingWeight=round2(b.loadingWeight);
+            const unloadingWeight=round2(b.unloadingWeight);
+            const shortage=round2(Math.max(0,loadingWeight-unloadingWeight));
+            const billingWeight=round2(b.billingWeight||unloadingWeight||loadingWeight);
+            const amount=round2(billingWeight*num(b.rate));
             await run(env,`UPDATE invoice_items SET
-              truck_no=?,description=?,loading_weight=?,unloading_weight=?,shortage=0,
+              lr_number=?,truck_no=?,description=?,loading_weight=?,unloading_weight=?,shortage=?,
               weight=?,rate=?,amount=? WHERE id=?`,
-              upper(b.truckNo),description,round2(b.weight),round2(b.weight),round2(b.weight),
-              round2(b.rate),amount,old.invoice_item_id
+              clean(b.lrNumber),upper(b.truckNo),description,loadingWeight,unloadingWeight,shortage,
+              billingWeight,round2(b.rate),amount,old.invoice_item_id
             );
             if(old.invoice_id){
               await run(env,`UPDATE invoices SET party_name=?,material=?,loading_date=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
@@ -810,6 +836,7 @@ export default {
 
       // INVOICES
       if(resource==='invoices'){
+        await ensureTripWeightColumns(env);
         if(req.method==='POST'||(req.method==='PUT'&&id)){
           const b=await requestBody(req);await upsertMasters(env,b);
           const invoiceType=upper(b.invoiceType||'GST');
@@ -821,7 +848,7 @@ export default {
             const unloading=round2(x.unloadingWeight ?? x.unloading_weight ?? x.weight);
             const shortage=round2(Math.max(0,loading-unloading));
             const billing=round2(x.weight ?? x.billingWeight ?? unloading);
-            return {...x,loadingWeight:loading,unloadingWeight:unloading,shortage,weight:billing,rate:round2(x.rate)};
+            return {...x,lrNumber:clean(x.lrNumber||x.lr_number),loadingWeight:loading,unloadingWeight:unloading,shortage,weight:billing,rate:round2(x.rate)};
           }).filter(x=>num(x.weight)>0 && clean(x.truckNo));
           if(!items.length)return json({error:'At least one truck line is required'},400);
 
@@ -872,28 +899,31 @@ export default {
               const tripNo=await reserveNextTripNumber(env);
               await run(env,`INSERT INTO trips(
                 id,trip_no,invoice_id,invoice_item_id,trip_date,party_name,truck_no,driver_name,
-                driver_mobile,material,loading_point,unloading_point,weight,rate,status,notes
-              ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                driver_mobile,material,loading_point,unloading_point,lr_number,loading_weight,
+                unloading_weight,shortage,billing_weight,weight,rate,status,notes
+              ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
                 tripId,tripNo,invoiceId,itemId,b.loadingDate||b.invoiceDate,upper(b.partyName),
                 upper(x.truckNo),'','',upper(b.material),route.loading,route.unloading,
-                x.weight,x.rate,'BOOKED',`Created from invoice ${clean(b.invoiceNo)}`
+                x.lrNumber,x.loadingWeight,x.unloadingWeight,x.shortage,x.weight,x.weight,x.rate,
+                'BOOKED',`Created from invoice ${clean(b.invoiceNo)}`
               );
             }else{
               await run(env,`UPDATE trips SET
                 invoice_id=?,invoice_item_id=?,trip_date=?,party_name=?,truck_no=?,material=?,
-                loading_point=?,unloading_point=?,weight=?,rate=?,updated_at=CURRENT_TIMESTAMP
-                WHERE id=?`,
+                loading_point=?,unloading_point=?,lr_number=?,loading_weight=?,unloading_weight=?,
+                shortage=?,billing_weight=?,weight=?,rate=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
                 invoiceId,itemId,b.loadingDate||b.invoiceDate,upper(b.partyName),upper(x.truckNo),
-                upper(b.material),route.loading,route.unloading,x.weight,x.rate,tripId
+                upper(b.material),route.loading,route.unloading,x.lrNumber,x.loadingWeight,
+                x.unloadingWeight,x.shortage,x.weight,x.weight,x.rate,tripId
               );
             }
             usedTripIds.add(String(tripId));
 
             await run(env,`INSERT INTO invoice_items(
-              id,invoice_id,trip_id,truck_no,description,loading_weight,unloading_weight,
+              id,invoice_id,trip_id,lr_number,truck_no,description,loading_weight,unloading_weight,
               shortage,weight,rate,amount
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
-              itemId,invoiceId,tripId,upper(x.truckNo),upper(x.description),x.loadingWeight,
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,
+              itemId,invoiceId,tripId,x.lrNumber,upper(x.truckNo),upper(x.description),x.loadingWeight,
               x.unloadingWeight,x.shortage,x.weight,x.rate,round2(x.weight*x.rate)
             );
           }

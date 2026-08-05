@@ -336,3 +336,7 @@ select option[value="__ADD_NEW__"]{font-weight:800;color:#2457d2}
 .tds-sign{position:relative}.tds-digital-stamp{width:78px;height:78px;border:3px double #31548a;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#31548a;position:absolute;left:50%;transform:translateX(-50%);top:-88px;line-height:1.05;opacity:.86}.tds-digital-stamp b{font-size:13px}.tds-digital-stamp span{font-size:10px;font-weight:800}.tds-digital-stamp small{font-size:7px}
 @media(max-width:700px){.global-search{width:100%;order:3}.topbar{flex-wrap:wrap}}
 @media print{.no-print,.modal-head,.sidebar,.topbar{display:none!important}.ledger-print{padding:0}.tds-digital-stamp{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+
+.invoice-line{grid-template-columns:.7fr .8fr .9fr 1.25fr .72fr .72fr .65fr .72fr .65fr .75fr auto!important;min-width:1500px!important}
+.invoice-line input[readonly]{background:#f3f6fa}
+@media(max-width:700px){.invoice-line{grid-template-columns:1fr 1fr!important;min-width:0!important}.invoice-line button{align-self:end}}

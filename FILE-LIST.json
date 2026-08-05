@@ -1,23 +1,25 @@
 {
-  "version": "V34-TRIP-UNIQUE-MIGRATION-FIX",
+  "version": "V35-LR-WEIGHT-LINES",
   "checks": {
     "javascript_syntax": "passed",
-    "real_sqlite_legacy_duplicate_migration": "passed",
-    "partial_unique_index_recreation": "passed",
-    "repeated_index_cycle": "passed",
+    "login_schema_version_v34_unchanged": "passed",
+    "manual_trip_dropdown_removed": "passed",
+    "per_truck_lr": "passed",
+    "loading_unloading_difference_billing_weights": "passed",
+    "trip_invoice_sync_fields": "passed",
     "json_validation": "passed"
   },
   "total_files": 23,
   "files": [
     {
       "path": "README.md",
-      "size": 12909,
-      "sha256": "55d56c135d3a86d0a80525c49dda8e578b23d8c050d2a4db3fb642cd70e0bd38"
+      "size": 13492,
+      "sha256": "a26899bb1b2b281e1742282bff13a67ae78fe27de2ca68a9fa1df009fb1416dc"
     },
     {
       "path": "START-HERE.txt",
-      "size": 11693,
-      "sha256": "d6ea3ffaf7a3c2ca3127d2d68bd7a0cb908ea68f9822862f50dd634be60942c8"
+      "size": 12276,
+      "sha256": "5315897a50c863fc316a90dca9d2db2bce327a84d66996e5efb1eb3849cc2754"
     },
     {
       "path": "public/assets/meera-logo.png",
@@ -72,7 +74,7 @@
     {
       "path": "public/index.html",
       "size": 523,
-      "sha256": "b18c7c97a4ef9341ef7fa73f5a2c13b4313e1a55270f942da4a2425e5b5bff02"
+      "sha256": "fac27d51a3ae206349b96e17226b1280da1a91c2efb1a47daf99faee8a3a2891"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -81,8 +83,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 99341,
-      "sha256": "50ac3a63d155d6bcc631b4494f1b5bb4dfa280ea9315103795a7520312a4e533"
+      "size": 103396,
+      "sha256": "01fc09ad7c615088b464ff56a1143127b398eac95742398e0e9c3ef808a1b36e"
     },
     {
       "path": "public/src/core/api.js",
@@ -91,8 +93,8 @@
     },
     {
       "path": "public/src/styles.css",
-      "size": 31277,
-      "sha256": "f137bb02eed1741a5f3d175f087f4bbf75ad0f7d773153066cf98a73b48504e6"
+      "size": 31603,
+      "sha256": "511b97fd3d29c3d8bab36471fcab8ee2c1dddbe9ba072efb3f036e2faa485903"
     },
     {
       "path": "vercel.json",
@@ -111,8 +113,8 @@
     },
     {
       "path": "worker/src/index.js",
-      "size": 70984,
-      "sha256": "54efedcf665b20ec8122d51ebb615522bc8f5011606b2c32c287684c45984fa0"
+      "size": 73037,
+      "sha256": "58b81b77fd08e4a8b5d14adc05c1368c73cb898fb300440148e3e1475e3af41d"
     },
     {
       "path": "worker/src/seed-data.js",

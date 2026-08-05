@@ -336,3 +336,14 @@ V34 TRIP UNIQUE MIGRATION FIX
 - Fresh databases no longer use trip_no UNIQUE DEFAULT ''.
 - Seed Trips explicitly use NULL until TR numbering is assigned.
 - Existing invoices, trips, payments and ledgers are preserved.
+
+
+V35 LR & WEIGHT LINES
+- Login migration/version is unchanged.
+- LR Number is now stored separately for every Truck line.
+- Removed the Manual Trip dropdown; linked lines show TR series, new lines show AUTO.
+- Invoice and Trip both include Loading Weight, Unloading Weight, Difference/Shortage and Billing Weight.
+- Difference is calculated automatically.
+- Billing Weight remains editable and is used for Amount calculation.
+- Every Invoice line synchronizes these values to its linked Trip.
+- Operational columns are added lazily only when Trip/Invoice is used, not during login.

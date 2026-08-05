@@ -821,8 +821,13 @@ function tripForm(x={},afterSave=null){
   x=x||{};
   const d=state.data,edit=!!x.id;
   const linkedInvoice=d.invoices.find(inv=>(inv.items||[]).some(it=>String(it.trip_id||'')===String(x.id||'')))||null;
+  const linkedItem=linkedInvoice?.items?.find(it=>String(it.trip_id||'')===String(x.id||''))||null;
   const initialType=linkedInvoice?.invoice_type||'GST';
   const partyMaster=getPartyDetails(x.party_name||'');
+  const initialLoading=Number(x.loading_weight??linkedItem?.loading_weight??x.weight??0);
+  const initialUnloading=Number(x.unloading_weight??linkedItem?.unloading_weight??x.weight??0);
+  const initialBilling=Number(x.billing_weight??linkedItem?.weight??x.weight??initialUnloading);
+  const initialShortage=Math.max(0,initialLoading-initialUnloading);
 
   const host=modal(edit?'Edit Universal Trip':'New Universal Trip',`<form class="form-grid" id="tripForm">
     <div class="span2 invoice-type-switch">
@@ -843,8 +848,11 @@ function tripForm(x={},afterSave=null){
     ${masterSelectField('Material','material',d.materials.map(m=>m.material_name),x.material||'','material','required')}
     ${masterSelectField('Loading Point','loadingPoint',[...new Set(d.routes.map(r=>r.loading_point))],x.loading_point||'','route-loading','required')}
     ${masterSelectField('Unloading Point','unloadingPoint',[...new Set(d.routes.map(r=>r.unloading_point))],x.unloading_point||'','route-unloading','required')}
-    ${field('Loading Weight','loadingWeight',x.weight||0,'number','step="0.001" required')}
-    ${field('Unloading Weight','unloadingWeight',x.weight||0,'number','step="0.001" required')}
+    ${field('LR Number','lrNumber',x.lr_number||linkedItem?.lr_number||'','text','required')}
+    ${field('Loading Weight','loadingWeight',initialLoading,'number','step="0.001" required')}
+    ${field('Unloading Weight','unloadingWeight',initialUnloading,'number','step="0.001" required')}
+    ${field('Difference / Shortage','shortage',initialShortage,'number','step="0.001" readonly')}
+    ${field('Billing Weight','billingWeight',initialBilling,'number','step="0.001" required')}
     ${field('Party Billing Rate','rate',x.rate||0,'number','step="0.01" required')}
     ${selectField('Trip Status','status',['BOOKED','LOADED','IN_TRANSIT','DELIVERED'],x.status||'BOOKED')}
 
@@ -856,7 +864,6 @@ function tripForm(x={},afterSave=null){
     ${field('Invoice Number','invoiceNo',linkedInvoice?.invoice_no||(initialType==='NON_GST'?d.nextNonGstInvoiceNo:d.nextInvoiceNo),'text','required')}
     ${field('Invoice Date','invoiceDate',linkedInvoice?.invoice_date||x.trip_date||today(),'date','required')}
     <div class="trip-gst-field">${field('Party GST Number','partyGst',linkedInvoice?.party_gst||partyMaster.gst_no||'','text','readonly')}</div>
-    ${field('LR Number','lrNo',linkedInvoice?.lr_no||'')}
     <div class="trip-gst-field">${field('SGST %','sgst',linkedInvoice?.sgst??9,'number','step="0.01"')}</div>
     <div class="trip-gst-field">${field('CGST %','cgst',linkedInvoice?.cgst??9,'number','step="0.01"')}</div>
     ${field('Diesel','diesel',linkedInvoice?.diesel||0,'number','step="0.01"')}
@@ -910,7 +917,19 @@ function tripForm(x={},afterSave=null){
       address.readOnly=true;
     });
 
+    const updateTripDifference=()=>{
+      const loading=Number(host.querySelector('[name=loadingWeight]').value||0);
+      const unloading=Number(host.querySelector('[name=unloadingWeight]').value||0);
+      host.querySelector('[name=shortage]').value=Math.max(0,loading-unloading).toFixed(3);
+      const billing=host.querySelector('[name=billingWeight]');
+      if(!billing.dataset.edited)billing.value=(unloading||loading).toFixed(3);
+    };
+    host.querySelector('[name=loadingWeight]').addEventListener('input',updateTripDifference);
+    host.querySelector('[name=unloadingWeight]').addEventListener('input',updateTripDifference);
+    host.querySelector('[name=billingWeight]').addEventListener('input',e=>e.target.dataset.edited='1');
+
     applyTripType(initialType,false);
+    updateTripDifference();
     if(partySelect.value)partySelect.dispatchEvent(new Event('change',{bubbles:true}));
 
     host.querySelector('[data-close-form]').onclick=()=>host.remove();
@@ -920,7 +939,8 @@ function tripForm(x={},afterSave=null){
       const body=formDataObject(e.target);
       const loading=Number(body.loadingWeight||0);
       const unloading=Number(body.unloadingWeight||0);
-      body.weight=unloading||loading;
+      body.billingWeight=Number(body.billingWeight||unloading||loading);
+      body.weight=body.billingWeight;
 
       const files=[...host.querySelector('#podFiles').files];
       if(files.length){
@@ -950,9 +970,10 @@ function tripForm(x={},afterSave=null){
             tripId,
             truckNo:body.truckNo,
             description:`${body.loadingPoint} TO ${body.unloadingPoint}`,
+            lrNumber:body.lrNumber,
             loadingWeight:loading,
             unloadingWeight:unloading,
-            weight:unloading||loading,
+            weight:body.billingWeight,
             rate:Number(body.rate||0)
           });
 
@@ -963,7 +984,7 @@ function tripForm(x={},afterSave=null){
             partyName:body.partyName,
             partyAddress:body.partyAddress||'',
             partyGst:body.tripType==='NON_GST'?'':body.partyGst||'',
-            lrNo:body.lrNo||'',
+            lrNo:body.lrNumber||'',
             material:body.material,
             loadingDate:body.tripDate,
             sgst:body.tripType==='NON_GST'?0:Number(body.sgst||0),
@@ -973,6 +994,7 @@ function tripForm(x={},afterSave=null){
             comments:body.comments||'',
             items:existingItems.map(it=>({
               tripId:it.trip_id||it.tripId||'',
+              lrNumber:it.lr_number||it.lrNumber||'',
               truckNo:it.truck_no||it.truckNo||'',
               description:it.description||'',
               loadingWeight:it.loading_weight??it.loadingWeight??it.weight,
@@ -1050,8 +1072,10 @@ function invoiceForm(x={},tripContext=null){
   const items=(x.items&&x.items.length?x.items:(tripContext?[{
     trip_id:tripContext.id,tripId:tripContext.id,truck_no:tripContext.truck_no,truckNo:tripContext.truck_no,
     description:`${tripContext.loading_point} TO ${tripContext.unloading_point}`,
-    loading_weight:tripContext.weight,unloading_weight:tripContext.weight,weight:tripContext.weight,rate:tripContext.rate
-  }]:[{trip_id:'',truck_no:'',description:'',weight:0,rate:0}]));
+    lr_number:tripContext.lr_number||'',loading_weight:tripContext.loading_weight??tripContext.weight,
+    unloading_weight:tripContext.unloading_weight??tripContext.weight,
+    shortage:tripContext.shortage||0,weight:tripContext.billing_weight??tripContext.weight,rate:tripContext.rate
+  }]:[{trip_id:'',lr_number:'',truck_no:'',description:'',loading_weight:0,unloading_weight:0,shortage:0,weight:0,rate:0}]));
 
   const host=modal(edit?'Edit Invoice':'New Invoice',`<form class="form-grid" id="invoiceForm">
     <div class="span2 invoice-type-switch">
@@ -1068,7 +1092,6 @@ function invoiceForm(x={},tripContext=null){
     ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||tripContext?.party_name||'','party','required')}
     <div class="gst-field">${field('Party GST','partyGst',x.party_gst||getPartyDetails(tripContext?.party_name||x.party_name).gst_no||'','text','readonly')}</div>
     <label class="field span2"><span>Party Address</span><textarea name="partyAddress" readonly>${esc(x.party_address||getPartyDetails(tripContext?.party_name||x.party_name).address||'')}</textarea></label>
-    ${field('LR Number','lrNo',x.lr_no||'')}
     ${masterSelectField('Material','material',d.materials.map(m=>m.material_name),x.material||tripContext?.material||'','material')}
     ${field('Loading Date','loadingDate',x.loading_date||today(),'date')}
     ${field('Diesel','diesel',x.diesel||0,'number','step="0.01"')}
@@ -1093,26 +1116,53 @@ function invoiceForm(x={},tripContext=null){
     const numberInput=host.querySelector('[name=invoiceNo]');
 
     function addLine(item={}){
-      const row=document.createElement('div');row.className='invoice-line';
-      row.innerHTML=`<label class="field"><span>Trip</span><select name="tripId"><option value="">Manual</option>${d.trips.map(t=>`<option value="${esc(t.id)}" ${String(t.id)===String(item.trip_id||item.tripId||'')?'selected':''}>${esc(t.id+' · '+t.truck_no+' · '+t.party_name)}</option>`).join('')}</select></label>
-      ${masterSelectField('Truck No.','truckNo',d.trucks.map(t=>t.truck_no),item.truck_no||item.truckNo||'','truck','required')}
-      ${field('Description','description',item.description||'','','required')}
-      ${field('Weight','weight',item.weight||0,'number','step="0.001" required')}
-      ${field('Rate','rate',item.rate||0,'number','step="0.01" required')}
-      <button type="button" class="mini danger">Remove</button>`;
-      row.querySelector('button.mini').onclick=()=>{row.remove();recalcInvoice()};
-      row.querySelector('select[name=tripId]').onchange=e=>{
-        const t=d.trips.find(t=>String(t.id)===String(e.target.value));if(!t)return;
-        row.querySelector('[name=truckNo]').value=t.truck_no;
-        row.querySelector('[name=description]').value=`${t.loading_point} TO ${t.unloading_point}`;
-        row.querySelector('[name=weight]').value=t.weight;
-        row.querySelector('[name=rate]').value=t.rate||0;
-        const party=host.querySelector('[name=partyName]');if(!party.value)party.value=t.party_name;
-        const material=host.querySelector('[name=material]');if(!material.value)material.value=t.material;
+      const linkedTrip=d.trips.find(t=>String(t.id)===String(item.trip_id||item.tripId||''));
+      const row=document.createElement('div');
+      row.className='invoice-line';
+      row.innerHTML=`
+        <label class="field"><span>Trip No.</span>
+          <input name="tripNoDisplay" value="${esc(linkedTrip?.trip_no||'AUTO')}" readonly>
+          <input name="tripId" type="hidden" value="${esc(item.trip_id||item.tripId||'')}">
+        </label>
+        ${field('LR Number','lrNumber',item.lr_number||item.lrNumber||linkedTrip?.lr_number||'','','required')}
+        ${masterSelectField('Truck No.','truckNo',d.trucks.map(t=>t.truck_no),item.truck_no||item.truckNo||linkedTrip?.truck_no||'','truck','required')}
+        ${field('Description / Route','description',item.description||(linkedTrip?`${linkedTrip.loading_point} TO ${linkedTrip.unloading_point}`:''),'','required')}
+        ${field('Loading Weight','loadingWeight',item.loading_weight??item.loadingWeight??linkedTrip?.loading_weight??item.weight??0,'number','step="0.001" required')}
+        ${field('Unloading Weight','unloadingWeight',item.unloading_weight??item.unloadingWeight??linkedTrip?.unloading_weight??item.weight??0,'number','step="0.001" required')}
+        ${field('Difference','shortage',item.shortage??linkedTrip?.shortage??0,'number','step="0.001" readonly')}
+        ${field('Billing Weight','weight',item.weight??item.billingWeight??linkedTrip?.billing_weight??0,'number','step="0.001" required')}
+        ${field('Rate','rate',item.rate||linkedTrip?.rate||0,'number','step="0.01" required')}
+        ${field('Amount','amount',Number(item.amount||0).toFixed(2),'number','step="0.01" readonly')}
+        <button type="button" class="mini danger">Remove</button>`;
+
+      const updateLine=()=>{
+        const loading=Number(row.querySelector('[name=loadingWeight]').value||0);
+        const unloading=Number(row.querySelector('[name=unloadingWeight]').value||0);
+        const shortage=Math.max(0,loading-unloading);
+        row.querySelector('[name=shortage]').value=shortage.toFixed(3);
+        const weight=Number(row.querySelector('[name=weight]').value||0);
+        const rate=Number(row.querySelector('[name=rate]').value||0);
+        row.querySelector('[name=amount]').value=(weight*rate).toFixed(2);
         recalcInvoice();
       };
-      row.querySelectorAll('input').forEach(i=>i.addEventListener('input',recalcInvoice));
-      lines.appendChild(row);wireMasterSelects(row);recalcInvoice();
+      const autoBilling=()=>{
+        const billing=row.querySelector('[name=weight]');
+        if(!billing.dataset.edited){
+          const loading=Number(row.querySelector('[name=loadingWeight]').value||0);
+          const unloading=Number(row.querySelector('[name=unloadingWeight]').value||0);
+          billing.value=(unloading||loading).toFixed(3);
+        }
+        updateLine();
+      };
+
+      row.querySelector('button.mini').onclick=()=>{row.remove();recalcInvoice()};
+      row.querySelector('[name=loadingWeight]').addEventListener('input',autoBilling);
+      row.querySelector('[name=unloadingWeight]').addEventListener('input',autoBilling);
+      row.querySelector('[name=weight]').addEventListener('input',e=>{e.target.dataset.edited='1';updateLine()});
+      row.querySelector('[name=rate]').addEventListener('input',updateLine);
+      lines.appendChild(row);
+      wireMasterSelects(row);
+      updateLine();
     }
 
     function recalcInvoice(){
@@ -1148,7 +1198,7 @@ function invoiceForm(x={},tripContext=null){
     host.querySelector('#addTripFromInvoice').onclick=()=>tripForm({},(newTripId,fresh)=>{
       const trip=fresh.trips.find(t=>String(t.id)===String(newTripId));
       if(!trip)return;
-      addLine({tripId:trip.id,truckNo:trip.truck_no,description:`${trip.loading_point} TO ${trip.unloading_point}`,weight:trip.weight,rate:trip.rate});
+      addLine({tripId:trip.id,lrNumber:trip.lr_number||'',truckNo:trip.truck_no,description:`${trip.loading_point} TO ${trip.unloading_point}`,loadingWeight:trip.loading_weight??trip.weight,unloadingWeight:trip.unloading_weight??trip.weight,weight:trip.billing_weight??trip.weight,rate:trip.rate});
     });
 
     host.querySelector('[name=partyName]').addEventListener('change',e=>{
@@ -1164,8 +1214,12 @@ function invoiceForm(x={},tripContext=null){
       e.preventDefault();const body=formDataObject(e.target);
       body.items=[...lines.querySelectorAll('.invoice-line')].map(r=>({
         tripId:r.querySelector('[name=tripId]').value,
+        lrNumber:r.querySelector('[name=lrNumber]').value,
         truckNo:r.querySelector('[name=truckNo]').value,
         description:r.querySelector('[name=description]').value,
+        loadingWeight:r.querySelector('[name=loadingWeight]').value,
+        unloadingWeight:r.querySelector('[name=unloadingWeight]').value,
+        billingWeight:r.querySelector('[name=weight]').value,
         weight:r.querySelector('[name=weight]').value,
         rate:r.querySelector('[name=rate]').value
       }));
@@ -1380,6 +1434,7 @@ async function viewSupplierLedger(name){
   }catch(e){alert(e.message)}
 }
 
+function invoiceTemplate(i){return invoicePrintHtml(i)}
 function viewInvoice(i){
   if(!i)return;
   const host=modal(`Invoice ${i.invoice_no}`,`${invoiceTemplate(i)}<div class="form-actions no-print"><button class="btn light" id="editInvoiceFromView">Edit Invoice</button><button class="btn primary" id="downloadInvoiceFromView">Download PDF</button></div>`,{onMount:host=>{host.querySelector('.modal').classList.add('invoice-modal');host.querySelector('#editInvoiceFromView').onclick=()=>{host.remove();invoiceForm(i)};host.querySelector('#downloadInvoiceFromView').onclick=()=>downloadInvoicePdf(i)}});
@@ -1399,8 +1454,11 @@ function downloadInvoice(i){
 }
 function invoicePrintHtml(i){
   return `<div class="print-sheet"><div class="invoice-header"><div class="invoice-company"><h1>MEERA LOGISTICS</h1><div>Transport & Logistics Services</div><div>Jamnagar, Gujarat</div></div><div class="invoice-meta"><b>${invoiceTypeLabel(i)==='NON-GST'?'NON-GST INVOICE':'TAX INVOICE'}</b><div>${esc(i.invoice_no)}</div><div>${esc(i.invoice_date)}</div></div></div>
-  <div class="invoice-party"><div><b>Bill To</b><div>${esc(i.party_name)}</div><div>${esc(i.party_address||'')}</div><div>${invoiceTypeLabel(i)==='NON-GST'?'GST: Not Applicable':`GST: ${esc(i.party_gst||'-')}`}</div></div><div><b>LR No:</b> ${esc(i.lr_no||'-')}<br><b>Material:</b> ${esc(i.material||'-')}<br><b>Loading Date:</b> ${esc(i.loading_date||'-')}</div></div>
-  ${table(['Truck No','Description','Weight','Rate','Amount'],(i.items||[]).map(x=>[esc(x.truck_no),esc(x.description),esc(x.weight),money(x.rate),money(x.amount)]),'650px')}
+  <div class="invoice-party"><div><b>Bill To</b><div>${esc(i.party_name)}</div><div>${esc(i.party_address||'')}</div><div>${invoiceTypeLabel(i)==='NON-GST'?'GST: Not Applicable':`GST: ${esc(i.party_gst||'-')}`}</div></div><div><b>Material:</b> ${esc(i.material||'-')}<br><b>Loading Date:</b> ${esc(i.loading_date||'-')}</div></div>
+  ${table(['Trip','LR No','Truck No','Description','Loading Wt.','Unloading Wt.','Difference','Billing Wt.','Rate','Amount'],(i.items||[]).map(x=>{
+    const trip=state.data?.trips?.find(t=>String(t.id)===String(x.trip_id));
+    return [esc(trip?.trip_no||'-'),esc(x.lr_number||'-'),esc(x.truck_no),esc(x.description),number3(x.loading_weight??x.weight),number3(x.unloading_weight??x.weight),number3(x.shortage||0),number3(x.weight),money(x.rate),money(x.amount)];
+  }),'1050px')}
   <div class="invoice-total"><div><span>Subtotal</span><b>${money(i.subtotal)}</b></div><div><span>Diesel</span><b>${money(i.diesel)}</b></div><div><span>Munshi</span><b>${money(i.munshi)}</b></div><div><span>SGST ${i.sgst}%</span><b>${money(i.subtotal*i.sgst/100)}</b></div><div><span>CGST ${i.cgst}%</span><b>${money(i.subtotal*i.cgst/100)}</b></div><div class="grand"><span>Total</span><span>${money(i.total)}</span></div></div><p style="white-space:pre-line">${esc(i.comments||'')}</p></div>`;
 }
 
