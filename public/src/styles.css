@@ -311,3 +311,9 @@ select option[value="__ADD_NEW__"]{font-weight:800;color:#2457d2}
 
 .tds-firm-info{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;border:1px solid #aaa;padding:10px 12px;margin-top:24px;font-size:13px}
 .tds-sign div{font-size:12px;margin-top:4px}
+
+.pm-line{grid-template-columns:1fr 1fr 1fr .65fr .65fr .65fr auto}
+.pm-print{max-width:900px}
+@media(max-width:700px){.pm-line{grid-template-columns:1fr 1fr}.pm-line .field:nth-child(3){grid-column:1/-1}}
+
+.gst-only{display:contents}

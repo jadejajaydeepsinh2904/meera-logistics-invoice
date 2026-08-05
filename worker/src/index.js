@@ -75,7 +75,7 @@ async function ensureDatabase(env){
     // statements on every Worker cold start.
     try{
       const ready=await first(env,`SELECT value FROM app_meta WHERE key='schema_version'`);
-      if(ready?.value==='18'){
+      if(ready?.value==='24'){
         // Verify the columns required by the universal Trip screen.
         await first(env,`SELECT trip_id FROM party_payments LIMIT 1`);
         await first(env,`SELECT trip_id FROM supplier_payments LIMIT 1`);
@@ -95,7 +95,9 @@ async function ensureDatabase(env){
       `CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY,loading_point TEXT NOT NULL,unloading_point TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS materials(id TEXT PRIMARY KEY,material_name TEXT UNIQUE NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS trips(id TEXT PRIMARY KEY,trip_date TEXT,party_name TEXT,truck_no TEXT,driver_name TEXT DEFAULT '',driver_mobile TEXT DEFAULT '',material TEXT,loading_point TEXT,unloading_point TEXT,weight REAL DEFAULT 0,rate REAL DEFAULT 0,status TEXT DEFAULT 'BOOKED',notes TEXT DEFAULT '',pod_file_name TEXT DEFAULT '',pod_data TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
-      `CREATE TABLE IF NOT EXISTS invoices(id TEXT PRIMARY KEY,invoice_no TEXT UNIQUE NOT NULL,invoice_date TEXT,party_name TEXT,party_address TEXT DEFAULT '',party_gst TEXT DEFAULT '',lr_no TEXT DEFAULT '',material TEXT DEFAULT '',loading_date TEXT DEFAULT '',sgst REAL DEFAULT 9,cgst REAL DEFAULT 9,diesel REAL DEFAULT 0,munshi REAL DEFAULT 0,subtotal REAL DEFAULT 0,gst_amount REAL DEFAULT 0,total REAL DEFAULT 0,comments TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+      `CREATE TABLE IF NOT EXISTS invoices(id TEXT PRIMARY KEY,invoice_no TEXT UNIQUE NOT NULL,invoice_type TEXT DEFAULT 'GST',invoice_date TEXT,party_name TEXT,party_address TEXT DEFAULT '',party_gst TEXT DEFAULT '',lr_no TEXT DEFAULT '',material TEXT DEFAULT '',loading_date TEXT DEFAULT '',sgst REAL DEFAULT 9,cgst REAL DEFAULT 9,diesel REAL DEFAULT 0,munshi REAL DEFAULT 0,subtotal REAL DEFAULT 0,gst_amount REAL DEFAULT 0,total REAL DEFAULT 0,comments TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+      `CREATE TABLE IF NOT EXISTS pm_bills(id TEXT PRIMARY KEY,bill_no TEXT UNIQUE NOT NULL,bill_date TEXT,party_name TEXT NOT NULL,party_address TEXT DEFAULT '',supplier_name TEXT DEFAULT '',notes TEXT DEFAULT '',subtotal REAL DEFAULT 0,supplier_total REAL DEFAULT 0,profit REAL DEFAULT 0,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+      `CREATE TABLE IF NOT EXISTS pm_bill_items(id TEXT PRIMARY KEY,bill_id TEXT NOT NULL,truck_no TEXT DEFAULT '',loading_point TEXT DEFAULT '',unloading_point TEXT DEFAULT '',weight REAL DEFAULT 0,party_rate REAL DEFAULT 0,supplier_rate REAL DEFAULT 0,party_amount REAL DEFAULT 0,supplier_amount REAL DEFAULT 0,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS invoice_items(id TEXT PRIMARY KEY,invoice_id TEXT NOT NULL,trip_id TEXT DEFAULT '',truck_no TEXT,description TEXT,loading_weight REAL DEFAULT 0,unloading_weight REAL DEFAULT 0,shortage REAL DEFAULT 0,weight REAL DEFAULT 0,rate REAL DEFAULT 0,amount REAL DEFAULT 0,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS truck_payments(id TEXT PRIMARY KEY,trip_id TEXT DEFAULT '',entry_date TEXT,truck_no TEXT,owner_name TEXT,bank_details TEXT DEFAULT '',loading_point TEXT,unloading_point TEXT,weight REAL DEFAULT 0,rate REAL DEFAULT 0,commission REAL DEFAULT 0,payable REAL DEFAULT 0,notes TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS supplier_payments(id TEXT PRIMARY KEY,receipt_no TEXT,trip_id TEXT DEFAULT '',owner_name TEXT NOT NULL,truck_no TEXT DEFAULT '',payment_date TEXT NOT NULL,amount REAL NOT NULL,payment_mode TEXT,reference TEXT,notes TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
@@ -131,6 +133,7 @@ async function ensureDatabase(env){
       `ALTER TABLE invoices ADD COLUMN sgst REAL DEFAULT 9`,
       `ALTER TABLE invoices ADD COLUMN cgst REAL DEFAULT 9`,
       `ALTER TABLE invoices ADD COLUMN comments TEXT DEFAULT ''`,
+      `ALTER TABLE invoices ADD COLUMN invoice_type TEXT DEFAULT 'GST'`,
       `ALTER TABLE invoices ADD COLUMN created_at TEXT DEFAULT ''`,
       `ALTER TABLE invoices ADD COLUMN updated_at TEXT DEFAULT ''`,
       `ALTER TABLE truck_payments ADD COLUMN trip_id TEXT DEFAULT ''`,
@@ -157,6 +160,9 @@ async function ensureDatabase(env){
       `CREATE INDEX IF NOT EXISTS idx_invoice_date ON invoices(invoice_date)`,
       `CREATE INDEX IF NOT EXISTS idx_invoice_item_invoice ON invoice_items(invoice_id)`,
       `CREATE INDEX IF NOT EXISTS idx_invoice_item_trip ON invoice_items(trip_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_pm_bill_party ON pm_bills(party_name)`,
+      `CREATE INDEX IF NOT EXISTS idx_pm_bill_supplier ON pm_bills(supplier_name)`,
+      `CREATE INDEX IF NOT EXISTS idx_pm_item_bill ON pm_bill_items(bill_id)`,
       `CREATE INDEX IF NOT EXISTS idx_party_payment_party ON party_payments(party_name)`,
       `CREATE INDEX IF NOT EXISTS idx_supplier_entry_owner ON truck_payments(owner_name)`,
       `CREATE INDEX IF NOT EXISTS idx_supplier_payment_owner ON supplier_payments(owner_name)`,
@@ -250,7 +256,7 @@ async function ensureDatabase(env){
       await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('seed_version','2',CURRENT_TIMESTAMP)`);
     }
     await backfillPartyMaster(env);
-    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','18',CURRENT_TIMESTAMP)`);
+    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','24',CURRENT_TIMESTAMP)`);
   })().catch(e=>{ initPromise=null; throw e; });
   return initPromise;
 }
@@ -310,7 +316,7 @@ function pathParts(path){ return path.replace(/^\/api\/?/,'').split('/').filter(
 async function bootstrap(env,user){
   const [
     parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
-    truckEntries,supplierPayments,expenses,documents,audits
+    pmBills,pmBillItems,truckEntries,supplierPayments,expenses,documents,audits
   ]=await Promise.all([
     all(env,`SELECT * FROM party_accounts ORDER BY COALESCE(ledger_no,''),party_name`),
     all(env,`SELECT * FROM party_payments ORDER BY payment_date DESC,created_at DESC`),
@@ -320,6 +326,8 @@ async function bootstrap(env,user){
     all(env,`SELECT * FROM trips ORDER BY trip_date DESC,created_at DESC`),
     all(env,`SELECT * FROM invoices ORDER BY invoice_date DESC,created_at DESC`),
     all(env,`SELECT * FROM invoice_items ORDER BY invoice_id,created_at`),
+    all(env,`SELECT * FROM pm_bills ORDER BY bill_date DESC,created_at DESC`),
+    all(env,`SELECT * FROM pm_bill_items ORDER BY bill_id,created_at`),
     all(env,`SELECT * FROM truck_payments ORDER BY entry_date DESC,created_at DESC`),
     all(env,`SELECT * FROM supplier_payments ORDER BY payment_date DESC,created_at DESC`),
     all(env,`SELECT * FROM expenses ORDER BY expense_date DESC,created_at DESC`),
@@ -330,6 +338,10 @@ async function bootstrap(env,user){
   const itemsByInvoice={};
   for(const it of invoiceItems)(itemsByInvoice[it.invoice_id]??=[]).push(it);
   for(const inv of invoices)inv.items=itemsByInvoice[inv.id]||[];
+
+  const pmItemsByBill={};
+  for(const it of pmBillItems)(pmItemsByBill[it.bill_id]??=[]).push(it);
+  for(const bill of pmBills)bill.items=pmItemsByBill[bill.id]||[];
 
   const partyMap={};
   for(const p of parties)partyMap[p.party_name]={...p,billed:0,received:0,invoices:0,payments:0};
@@ -351,8 +363,15 @@ async function bootstrap(env,user){
   }
   for(const p of supplierPayments){
     const n=p.owner_name||'UNKNOWN';
-    supplierMap[n]??={owner_name:n,payable:0,paid:0,entries:0,payments:0,trucks:new Set()};
+    supplierMap[n]??={owner_name:n,payable:0,paid:0,entries:0,payments:0,trucks:new Set(),pm_bills:0};
     supplierMap[n].paid+=num(p.amount);supplierMap[n].payments++;if(p.truck_no)supplierMap[n].trucks.add(p.truck_no);
+  }
+  for(const b of pmBills){
+    const n=b.supplier_name||'UNKNOWN';
+    supplierMap[n]??={owner_name:n,payable:0,paid:0,entries:0,payments:0,trucks:new Set(),pm_bills:0};
+    supplierMap[n].payable+=num(b.supplier_total);
+    supplierMap[n].pm_bills=(supplierMap[n].pm_bills||0)+1;
+    for(const it of (b.items||[]))if(it.truck_no)supplierMap[n].trucks.add(it.truck_no);
   }
   const supplierLedger=Object.values(supplierMap).map(x=>({
     owner_name:x.owner_name,payable:round2(x.payable),paid:round2(x.paid),pending:round2(x.payable-x.paid),
@@ -377,8 +396,10 @@ async function bootstrap(env,user){
   return {
     version:'2026.08.04-final',
     user,parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
-    truckEntries,supplierPayments,expenses,documents,audits,partyLedger,supplierLedger,issues,
-    nextInvoiceNo:nextNumber(invoices.map(x=>x.invoice_no),'ML - '),
+    pmBills,pmBillItems,truckEntries,supplierPayments,expenses,documents,audits,partyLedger,supplierLedger,issues,
+    nextInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='GST').map(x=>x.invoice_no),'ML - '),
+    nextNonGstInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='NON_GST').map(x=>x.invoice_no),'JAY '),
+    nextPmBillNo:nextNumber(pmBills.map(x=>x.bill_no),'PM - '),
     summary:{
       totalBilling,invoiceSubtotal,partyReceived,partyOutstanding:round2(totalBilling-partyReceived),
       supplierPayable,supplierPaid,supplierPending:round2(supplierPayable-supplierPaid),
@@ -442,12 +463,14 @@ export default {
         const name=upper(id);
         const entries=await all(env,`SELECT * FROM truck_payments WHERE owner_name=? ORDER BY entry_date,created_at`,name);
         const payments=await all(env,`SELECT * FROM supplier_payments WHERE owner_name=? ORDER BY payment_date,created_at`,name);
+        const pmBills=await all(env,`SELECT * FROM pm_bills WHERE supplier_name=? ORDER BY bill_date,created_at`,name);
         const lines=[
           ...entries.map(x=>({date:x.entry_date,type:'FREIGHT',reference:x.truck_no,debit:num(x.payable),credit:0,notes:x.loading_point+' → '+x.unloading_point})),
+          ...pmBills.map(x=>({date:x.bill_date,type:'PM BILL',reference:x.bill_no,debit:num(x.supplier_total),credit:0,notes:'Non-GST supplier payable'})),
           ...payments.map(x=>({date:x.payment_date,type:'PAYMENT',reference:x.receipt_no||x.reference||x.id,debit:0,credit:num(x.amount),notes:x.notes||''}))
         ].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
         let balance=0;for(const x of lines){balance=round2(balance+x.debit-x.credit);x.balance=balance}
-        return json({entries,payments,lines,balance});
+        return json({entries,payments,pmBills,lines,balance});
       }
 
       if(resource==='export'&&req.method==='GET')return json(await bootstrap(env,user));
@@ -457,7 +480,7 @@ export default {
         const data=b.data||b;
         if(!data || !Array.isArray(data.parties))return json({error:'Invalid backup file'},400);
         if(b.mode==='replace'){
-          const tables=['invoice_items','invoices','party_payments','supplier_payments','truck_payments','trips','expenses','truck_documents','materials','routes','trucks','party_accounts'];
+          const tables=['pm_bill_items','pm_bills','invoice_items','invoices','party_payments','supplier_payments','truck_payments','trips','expenses','truck_documents','materials','routes','trucks','party_accounts'];
           for(const t of tables)await env.DB.prepare(`DELETE FROM ${t}`).run();
         }
         const rows=data;
@@ -467,7 +490,7 @@ export default {
         for(const r of rows.routes||[])await run(env,`INSERT OR REPLACE INTO routes(id,loading_point,unloading_point) VALUES(?,?,?)`,r.id||uid('RTE'),upper(r.loading_point),upper(r.unloading_point));
         for(const m of rows.materials||[])await run(env,`INSERT OR REPLACE INTO materials(id,material_name) VALUES(?,?)`,m.id||uid('MAT'),upper(m.material_name));
         for(const t of rows.trips||[])await run(env,`INSERT OR REPLACE INTO trips(id,trip_date,party_name,truck_no,driver_name,driver_mobile,material,loading_point,unloading_point,weight,rate,status,notes,pod_file_name,pod_data) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,t.id||uid('TRIP'),t.trip_date,upper(t.party_name),upper(t.truck_no),upper(t.driver_name),t.driver_mobile||'',upper(t.material),upper(t.loading_point),upper(t.unloading_point),num(t.weight),num(t.rate),upper(t.status||'BOOKED'),t.notes||'',t.pod_file_name||'',t.pod_data||'');
-        for(const i of rows.invoices||[])await run(env,`INSERT OR REPLACE INTO invoices(id,invoice_no,invoice_date,party_name,party_address,party_gst,lr_no,material,loading_date,sgst,cgst,diesel,munshi,subtotal,gst_amount,total,comments) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,i.id||uid('INV'),i.invoice_no,i.invoice_date,upper(i.party_name),i.party_address||'',i.party_gst||'',i.lr_no||'',upper(i.material),i.loading_date||'',num(i.sgst),num(i.cgst),num(i.diesel),num(i.munshi),num(i.subtotal),num(i.gst_amount),num(i.total),i.comments||'');
+        for(const i of rows.invoices||[])await run(env,`INSERT OR REPLACE INTO invoices(id,invoice_no,invoice_type,invoice_date,party_name,party_address,party_gst,lr_no,material,loading_date,sgst,cgst,diesel,munshi,subtotal,gst_amount,total,comments) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,i.id||uid('INV'),i.invoice_no,i.invoice_type||'GST',i.invoice_date,upper(i.party_name),i.party_address||'',i.party_gst||'',i.lr_no||'',upper(i.material),i.loading_date||'',num(i.sgst),num(i.cgst),num(i.diesel),num(i.munshi),num(i.subtotal),num(i.gst_amount),num(i.total),i.comments||'');
         for(const it of rows.invoiceItems||[])await run(env,`INSERT OR REPLACE INTO invoice_items(id,invoice_id,trip_id,truck_no,description,loading_weight,unloading_weight,shortage,weight,rate,amount) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,it.id||uid('II'),it.invoice_id,it.trip_id||'',upper(it.truck_no),upper(it.description),num(it.loading_weight||it.weight),num(it.unloading_weight||it.weight),num(it.shortage),num(it.weight),num(it.rate),num(it.amount));
         for(const e of rows.truckEntries||[])await run(env,`INSERT OR REPLACE INTO truck_payments(id,trip_id,entry_date,truck_no,owner_name,bank_details,loading_point,unloading_point,weight,rate,commission,payable,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,e.id||uid('TE'),e.trip_id||'',e.entry_date,upper(e.truck_no),upper(e.owner_name),e.bank_details||'',upper(e.loading_point),upper(e.unloading_point),num(e.weight),num(e.rate),num(e.commission),num(e.payable),e.notes||'');
         for(const p of rows.supplierPayments||[])await run(env,`INSERT OR REPLACE INTO supplier_payments(id,receipt_no,trip_id,owner_name,truck_no,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?,?)`,p.id||uid('SP'),p.receipt_no||'',p.trip_id||'',upper(p.owner_name),upper(p.truck_no),p.payment_date,num(p.amount),upper(p.payment_mode),p.reference||'',p.notes||'');
@@ -585,18 +608,70 @@ export default {
           if(req.method==='POST'){
             const newId=uid('INV');
             try{
-              await run(env,`INSERT INTO invoices(id,invoice_no,invoice_date,party_name,party_address,party_gst,lr_no,material,loading_date,sgst,cgst,diesel,munshi,subtotal,gst_amount,total,comments) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,newId,clean(b.invoiceNo),b.invoiceDate,upper(b.partyName),b.partyAddress||'',upper(b.partyGst),b.lrNo||'',upper(b.material),b.loadingDate||'',num(b.sgst),num(b.cgst),num(b.diesel),num(b.munshi),subtotal,gstAmount,total,b.comments||'');
+              await run(env,`INSERT INTO invoices(id,invoice_no,invoice_type,invoice_date,party_name,party_address,party_gst,lr_no,material,loading_date,sgst,cgst,diesel,munshi,subtotal,gst_amount,total,comments) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,newId,clean(b.invoiceNo),invoiceType,b.invoiceDate,upper(b.partyName),b.partyAddress||'',invoiceType==='NON_GST'?'':upper(b.partyGst),b.lrNo||'',upper(b.material),b.loadingDate||'',sgst,cgst,num(b.diesel),num(b.munshi),subtotal,gstAmount,total,b.comments||'');
             }catch(e){if(/UNIQUE/i.test(String(e.message)))return json({error:'Invoice number already exists'},409);throw e}
             for(const x of items)await run(env,`INSERT INTO invoice_items(id,invoice_id,trip_id,truck_no,description,loading_weight,unloading_weight,shortage,weight,rate,amount) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,uid('II'),newId,x.tripId||'',upper(x.truckNo),upper(x.description),x.loadingWeight,x.unloadingWeight,x.shortage,x.weight,x.rate,round2(x.weight*x.rate));
             await audit(env,user,'CREATE','invoice',newId,b);return json({ok:true,id:newId,total});
           }
-          await run(env,`UPDATE invoices SET invoice_no=?,invoice_date=?,party_name=?,party_address=?,party_gst=?,lr_no=?,material=?,loading_date=?,sgst=?,cgst=?,diesel=?,munshi=?,subtotal=?,gst_amount=?,total=?,comments=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,clean(b.invoiceNo),b.invoiceDate,upper(b.partyName),b.partyAddress||'',upper(b.partyGst),b.lrNo||'',upper(b.material),b.loadingDate||'',num(b.sgst),num(b.cgst),num(b.diesel),num(b.munshi),subtotal,gstAmount,total,b.comments||'',id);
+          await run(env,`UPDATE invoices SET invoice_no=?,invoice_type=?,invoice_date=?,party_name=?,party_address=?,party_gst=?,lr_no=?,material=?,loading_date=?,sgst=?,cgst=?,diesel=?,munshi=?,subtotal=?,gst_amount=?,total=?,comments=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,clean(b.invoiceNo),invoiceType,b.invoiceDate,upper(b.partyName),b.partyAddress||'',invoiceType==='NON_GST'?'':upper(b.partyGst),b.lrNo||'',upper(b.material),b.loadingDate||'',sgst,cgst,num(b.diesel),num(b.munshi),subtotal,gstAmount,total,b.comments||'',id);
           await run(env,`DELETE FROM invoice_items WHERE invoice_id=?`,id);
           for(const x of items)await run(env,`INSERT INTO invoice_items(id,invoice_id,trip_id,truck_no,description,loading_weight,unloading_weight,shortage,weight,rate,amount) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,uid('II'),id,x.tripId||'',upper(x.truckNo),upper(x.description),x.loadingWeight,x.unloadingWeight,x.shortage,x.weight,x.rate,round2(x.weight*x.rate));
           await audit(env,user,'UPDATE','invoice',id,b);return json({ok:true,total});
         }
         if(req.method==='DELETE'&&id){
           await run(env,`DELETE FROM invoice_items WHERE invoice_id=?`,id);await run(env,`DELETE FROM invoices WHERE id=?`,id);await audit(env,user,'DELETE','invoice',id,{});return json({ok:true});
+        }
+      }
+
+
+      // PM / NON-GST BILLS
+      if(resource==='pm-bills'){
+        if(req.method==='POST'||(req.method==='PUT'&&id)){
+          const b=await requestBody(req);
+          if(b.partyName)await upsertMasters(env,{partyName:b.partyName});
+          const items=Array.isArray(b.items)?b.items.filter(x=>num(x.weight)>0):[];
+          if(!items.length)return json({error:'At least one truck line is required'},400);
+          const subtotal=round2(items.reduce((a,x)=>a+num(x.weight)*num(x.partyRate),0));
+          const supplierTotal=round2(items.reduce((a,x)=>a+num(x.weight)*num(x.supplierRate),0));
+          const profit=round2(subtotal-supplierTotal);
+
+          if(req.method==='POST'){
+            const newId=uid('PMB');
+            try{
+              await run(env,`INSERT INTO pm_bills(id,bill_no,bill_date,party_name,party_address,supplier_name,notes,subtotal,supplier_total,profit) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+                newId,clean(b.billNo),b.billDate,upper(b.partyName),b.partyAddress||'',upper(b.supplierName),b.notes||'',subtotal,supplierTotal,profit);
+            }catch(e){
+              if(/UNIQUE/i.test(String(e.message)))return json({error:'PM bill number already exists'},409);
+              throw e;
+            }
+            for(const x of items){
+              const partyAmount=round2(num(x.weight)*num(x.partyRate));
+              const supplierAmount=round2(num(x.weight)*num(x.supplierRate));
+              await run(env,`INSERT INTO pm_bill_items(id,bill_id,truck_no,loading_point,unloading_point,weight,party_rate,supplier_rate,party_amount,supplier_amount) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+                uid('PMI'),newId,upper(x.truckNo),upper(x.loadingPoint),upper(x.unloadingPoint),round2(x.weight),round2(x.partyRate),round2(x.supplierRate),partyAmount,supplierAmount);
+            }
+            await audit(env,user,'CREATE','pm_bill',newId,b);
+            return json({ok:true,id:newId,total:subtotal,profit});
+          }
+
+          await run(env,`UPDATE pm_bills SET bill_no=?,bill_date=?,party_name=?,party_address=?,supplier_name=?,notes=?,subtotal=?,supplier_total=?,profit=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+            clean(b.billNo),b.billDate,upper(b.partyName),b.partyAddress||'',upper(b.supplierName),b.notes||'',subtotal,supplierTotal,profit,id);
+          await run(env,`DELETE FROM pm_bill_items WHERE bill_id=?`,id);
+          for(const x of items){
+            const partyAmount=round2(num(x.weight)*num(x.partyRate));
+            const supplierAmount=round2(num(x.weight)*num(x.supplierRate));
+            await run(env,`INSERT INTO pm_bill_items(id,bill_id,truck_no,loading_point,unloading_point,weight,party_rate,supplier_rate,party_amount,supplier_amount) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+              uid('PMI'),id,upper(x.truckNo),upper(x.loadingPoint),upper(x.unloadingPoint),round2(x.weight),round2(x.partyRate),round2(x.supplierRate),partyAmount,supplierAmount);
+          }
+          await audit(env,user,'UPDATE','pm_bill',id,b);
+          return json({ok:true,total:subtotal,profit});
+        }
+
+        if(req.method==='DELETE'&&id){
+          await run(env,`DELETE FROM pm_bill_items WHERE bill_id=?`,id);
+          await run(env,`DELETE FROM pm_bills WHERE id=?`,id);
+          await audit(env,user,'DELETE','pm_bill',id,{});
+          return json({ok:true});
         }
       }
 

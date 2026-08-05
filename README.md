@@ -245,3 +245,31 @@ V21 TDS PARTNERSHIP
 - Meera Logistics firm details auto-fill by default.
 - Firm name, address, PAN, GST, phone, email and authorized partner are editable.
 - Declaration wording is partnership-based.
+
+
+V22 PM NON-GST BILLS
+- Added a separate PM Non-GST Bills section.
+- Bill number series starts from PM - 1 and continues automatically.
+- Bill number remains editable.
+- Party, address, supplier, truck, route, weight, party rate and supplier rate are included.
+- History includes View, Edit, PDF and Delete.
+- Party billing, supplier payable and PM profit are shown in the same section.
+
+
+V23 PM SUPPLIER LINK
+- PM bill supplier uses the same Supplier/Truck Malik names as Supplier Khata.
+- PM supplier payable is added automatically to Supplier Khata.
+- PM bills appear inside the selected supplier ledger.
+- Supplier pending = freight payable + PM payable - supplier payments.
+- PM bills can be viewed, edited and downloaded from Supplier Khata.
+
+
+V24 JAY NON-GST INVOICE
+- Non-GST invoice is integrated into the existing Invoice Desk.
+- New Invoice has GST / NON_GST type selection.
+- GST series continues as ML.
+- Non-GST series starts JAY 001 and continues automatically.
+- Invoice number remains editable.
+- Both types save in Party Khata, Supplier Khata, Outstanding and history.
+- GST fields and GST amount are disabled for NON_GST invoices.
+- Separate PM section is removed from navigation to avoid duplicate accounting.
