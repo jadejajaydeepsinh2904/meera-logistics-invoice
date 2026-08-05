@@ -412,3 +412,17 @@ V42 CLEAN DASHBOARD MENU
 - Office: Truck & Document, Master, Forms, Reports & Audit.
 - Party Payments, Supplier Payments, Truck/Supplier Entries and Office Expenses are hidden from the sidebar only; existing records and internal workflows are preserved.
 - Login, D1, Worker, Invoice, Party Ledger and Supplier Ledger logic are unchanged.
+
+V43 SMART OPERATIONS SUITE
+- Professional monthly Calendar combines Bookings, Trips, Invoices and Truck Document expiry dates.
+- Recycle Bin intercepts normal delete buttons and supports Restore or Permanent Delete.
+- Ctrl/Cmd + K Command Palette searches commands, invoices, trips, parties and trucks.
+- System Health Dashboard checks D1 connectivity, duplicates, orphan records, missing Truck Master, expired documents, approvals and backups.
+- Booking Workflow supports Draft -> Pending Approval -> Approved -> Dispatched -> Converted Trip -> Completed.
+- Approval System records requester, approver and decision status.
+- Monthly Excel snapshots are generated automatically on the first day of each month and may also be generated manually.
+- Cloudflare scheduled backup runs daily at 20:00 UTC / 01:30 India time and keeps the latest 30 D1 snapshots.
+- Excel Center exports/imports multi-sheet Excel-compatible XML .xls, CSV and JSON data.
+- Offline/PWA service worker caches the app and queues API writes for synchronization when internet returns.
+- Truck Document Gallery supports multiple compressed images, filters, preview, expiry and Recycle Bin deletion.
+- Existing login code and schema_version 34 are unchanged; advanced tables initialize only when Smart Tools are opened.

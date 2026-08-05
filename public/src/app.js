@@ -250,14 +250,13 @@ async function loadData({background=false}={}){
 function navButton(id,label){return `<button class="${state.panel===id?'active':''}" data-panel="${id}"><span class="dot"></span>${label}</button>`}
 function render(){
   const d=state.data;
-  const titles={dashboard:'Dashboard',trips:'Transport Khata',invoices:'Invoice Desk',parties:'Party Khata',partyPayments:'Party Payments',suppliers:'Supplier Khata',truckEntries:'Truck / Supplier Entries',supplierPayments:'Supplier Payments',trucks:'Truck & Documents',masters:'Masters',forms:'Forms',expenses:'Office Expenses',reports:'Reports & Audit'};
+  const titles={dashboard:'Dashboard',trips:'Trip History (Transport Khata)',invoices:'Invoice History',parties:'Party Khata',partyPayments:'Party Payments',suppliers:'Supplier Khata',truckEntries:'Truck / Supplier Entries',supplierPayments:'Supplier Payments',trucks:'Truck & Document',masters:'Master',forms:'Forms',expenses:'Office Expenses',reports:'Reports & Audit'};
   app.innerHTML=`<div class="erp">
     <aside class="sidebar" id="sidebar">
       <div class="brand"><div class="brand-mark">ML</div><div><b>MEERA LOGISTICS</b><small>TRANSPORT ERP</small></div></div>
-      <div class="nav-group-title">Overview</div><div class="nav">${navButton('dashboard','Dashboard')}</div>
-      <div class="nav-group-title">Transport</div><div class="nav">${navButton('trips','Transport Khata')}${navButton('invoices','Invoice Desk')}</div>
-      <div class="nav-group-title">Accounts</div><div class="nav">${navButton('parties','Party Khata')}${navButton('partyPayments','Party Payments')}${navButton('suppliers','Supplier Khata')}${navButton('truckEntries','Truck / Supplier Entries')}${navButton('supplierPayments','Supplier Payments')}</div>
-      <div class="nav-group-title">Office</div><div class="nav">${navButton('trucks','Truck & Documents')}${navButton('masters','Masters')}${navButton('forms','Forms')}${navButton('expenses','Office Expenses')}${navButton('reports','Reports & Audit')}</div>
+      <div class="nav-group-title">Dashboard</div><div class="nav">${navButton('dashboard','Dashboard')}${navButton('trips','Trip History (Transport Khata)')}${navButton('invoices','Invoice History')}</div>
+      <div class="nav-group-title">Account</div><div class="nav">${navButton('parties','Party Khata')}${navButton('suppliers','Supplier Khata')}</div>
+      <div class="nav-group-title">Office</div><div class="nav">${navButton('trucks','Truck & Document')}${navButton('masters','Master')}${navButton('forms','Forms')}${navButton('reports','Reports & Audit')}</div>
     </aside>
     <main class="main">
       <div class="topbar no-print"><div style="display:flex;gap:9px;align-items:center"><button class="btn light mobile-menu" id="menuBtn">☰</button><div class="top-title"><h1>${titles[state.panel]}</h1><p>Live online data · ${esc(d.user.username)} · ${esc(d.version)}</p></div></div>

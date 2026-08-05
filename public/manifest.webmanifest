@@ -1,9 +1,18 @@
 {
-  "name": "Meera Logistics ERP",
+  "id": "/",
+  "name": "Meera Logistics Transport ERP",
   "short_name": "Meera ERP",
+  "description": "Trips, invoices, accounts, workflow and document management for Meera Logistics.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#f4f7fb",
   "theme_color": "#10284c",
-  "icons": []
+  "icons": [
+    {"src":"/assets/meera-logo.png","sizes":"any","type":"image/png","purpose":"any maskable"}
+  ],
+  "shortcuts": [
+    {"name":"Open ERP","short_name":"ERP","url":"/"}
+  ]
 }

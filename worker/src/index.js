@@ -590,6 +590,274 @@ async function bootstrap(env,user){
   };
 }
 
+
+// -----------------------------------------------------------------------------
+// V43 ADVANCED OPERATIONS — lazy tables, no login/schema-version changes
+// -----------------------------------------------------------------------------
+let advancedInitPromise;
+async function ensureAdvancedTables(env){
+  if(advancedInitPromise)return advancedInitPromise;
+  advancedInitPromise=(async()=>{
+    const tables=[
+      `CREATE TABLE IF NOT EXISTS workflow_bookings(
+        id TEXT PRIMARY KEY,booking_no TEXT UNIQUE NOT NULL,booking_date TEXT NOT NULL,
+        party_name TEXT NOT NULL,truck_no TEXT DEFAULT '',material TEXT DEFAULT '',
+        loading_point TEXT DEFAULT '',unloading_point TEXT DEFAULT '',expected_date TEXT DEFAULT '',
+        status TEXT DEFAULT 'DRAFT',approval_status TEXT DEFAULT 'NOT_REQUIRED',
+        approved_by TEXT DEFAULT '',approved_at TEXT DEFAULT '',dispatch_date TEXT DEFAULT '',
+        trip_id TEXT DEFAULT '',notes TEXT DEFAULT '',created_by TEXT DEFAULT '',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS approval_requests(
+        id TEXT PRIMARY KEY,entity_type TEXT NOT NULL,entity_id TEXT NOT NULL,action TEXT NOT NULL,
+        status TEXT DEFAULT 'PENDING',requested_by TEXT DEFAULT '',approved_by TEXT DEFAULT '',
+        notes TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS recycle_bin(
+        id TEXT PRIMARY KEY,entity_type TEXT NOT NULL,entity_id TEXT NOT NULL,label TEXT DEFAULT '',
+        payload TEXT NOT NULL,deleted_by TEXT DEFAULT '',deleted_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS backup_snapshots(
+        id TEXT PRIMARY KEY,backup_type TEXT DEFAULT 'SCHEDULED',period_key TEXT DEFAULT '',
+        payload TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS monthly_exports(
+        id TEXT PRIMARY KEY,month_key TEXT UNIQUE NOT NULL,summary TEXT DEFAULT '{}',
+        payload TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`
+    ];
+    for(const sql of tables)await env.DB.prepare(sql).run();
+    const indexes=[
+      `CREATE INDEX IF NOT EXISTS idx_booking_date ON workflow_bookings(booking_date)`,
+      `CREATE INDEX IF NOT EXISTS idx_booking_status ON workflow_bookings(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_approval_status ON approval_requests(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_recycle_deleted ON recycle_bin(deleted_at)`,
+      `CREATE INDEX IF NOT EXISTS idx_backup_created ON backup_snapshots(created_at)`
+    ];
+    for(const sql of indexes)await env.DB.prepare(sql).run();
+  })().catch(e=>{advancedInitPromise=null;throw e});
+  return advancedInitPromise;
+}
+
+const ADVANCED_EXPORT_TABLES={
+  Parties:{table:'party_accounts',columns:['id','ledger_no','party_name','address','gst_no','mobile','email','created_at','updated_at']},
+  PartyPayments:{table:'party_payments',columns:['id','receipt_no','trip_id','party_name','payment_date','amount','payment_mode','reference','notes','created_at','updated_at']},
+  Trucks:{table:'trucks',columns:['id','truck_no','owner_name','owner_mobile','bank_details','created_at','updated_at']},
+  Routes:{table:'routes',columns:['id','loading_point','unloading_point','created_at','updated_at']},
+  Materials:{table:'materials',columns:['id','material_name','created_at']},
+  Trips:{table:'trips',columns:['id','trip_no','invoice_id','invoice_item_id','trip_date','party_name','truck_no','driver_name','driver_mobile','material','loading_point','unloading_point','lr_number','loading_weight','unloading_weight','shortage','billing_weight','weight','rate','status','notes','pod_file_name','created_at','updated_at']},
+  Invoices:{table:'invoices',columns:['id','invoice_no','invoice_type','invoice_date','party_name','party_address','party_gst','lr_no','material','loading_date','sgst','cgst','diesel','munshi','subtotal','gst_amount','total','comments','created_at','updated_at']},
+  InvoiceItems:{table:'invoice_items',columns:['id','invoice_id','trip_id','lr_number','truck_no','description','loading_weight','unloading_weight','shortage','weight','rate','amount','created_at']},
+  PMBills:{table:'pm_bills',columns:['id','bill_no','bill_date','party_name','party_address','supplier_name','notes','subtotal','supplier_total','profit','created_at','updated_at']},
+  PMBillItems:{table:'pm_bill_items',columns:['id','bill_id','truck_no','loading_point','unloading_point','weight','party_rate','supplier_rate','party_amount','supplier_amount','created_at']},
+  SupplierAccounts:{table:'supplier_accounts',columns:['id','ledger_no','owner_name','created_at','updated_at']},
+  TruckEntries:{table:'truck_payments',columns:['id','trip_id','entry_date','truck_no','owner_name','bank_details','loading_point','unloading_point','weight','rate','commission','payable','notes','created_at','updated_at']},
+  SupplierPayments:{table:'supplier_payments',columns:['id','receipt_no','trip_id','owner_name','truck_no','payment_date','amount','payment_mode','reference','notes','created_at','updated_at']},
+  Expenses:{table:'expenses',columns:['id','trip_id','expense_date','category','amount','notes','created_at','updated_at']},
+  Documents:{table:'truck_documents',columns:['id','truck_no','kind','file_name','file_type','expiry_date','notes','created_at']},
+  Bookings:{table:'workflow_bookings',columns:['id','booking_no','booking_date','party_name','truck_no','material','loading_point','unloading_point','expected_date','status','approval_status','approved_by','approved_at','dispatch_date','trip_id','notes','created_by','created_at','updated_at']}
+};
+
+async function advancedRows(env,config,where='',...args){
+  const columns=config.columns.join(',');
+  return all(env,`SELECT ${columns} FROM ${config.table} ${where}`, ...args);
+}
+async function advancedExportPayload(env){
+  await ensureAdvancedTables(env);
+  await ensureTripWeightColumns(env);
+  const sheets={};
+  for(const [name,config] of Object.entries(ADVANCED_EXPORT_TABLES)){
+    try{sheets[name]=await advancedRows(env,config)}catch(_){sheets[name]=[]}
+  }
+  return {version:'V43',exportedAt:new Date().toISOString(),sheets};
+}
+async function createBackupSnapshot(env,type='SCHEDULED',periodKey=''){
+  const payload=await advancedExportPayload(env);
+  const id=uid('BKP');
+  await run(env,`INSERT INTO backup_snapshots(id,backup_type,period_key,payload) VALUES(?,?,?,?)`,id,type,periodKey,JSON.stringify(payload));
+  await run(env,`DELETE FROM backup_snapshots WHERE id NOT IN (SELECT id FROM backup_snapshots ORDER BY created_at DESC LIMIT 30)`);
+  return {id,createdAt:new Date().toISOString()};
+}
+function monthRange(monthKey){
+  const [y,m]=String(monthKey||'').split('-').map(Number);
+  if(!y||!m)return null;
+  const start=`${y}-${String(m).padStart(2,'0')}-01`;
+  const next=new Date(Date.UTC(y,m,1));
+  const end=next.toISOString().slice(0,10);
+  return {start,end};
+}
+async function createMonthlyExport(env,monthKey){
+  await ensureAdvancedTables(env);
+  const range=monthRange(monthKey);if(!range)throw new Error('Invalid month');
+  const payload=await advancedExportPayload(env);
+  const filter=(rows,key)=>rows.filter(row=>String(row[key]||'')>=range.start&&String(row[key]||'')<range.end);
+  payload.sheets.Invoices=filter(payload.sheets.Invoices||[],'invoice_date');
+  payload.sheets.PMBills=filter(payload.sheets.PMBills||[],'bill_date');
+  const pmIds=new Set(payload.sheets.PMBills.map(x=>x.id));
+  payload.sheets.PMBillItems=(payload.sheets.PMBillItems||[]).filter(x=>pmIds.has(x.bill_id));
+  const invoiceIds=new Set(payload.sheets.Invoices.map(x=>x.id));
+  payload.sheets.InvoiceItems=(payload.sheets.InvoiceItems||[]).filter(x=>invoiceIds.has(x.invoice_id));
+  payload.sheets.Trips=filter(payload.sheets.Trips||[],'trip_date');
+  payload.sheets.PartyPayments=filter(payload.sheets.PartyPayments||[],'payment_date');
+  payload.sheets.SupplierPayments=filter(payload.sheets.SupplierPayments||[],'payment_date');
+  payload.sheets.TruckEntries=filter(payload.sheets.TruckEntries||[],'entry_date');
+  payload.sheets.Expenses=filter(payload.sheets.Expenses||[],'expense_date');
+  payload.sheets.Bookings=filter(payload.sheets.Bookings||[],'booking_date');
+  const summary={
+    invoices:payload.sheets.Invoices.length,
+    trips:payload.sheets.Trips.length,
+    billing:round2(payload.sheets.Invoices.reduce((a,x)=>a+num(x.total),0)),
+    received:round2(payload.sheets.PartyPayments.reduce((a,x)=>a+num(x.amount),0)),
+    supplierPaid:round2(payload.sheets.SupplierPayments.reduce((a,x)=>a+num(x.amount),0)),
+    expenses:round2(payload.sheets.Expenses.reduce((a,x)=>a+num(x.amount),0))
+  };
+  await run(env,`INSERT OR REPLACE INTO monthly_exports(id,month_key,summary,payload,created_at) VALUES(COALESCE((SELECT id FROM monthly_exports WHERE month_key=?),?),?,?,?,CURRENT_TIMESTAMP)`,monthKey,uid('MON'),monthKey,JSON.stringify(summary),JSON.stringify(payload));
+  return {monthKey,summary};
+}
+
+async function advancedHealth(env){
+  await ensureAdvancedTables(env);
+  const count=async table=>num((await first(env,`SELECT COUNT(*) count FROM ${table}`))?.count);
+  const counts={};
+  for(const table of ['trips','invoices','invoice_items','party_accounts','trucks','truck_documents','workflow_bookings','approval_requests','recycle_bin','backup_snapshots']){
+    try{counts[table]=await count(table)}catch(_){counts[table]=-1}
+  }
+  const duplicateTrips=await all(env,`SELECT trip_no,COUNT(*) count FROM trips WHERE COALESCE(TRIM(trip_no),'')<>'' GROUP BY trip_no HAVING COUNT(*)>1`);
+  const orphanItems=await first(env,`SELECT COUNT(*) count FROM invoice_items ii LEFT JOIN invoices i ON i.id=ii.invoice_id WHERE i.id IS NULL`);
+  const orphanTrips=await first(env,`SELECT COUNT(*) count FROM trips t LEFT JOIN trucks m ON m.truck_no=t.truck_no WHERE COALESCE(TRIM(t.truck_no),'')<>'' AND m.id IS NULL`);
+  const expiredDocs=await first(env,`SELECT COUNT(*) count FROM truck_documents WHERE COALESCE(expiry_date,'')<>'' AND expiry_date<date('now')`);
+  const pendingApprovals=await first(env,`SELECT COUNT(*) count FROM approval_requests WHERE status='PENDING'`);
+  const latestBackup=await first(env,`SELECT id,backup_type,created_at FROM backup_snapshots ORDER BY created_at DESC LIMIT 1`);
+  const checks=[
+    {name:'Database connection',status:'OK',detail:'D1 queries responding'},
+    {name:'Duplicate Trip numbers',status:duplicateTrips.length?'WARNING':'OK',detail:duplicateTrips.length?`${duplicateTrips.length} duplicate groups`:'No duplicates'},
+    {name:'Orphan invoice items',status:num(orphanItems?.count)?'WARNING':'OK',detail:`${num(orphanItems?.count)} orphan rows`},
+    {name:'Missing Truck Master',status:num(orphanTrips?.count)?'WARNING':'OK',detail:`${num(orphanTrips?.count)} trips`},
+    {name:'Expired documents',status:num(expiredDocs?.count)?'WARNING':'OK',detail:`${num(expiredDocs?.count)} expired`},
+    {name:'Pending approvals',status:num(pendingApprovals?.count)?'INFO':'OK',detail:`${num(pendingApprovals?.count)} pending`},
+    {name:'Scheduled backup',status:latestBackup?'OK':'WARNING',detail:latestBackup?.created_at||'No snapshot yet'}
+  ];
+  return {ok:!checks.some(x=>x.status==='ERROR'),checkedAt:new Date().toISOString(),counts,checks,latestBackup};
+}
+
+const TRASH_MAP={
+  party:{table:'party_accounts',label:'party_name'},
+  'party-payment':{table:'party_payments',label:'receipt_no'},
+  truck:{table:'trucks',label:'truck_no'},
+  trip:{table:'trips',label:'trip_no'},
+  invoice:{table:'invoices',label:'invoice_no',children:[{table:'invoice_items',fk:'invoice_id'}]},
+  'pm-bill':{table:'pm_bills',label:'bill_no',children:[{table:'pm_bill_items',fk:'bill_id'}]},
+  'truck-entry':{table:'truck_payments',label:'truck_no'},
+  'supplier-payment':{table:'supplier_payments',label:'receipt_no'},
+  route:{table:'routes',label:'loading_point'},
+  material:{table:'materials',label:'material_name'},
+  expense:{table:'expenses',label:'category'},
+  document:{table:'truck_documents',label:'file_name'},
+  booking:{table:'workflow_bookings',label:'booking_no'}
+};
+async function trashEntity(env,user,entityType,entityId){
+  await ensureAdvancedTables(env);
+  const config=TRASH_MAP[entityType];if(!config)throw new Error('Unsupported recycle entity');
+  const main=await first(env,`SELECT * FROM ${config.table} WHERE id=?`,entityId);
+  if(!main)throw new Error('Record not found');
+  const children=[];
+  for(const child of config.children||[])children.push({table:child.table,rows:await all(env,`SELECT * FROM ${child.table} WHERE ${child.fk}=?`,entityId)});
+  const recycleId=uid('BIN');
+  await run(env,`INSERT INTO recycle_bin(id,entity_type,entity_id,label,payload,deleted_by) VALUES(?,?,?,?,?,?)`,recycleId,entityType,entityId,String(main[config.label]||entityId),JSON.stringify({main,children}),user?.username||'');
+  for(const child of config.children||[])await run(env,`DELETE FROM ${child.table} WHERE ${child.fk}=?`,entityId);
+  await run(env,`DELETE FROM ${config.table} WHERE id=?`,entityId);
+  await audit(env,user,'RECYCLE',entityType,entityId,{recycleId});
+  return {ok:true,recycleId};
+}
+async function insertObject(env,table,row){
+  const keys=Object.keys(row||{}).filter(k=>/^[A-Za-z_][A-Za-z0-9_]*$/.test(k));
+  if(!keys.length)return;
+  await run(env,`INSERT OR REPLACE INTO ${table}(${keys.join(',')}) VALUES(${keys.map(()=>'?').join(',')})`,...keys.map(k=>row[k]));
+}
+async function restoreRecycle(env,user,recycleId){
+  const item=await first(env,`SELECT * FROM recycle_bin WHERE id=?`,recycleId);if(!item)throw new Error('Recycle item not found');
+  const config=TRASH_MAP[item.entity_type];if(!config)throw new Error('Unsupported recycle entity');
+  const payload=JSON.parse(item.payload||'{}');
+  await insertObject(env,config.table,payload.main||{});
+  for(const child of payload.children||[])for(const row of child.rows||[])await insertObject(env,child.table,row);
+  await run(env,`DELETE FROM recycle_bin WHERE id=?`,recycleId);
+  await audit(env,user,'RESTORE',item.entity_type,item.entity_id,{recycleId});
+  return {ok:true};
+}
+
+function nextBookingNo(rows){
+  let max=0;for(const row of rows){const m=String(row.booking_no||'').match(/(\d+)$/);if(m)max=Math.max(max,Number(m[1]))}
+  return `BK ${String(max+1).padStart(3,'0')}`;
+}
+async function bookingAction(env,user,id,action,body={}){
+  await ensureAdvancedTables(env);
+  const booking=await first(env,`SELECT * FROM workflow_bookings WHERE id=?`,id);if(!booking)throw new Error('Booking not found');
+  if(action==='submit'){
+    await run(env,`UPDATE workflow_bookings SET status='PENDING_APPROVAL',approval_status='PENDING',updated_at=CURRENT_TIMESTAMP WHERE id=?`,id);
+    const existing=await first(env,`SELECT id FROM approval_requests WHERE entity_type='BOOKING' AND entity_id=? AND status='PENDING'`,id);
+    if(!existing)await run(env,`INSERT INTO approval_requests(id,entity_type,entity_id,action,status,requested_by,notes) VALUES(?,?,?,?,?,?,?)`,uid('APR'),'BOOKING',id,'APPROVE_DISPATCH','PENDING',user.username,body.notes||'');
+    return {ok:true,status:'PENDING_APPROVAL'};
+  }
+  if(action==='dispatch'){
+    if(booking.approval_status!=='APPROVED')throw new Error('Approval required before dispatch');
+    await run(env,`UPDATE workflow_bookings SET status='DISPATCHED',dispatch_date=COALESCE(NULLIF(?,''),date('now')),updated_at=CURRENT_TIMESTAMP WHERE id=?`,body.dispatchDate||'',id);
+    return {ok:true,status:'DISPATCHED'};
+  }
+  if(action==='convert'){
+    if(!['APPROVED','DISPATCHED'].includes(booking.status)&&booking.approval_status!=='APPROVED')throw new Error('Approve booking before Trip conversion');
+    if(booking.trip_id)return {ok:true,status:'CONVERTED',tripId:booking.trip_id};
+    const tripId=uid('TRIP'),tripNo=await reserveNextTripNumber(env);
+    await run(env,`INSERT INTO trips(id,trip_no,trip_date,party_name,truck_no,material,loading_point,unloading_point,status,notes) VALUES(?,?,?,?,?,?,?,?,?,?)`,tripId,tripNo,booking.dispatch_date||booking.booking_date,booking.party_name,booking.truck_no,booking.material,booking.loading_point,booking.unloading_point,'BOOKED',`Created from ${booking.booking_no}. ${booking.notes||''}`);
+    await run(env,`UPDATE workflow_bookings SET status='CONVERTED',trip_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,tripId,id);
+    await audit(env,user,'CONVERT','booking',id,{tripId,tripNo});
+    return {ok:true,status:'CONVERTED',tripId,tripNo};
+  }
+  if(action==='complete'){
+    await run(env,`UPDATE workflow_bookings SET status='COMPLETED',updated_at=CURRENT_TIMESTAMP WHERE id=?`,id);return {ok:true,status:'COMPLETED'};
+  }
+  throw new Error('Unknown booking action');
+}
+async function approveRequest(env,user,id,status,notes=''){
+  const req=await first(env,`SELECT * FROM approval_requests WHERE id=?`,id);if(!req)throw new Error('Approval request not found');
+  const finalStatus=status==='APPROVED'?'APPROVED':'REJECTED';
+  await run(env,`UPDATE approval_requests SET status=?,approved_by=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,finalStatus,user.username,notes||req.notes||'',id);
+  if(req.entity_type==='BOOKING'){
+    await run(env,`UPDATE workflow_bookings SET approval_status=?,status=?,approved_by=?,approved_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?`,finalStatus,finalStatus,user.username,req.entity_id);
+  }
+  await audit(env,user,finalStatus,'approval',id,{entityId:req.entity_id});
+  return {ok:true,status:finalStatus};
+}
+
+async function importAdvancedSheets(env,user,sheets={}){
+  await ensureAdvancedTables(env);
+  await ensureTripWeightColumns(env);
+  const result={};
+  for(const [sheetName,rows] of Object.entries(sheets||{})){
+    const config=ADVANCED_EXPORT_TABLES[sheetName];if(!config||!Array.isArray(rows)){continue}
+    let count=0;
+    for(const raw of rows){
+      const row={};for(const col of config.columns)if(raw[col]!==undefined&&raw[col]!==null&&raw[col]!=='')row[col]=raw[col];
+      if(!row.id)row.id=uid(sheetName.slice(0,3).toUpperCase());
+      try{await insertObject(env,config.table,row);count++}catch(_){/* skip invalid row but continue import */}
+    }
+    result[sheetName]=count;
+  }
+  await audit(env,user,'IMPORT','excel','bulk',result);
+  return result;
+}
+
+async function runScheduledTasks(env,scheduledTime=Date.now()){
+  await ensureDatabase(env);await ensureAdvancedTables(env);
+  const d=new Date(scheduledTime);
+  const day=d.getUTCDate();
+  const dateKey=d.toISOString().slice(0,10);
+  await createBackupSnapshot(env,'SCHEDULED',dateKey);
+  if(day===1){
+    const prev=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()-1,1));
+    await createMonthlyExport(env,prev.toISOString().slice(0,7));
+  }
+}
+
 export default {
   async fetch(req,env){
     if(req.method==='OPTIONS')return json({ok:true});
@@ -626,6 +894,81 @@ export default {
         if(token)await run(env,`DELETE FROM sessions WHERE token=?`,token);
         return json({ok:true});
       }
+
+      // V43 advanced operations are initialized only when these tools are opened.
+      if(['advanced-data','workflow-bookings','approvals','recycle-bin','system-health','backups','monthly-exports','excel-export','excel-import'].includes(resource))await ensureAdvancedTables(env);
+
+      if(resource==='advanced-data'&&req.method==='GET'){
+        const [bookings,approvals,recycle,backups,monthly]=await Promise.all([
+          all(env,`SELECT * FROM workflow_bookings ORDER BY booking_date DESC,created_at DESC`),
+          all(env,`SELECT * FROM approval_requests ORDER BY CASE status WHEN 'PENDING' THEN 0 ELSE 1 END,created_at DESC`),
+          all(env,`SELECT id,entity_type,entity_id,label,deleted_by,deleted_at FROM recycle_bin ORDER BY deleted_at DESC LIMIT 200`),
+          all(env,`SELECT id,backup_type,period_key,created_at FROM backup_snapshots ORDER BY created_at DESC LIMIT 30`),
+          all(env,`SELECT id,month_key,summary,created_at FROM monthly_exports ORDER BY month_key DESC LIMIT 36`)
+        ]);
+        const [trips,invoices,documents]=await Promise.all([
+          all(env,`SELECT id,trip_no,trip_date,party_name,truck_no,loading_point,unloading_point,status FROM trips ORDER BY trip_date DESC`),
+          all(env,`SELECT id,invoice_no,invoice_date,party_name,total FROM invoices ORDER BY invoice_date DESC`),
+          all(env,`SELECT id,truck_no,kind,file_name,expiry_date,notes,created_at FROM truck_documents ORDER BY created_at DESC`)
+        ]);
+        return json({bookings,approvals,recycle,backups,monthly,trips,invoices,documents});
+      }
+
+      if(resource==='system-health'&&req.method==='GET')return json(await advancedHealth(env));
+
+      if(resource==='workflow-bookings'){
+        const action=decodeURIComponent(parts[2]||'');
+        if(req.method==='GET')return json(await all(env,`SELECT * FROM workflow_bookings ORDER BY booking_date DESC,created_at DESC`));
+        if(req.method==='POST'&&!id){
+          const b=await requestBody(req);await upsertMasters(env,b);
+          const rows=await all(env,`SELECT booking_no FROM workflow_bookings`),newId=uid('BKG'),bookingNo=clean(b.bookingNo)||nextBookingNo(rows);
+          await run(env,`INSERT INTO workflow_bookings(id,booking_no,booking_date,party_name,truck_no,material,loading_point,unloading_point,expected_date,status,approval_status,notes,created_by) VALUES(?,?,?,?,?,?,?,?,?,'DRAFT','NOT_REQUIRED',?,?)`,newId,bookingNo,b.bookingDate||new Date().toISOString().slice(0,10),upper(b.partyName),upper(b.truckNo),upper(b.material),upper(b.loadingPoint),upper(b.unloadingPoint),b.expectedDate||'',b.notes||'',user.username);
+          await audit(env,user,'CREATE','booking',newId,b);return json({ok:true,id:newId,bookingNo});
+        }
+        if(req.method==='PUT'&&id&&!action){
+          const b=await requestBody(req);await upsertMasters(env,b);
+          await run(env,`UPDATE workflow_bookings SET booking_date=?,party_name=?,truck_no=?,material=?,loading_point=?,unloading_point=?,expected_date=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,b.bookingDate,upper(b.partyName),upper(b.truckNo),upper(b.material),upper(b.loadingPoint),upper(b.unloadingPoint),b.expectedDate||'',b.notes||'',id);
+          await audit(env,user,'UPDATE','booking',id,b);return json({ok:true});
+        }
+        if(req.method==='POST'&&id&&action)return json(await bookingAction(env,user,id,action,await requestBody(req)));
+      }
+
+      if(resource==='approvals'){
+        const action=decodeURIComponent(parts[2]||'');
+        if(req.method==='GET')return json(await all(env,`SELECT * FROM approval_requests ORDER BY CASE status WHEN 'PENDING' THEN 0 ELSE 1 END,created_at DESC`));
+        if(req.method==='POST'&&id&&['approve','reject'].includes(action))return json(await approveRequest(env,user,id,action==='approve'?'APPROVED':'REJECTED',(await requestBody(req)).notes||''));
+      }
+
+      if(resource==='recycle-bin'){
+        const action=decodeURIComponent(parts[2]||'');
+        if(req.method==='GET')return json(await all(env,`SELECT id,entity_type,entity_id,label,deleted_by,deleted_at FROM recycle_bin ORDER BY deleted_at DESC LIMIT 300`));
+        if(req.method==='POST'&&!id){const b=await requestBody(req);return json(await trashEntity(env,user,b.entityType,b.entityId));}
+        if(req.method==='POST'&&id&&action==='restore')return json(await restoreRecycle(env,user,id));
+        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM recycle_bin WHERE id=?`,id);return json({ok:true})}
+      }
+
+      if(resource==='backups'){
+        const action=decodeURIComponent(parts[2]||'');
+        if(req.method==='GET'&&!id)return json(await all(env,`SELECT id,backup_type,period_key,created_at FROM backup_snapshots ORDER BY created_at DESC LIMIT 30`));
+        if(req.method==='POST'&&!id)return json(await createBackupSnapshot(env,'MANUAL',new Date().toISOString().slice(0,10)));
+        if(req.method==='GET'&&id&&action==='download'){
+          const item=await first(env,`SELECT * FROM backup_snapshots WHERE id=?`,id);if(!item)return json({error:'Backup not found'},404);return json({id:item.id,createdAt:item.created_at,payload:JSON.parse(item.payload)});
+        }
+        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM backup_snapshots WHERE id=?`,id);return json({ok:true})}
+      }
+
+      if(resource==='monthly-exports'){
+        const action=decodeURIComponent(parts[2]||'');
+        if(req.method==='GET'&&!id)return json(await all(env,`SELECT id,month_key,summary,created_at FROM monthly_exports ORDER BY month_key DESC LIMIT 36`));
+        if(req.method==='POST'&&!id){const b=await requestBody(req);return json(await createMonthlyExport(env,b.monthKey||new Date().toISOString().slice(0,7)))}
+        if(req.method==='GET'&&id&&action==='download'){
+          const item=await first(env,`SELECT * FROM monthly_exports WHERE id=?`,id);if(!item)return json({error:'Monthly export not found'},404);return json({id:item.id,monthKey:item.month_key,summary:JSON.parse(item.summary||'{}'),payload:JSON.parse(item.payload)});
+        }
+      }
+
+      if(resource==='excel-export'&&req.method==='GET')return json(await advancedExportPayload(env));
+      if(resource==='excel-import'&&req.method==='POST')return json({ok:true,imported:await importAdvancedSheets(env,user,(await requestBody(req)).sheets||{})});
+
       if(resource==='bootstrap'&&req.method==='GET')return json(await bootstrap(env,user));
 
       if(resource==='party-ledger'&&req.method==='GET'&&id){
@@ -1080,5 +1423,8 @@ export default {
     }catch(e){
       return json({error:String(e?.message||e)},500);
     }
+  },
+  async scheduled(controller,env,ctx){
+    ctx.waitUntil(runScheduledTasks(env,controller?.scheduledTime||Date.now()));
   }
 };

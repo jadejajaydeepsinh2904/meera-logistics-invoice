@@ -1,27 +1,52 @@
 {
-  "version": "V42-CLEAN-DASHBOARD-MENU",
-  "source": "V41 Supplier Ledger full project",
-  "protected_backend_changed": false,
+  "version": "V43-SMART-OPERATIONS-SUITE",
+  "source": "V42 clean dashboard + V41 supplier ledger + V40 party ledger + V39 stable invoice",
+  "login_code_changed": false,
+  "schema_version": "34 unchanged",
   "checks": {
-    "approved_sidebar_only": "passed",
-    "dashboard_group": "Dashboard, Trip History (Transport Khata), Invoice History",
-    "account_group": "Party Khata, Supplier Khata",
-    "office_group": "Truck & Document, Master, Forms, Reports & Audit",
-    "removed_from_sidebar": "Party Payments, Supplier Payments, Truck / Supplier Entries, Office Expenses",
-    "data_modules_deleted": false,
-    "login_d1_worker_unchanged": "passed"
+    "javascript_syntax": "passed",
+    "worker_runtime_booking_approval_dispatch_trip": "passed",
+    "recycle_restore_runtime": "passed",
+    "system_health_runtime": "passed",
+    "monthly_export_runtime": "passed",
+    "scheduled_backup_runtime": "passed",
+    "excel_export_import_runtime": "passed",
+    "pwa_service_worker_syntax": "passed",
+    "compact_sidebar": "passed",
+    "calendar": "passed",
+    "command_palette": "passed",
+    "multi_image_gallery": "passed",
+    "json_validation": "passed"
   },
-  "total_files": 35,
+  "features": [
+    "Creative Professional Calendar",
+    "Recycle Bin with Restore",
+    "Command Palette Ctrl+K",
+    "System Health Dashboard",
+    "Booking to Approval to Dispatch to Trip Workflow",
+    "Approval System",
+    "Automatic Monthly Excel Generation",
+    "Daily Scheduled Backup",
+    "Multi-sheet Excel Import/Export",
+    "Offline PWA Queue and Sync",
+    "Truck Documents Multi-image Gallery"
+  ],
+  "total_files": 39,
   "files": [
     {
+      "path": "ADVANCED-V43-TEST-REPORT.txt",
+      "size": 1385,
+      "sha256": "7175c297a99629beb5c07a0cddf6777780d8232d0d00f4b95494c94b2f7d9e2b"
+    },
+    {
       "path": "README.md",
-      "size": 17878,
-      "sha256": "d830351b1e05e659abac9de79645134624ed9db51676a4c3f097736c0a248bcf"
+      "size": 19166,
+      "sha256": "5305fa0ebaab16e6e2da3bdf5130df813449652417494219cdc657a38eefab2c"
     },
     {
       "path": "START-HERE.txt",
-      "size": 15799,
-      "sha256": "ed7c5e967189349ca5f84779a386be062d728c5afb81ea8d008147ca52580a16"
+      "size": 16514,
+      "sha256": "d1bdbe880f97c6a6567ffcdb92548f0d56959b77f0bea73e63b9e4bddd91d21e"
     },
     {
       "path": "public/assets/meera-logo-pdf.jpg",
@@ -90,13 +115,23 @@
     },
     {
       "path": "public/index.html",
-      "size": 921,
-      "sha256": "1dd4b732247e86a4817ffc76e08f81c8a041ab83b094fe17256e66d27b1f419b"
+      "size": 1047,
+      "sha256": "d09db119dad78c7a4eba606369ef211e6abc659f1ec83197e505afa19970ffdb"
     },
     {
       "path": "public/manifest.webmanifest",
-      "size": 187,
-      "sha256": "86d0f87f9e6769ecfceb41384190c731d8daa53091b1343061b3c433d739714d"
+      "size": 525,
+      "sha256": "a2220c9b3905a08496b7b578b6194306bd22c5d0e6728a4c6416d5e9365a4ade"
+    },
+    {
+      "path": "public/src/advanced-v43.css",
+      "size": 8422,
+      "sha256": "11f07691d2f2c2f46121b347b0f21c1e8e654cefb5b7d497a158fe30486dc4ec"
+    },
+    {
+      "path": "public/src/advanced-v43.js",
+      "size": 32084,
+      "sha256": "3867d9d1ee4c7d4fbaa3de1abd18b6d048f0e149fd409166b317167a9e819f79"
     },
     {
       "path": "public/src/app.js",
@@ -159,6 +194,11 @@
       "sha256": "d8b30f4a25fd33eedc51023f143f12562a8821695fda163b35309687237afc8e"
     },
     {
+      "path": "public/sw-v43.js",
+      "size": 3812,
+      "sha256": "1c3a5913cd7578786d4955bfdae057b0ec1f7626a34970714036e9730688896e"
+    },
+    {
       "path": "vercel.json",
       "size": 482,
       "sha256": "1c529052a69a7985fbd2d8651b94c46f708f7794798e486440a1af7e8922a761"
@@ -175,8 +215,8 @@
     },
     {
       "path": "worker/src/index.js",
-      "size": 73037,
-      "sha256": "58b81b77fd08e4a8b5d14adc05c1368c73cb898fb300440148e3e1475e3af41d"
+      "size": 98293,
+      "sha256": "0f1d600beed33503026c5112149f276874d59d9b3d809cb8a29d1659a26ff258"
     },
     {
       "path": "worker/src/seed-data.js",
@@ -185,8 +225,8 @@
     },
     {
       "path": "worker/wrangler.toml",
-      "size": 213,
-      "sha256": "4c0f384b973c1f8489a9dc192d1687f086650a8f09adf56578249f92b7c3fbb0"
+      "size": 248,
+      "sha256": "2db6244c2d5d844d50a0e12578b6f82b71ebe555ab8c63e7a9aec18ad63fe3a3"
     }
   ]
 }

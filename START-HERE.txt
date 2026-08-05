@@ -355,3 +355,14 @@ V42 CLEAN DASHBOARD MENU
 - Office: Truck & Document, Master, Forms, Reports & Audit.
 - Party Payments, Supplier Payments, Truck/Supplier Entries and Office Expenses are hidden from the sidebar only; existing records and internal workflows are preserved.
 - Login, D1, Worker, Invoice, Party Ledger and Supplier Ledger logic are unchanged.
+
+V43 SMART OPERATIONS DEPLOYMENT
+1. Replace/upload every file from this ZIP to the GitHub main root.
+2. Keep public/, worker/ and all nested paths exactly as supplied.
+3. Cloudflare Worker deploy reads worker/wrangler.toml and creates the daily Cron trigger.
+4. Vercel deploy serves public/index.html with cache version 43.
+5. After deployment, hard refresh once: Ctrl + Shift + R.
+6. Open Smart Tools from the top-right button or press Ctrl + K.
+7. Advanced D1 tables are created lazily after login, so the working login path is unchanged.
+8. Excel Center supports the supplied multi-sheet .xls format, CSV and JSON imports/exports.
+9. Offline writes are queued on the device and replay when the internet returns.
