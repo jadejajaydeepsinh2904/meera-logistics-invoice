@@ -266,3 +266,12 @@ V32 MIGRATION RUNTIME FIX
 - Audited CREATE TABLE, ALTER TABLE, CREATE INDEX and CREATE TRIGGER arrays for missing commas.
 - Added a runtime Worker health test with a mock D1 database, not only a syntax check.
 - Existing D1 records are preserved.
+
+
+V33 TRIP NUMBER IDEMPOTENT FIX
+- Fixed D1 UNIQUE constraint failed: trips.trip_no.
+- Blank, invalid and duplicate old Trip numbers are normalized once.
+- Missing invoice Trips are created only when no invoice_item_id or trip_id link exists.
+- Trip number allocation retries safely on UNIQUE collisions.
+- Historical repair does not replay on every successful login.
+- Existing data is preserved.

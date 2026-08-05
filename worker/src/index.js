@@ -69,14 +69,23 @@ async function backfillPartyMaster(env){
 }
 
 
-async function nextTripNumber(env){
-  const rows=await all(env,`SELECT trip_no FROM trips WHERE trip_no LIKE 'TR %'`);
+async function currentTripMax(env){
+  const rows=await all(env,`SELECT trip_no FROM trips WHERE COALESCE(TRIM(trip_no),'')<>''`);
   let max=0;
   for(const row of rows){
     const m=String(row.trip_no||'').match(/TR\s*0*(\d+)/i);
     if(m)max=Math.max(max,Number(m[1]));
   }
-  return `TR ${String(max+1).padStart(3,'0')}`;
+  return max;
+}
+async function reserveNextTripNumber(env){
+  let candidate=(await currentTripMax(env))+1;
+  for(let attempt=0;attempt<1000;attempt++,candidate++){
+    const tripNo=`TR ${String(candidate).padStart(3,'0')}`;
+    const exists=await first(env,`SELECT id FROM trips WHERE trip_no=? LIMIT 1`,tripNo);
+    if(!exists)return tripNo;
+  }
+  throw new Error('Unable to allocate a unique Trip number');
 }
 function splitRoute(description=''){
   const text=String(description||'').trim();
@@ -123,48 +132,87 @@ async function ensureSupplierAccounts(env){
   }
 }
 async function repairTripSeriesAndInvoiceLinks(env){
-  // Give every old trip a stable TR number in chronological order.
-  const oldTrips=await all(env,`SELECT id,trip_no FROM trips ORDER BY trip_date,created_at,id`);
+  const trips=await all(env,`SELECT id,trip_no,trip_date,created_at FROM trips ORDER BY trip_date,created_at,id`);
+  const seen=new Set();
   let max=0;
-  for(const t of oldTrips){
-    const m=String(t.trip_no||'').match(/TR\s*0*(\d+)/i);
-    if(m)max=Math.max(max,Number(m[1]));
+
+  for(const t of trips){
+    const m=String(t.trip_no||'').match(/^TR\s*0*(\d+)$/i);
+    if(m){
+      const normalized=`TR ${String(Number(m[1])).padStart(3,'0')}`;
+      if(!seen.has(normalized)){
+        seen.add(normalized);
+        max=Math.max(max,Number(m[1]));
+        if(normalized!==t.trip_no){
+          try{await run(env,`UPDATE trips SET trip_no=? WHERE id=?`,normalized,t.id)}
+          catch(_){}
+        }
+        continue;
+      }
+    }
+    await run(env,`UPDATE trips SET trip_no='' WHERE id=?`,t.id);
   }
-  for(const t of oldTrips){
-    if(!String(t.trip_no||'').trim()){
+
+  const needsNumber=await all(env,`SELECT id FROM trips WHERE COALESCE(TRIM(trip_no),'')='' ORDER BY trip_date,created_at,id`);
+  for(const t of needsNumber){
+    let assigned=false;
+    while(!assigned){
       max++;
-      await run(env,`UPDATE trips SET trip_no=? WHERE id=?`,`TR ${String(max).padStart(3,'0')}`,t.id);
+      const tripNo=`TR ${String(max).padStart(3,'0')}`;
+      try{
+        await run(env,`UPDATE trips SET trip_no=? WHERE id=?`,tripNo,t.id);
+        assigned=true;
+      }catch(e){
+        if(!/UNIQUE|constraint/i.test(String(e?.message||e)))throw e;
+      }
     }
   }
 
-  // Every invoice truck line must have its own trip.
   const items=await all(env,`
     SELECT ii.*,i.invoice_date,i.party_name,i.material,i.loading_date
-    FROM invoice_items ii JOIN invoices i ON i.id=ii.invoice_id
+    FROM invoice_items ii
+    JOIN invoices i ON i.id=ii.invoice_id
     ORDER BY i.invoice_date,ii.created_at,ii.id
   `);
+
   for(const item of items){
-    let trip=item.trip_id?await first(env,`SELECT * FROM trips WHERE id=?`,item.trip_id):null;
+    let trip=await first(env,`SELECT * FROM trips WHERE invoice_item_id=? LIMIT 1`,item.id);
+    if(!trip && item.trip_id){
+      trip=await first(env,`SELECT * FROM trips WHERE id=? LIMIT 1`,item.trip_id);
+    }
+
     const route=splitRoute(item.description);
+
     if(!trip){
       const tripId=uid('TRIP');
-      const tripNo=await nextTripNumber(env);
-      await run(env,`INSERT INTO trips(
-        id,trip_no,invoice_id,invoice_item_id,trip_date,party_name,truck_no,material,
-        loading_point,unloading_point,weight,rate,status,notes
-      ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        tripId,tripNo,item.invoice_id,item.id,item.loading_date||item.invoice_date,
-        upper(item.party_name),upper(item.truck_no),upper(item.material),
-        route.loading,route.unloading,round2(item.weight),round2(item.rate),'BOOKED',
-        `Auto-created from invoice`
-      );
+      let created=false;
+      while(!created){
+        const tripNo=await reserveNextTripNumber(env);
+        try{
+          await run(env,`INSERT INTO trips(
+            id,trip_no,invoice_id,invoice_item_id,trip_date,party_name,truck_no,material,
+            loading_point,unloading_point,weight,rate,status,notes
+          ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            tripId,tripNo,item.invoice_id,item.id,item.loading_date||item.invoice_date,
+            upper(item.party_name),upper(item.truck_no),upper(item.material),
+            route.loading,route.unloading,round2(item.weight),round2(item.rate),'BOOKED',
+            `Auto-created from invoice`
+          );
+          created=true;
+        }catch(e){
+          if(!/UNIQUE|constraint/i.test(String(e?.message||e)))throw e;
+        }
+      }
       await run(env,`UPDATE invoice_items SET trip_id=? WHERE id=?`,tripId,item.id);
-    }else{
-      await run(env,`UPDATE trips SET invoice_id=?,invoice_item_id=? WHERE id=?`,item.invoice_id,item.id,trip.id);
+      continue;
+    }
+
+    await run(env,`UPDATE trips SET invoice_id=?,invoice_item_id=? WHERE id=?`,item.invoice_id,item.id,trip.id);
+    if(String(item.trip_id||'')!==String(trip.id)){
+      await run(env,`UPDATE invoice_items SET trip_id=? WHERE id=?`,trip.id,item.id);
     }
   }
 }
-
 async function ensureDatabase(env){
   if(initPromise) return initPromise;
   initPromise = (async()=>{
@@ -172,11 +220,9 @@ async function ensureDatabase(env){
     // statements on every Worker cold start.
     try{
       const ready=await first(env,`SELECT value FROM app_meta WHERE key='schema_version'`);
-      if(ready?.value==='30'){
+      if(ready?.value==='33'){
         await first(env,`SELECT trip_no,invoice_id,invoice_item_id FROM trips LIMIT 1`);
         await first(env,`SELECT ledger_no FROM supplier_accounts LIMIT 1`);
-        await ensureSupplierAccounts(env);
-        await repairTripSeriesAndInvoiceLinks(env);
         return;
       }
     }catch(_){/* first deployment or an incomplete older schema */}
@@ -363,7 +409,7 @@ async function ensureDatabase(env){
     await backfillPartyMaster(env);
     await ensureSupplierAccounts(env);
     await repairTripSeriesAndInvoiceLinks(env);
-    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','30',CURRENT_TIMESTAMP)`);
+    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','33',CURRENT_TIMESTAMP)`);
   })().catch(e=>{ initPromise=null; throw e; });
   return initPromise;
 }
@@ -514,7 +560,7 @@ async function bootstrap(env,user){
     pmBills,pmBillItems,truckEntries,supplierPayments,supplierAccounts,expenses,documents,audits,partyLedger,supplierLedger,issues,
     nextInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='GST').map(x=>x.invoice_no),'ML - '),
     nextNonGstInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='NON_GST').map(x=>x.invoice_no),'JAY '),
-    nextTripNo:await nextTripNumber(env),
+    nextTripNo:await reserveNextTripNumber(env),
     nextPmBillNo:nextNumber(pmBills.map(x=>x.bill_no),'PM - '),
     summary:{
       totalBilling,invoiceSubtotal,partyReceived,partyOutstanding:round2(totalBilling-partyReceived),
@@ -692,7 +738,7 @@ export default {
               b.tripDate,upper(b.partyName),upper(b.truckNo),upper(b.loadingPoint),upper(b.unloadingPoint),num(b.weight));
             if(duplicate)return json({error:'Duplicate trip detected'},409);
             const newId=uid('TRIP');
-            const tripNo=await nextTripNumber(env);
+            const tripNo=await reserveNextTripNumber(env);
             await run(env,`INSERT INTO trips(
               id,trip_no,trip_date,party_name,truck_no,driver_name,driver_mobile,material,
               loading_point,unloading_point,weight,rate,status,notes,pod_file_name,pod_data
@@ -817,7 +863,7 @@ export default {
 
             if(!trip){
               tripId=uid('TRIP');
-              const tripNo=await nextTripNumber(env);
+              const tripNo=await reserveNextTripNumber(env);
               await run(env,`INSERT INTO trips(
                 id,trip_no,invoice_id,invoice_item_id,trip_date,party_name,truck_no,driver_name,
                 driver_mobile,material,loading_point,unloading_point,weight,rate,status,notes
