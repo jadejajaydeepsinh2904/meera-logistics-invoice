@@ -339,3 +339,10 @@ V40 PARTY LEDGER — SAMPLE FORMAT
 - Download creates a direct A4 portrait PDF named “PARTY NAME PARTY LEDGER.pdf”.
 - Long ledgers automatically continue across multiple PDF pages with page numbering.
 - Login, authentication, D1 migration, Worker backend, invoice logic and existing data were not modified.
+
+V41 SUPPLIER LEDGER — SAMPLE FORMAT
+1. Upload/replace every file from this ZIP in GitHub main root.
+2. Keep public, worker and data folder structure exactly as supplied.
+3. Open Supplier Khata: every supplier has Ledger View and Download buttons below the supplier summary.
+4. Supplier PDF follows the supplied trip-wise ledger format and downloads as "PML 001 - SUPPLIER NAME SUPPLIER LEDGER.pdf".
+5. Login, D1 migration and Cloudflare Worker files are unchanged.

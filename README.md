@@ -392,3 +392,14 @@ V40 PARTY LEDGER — SAMPLE FORMAT
 - Download creates a direct A4 portrait PDF named “PARTY NAME PARTY LEDGER.pdf”.
 - Long ledgers automatically continue across multiple PDF pages with page numbering.
 - Login, authentication, D1 migration, Worker backend, invoice logic and existing data were not modified.
+
+V41 SUPPLIER LEDGER — SAMPLE FORMAT
+- Every Supplier Khata row now becomes a supplier card with separate Ledger View and Download buttons below it.
+- Supplier Ledger matches the supplied sample: Meera Logistics heading, supplier/PML identity, as-on date, Total Due summary and trip-wise table.
+- Columns: S.No., LR Number, Trip Date, Truck No, Route, Material, Rate, Truck Hire Cost, Advance, Charges, Deduction, Payments and Total Due.
+- LR and material are resolved from the linked Trip/Invoice data when available.
+- Commission is shown as Deduction; linked supplier advances/payments and supplier/truck charges are included.
+- General supplier payments are allocated FIFO so row-wise dues remain auditable and the summary matches the supplier balance.
+- PM/non-GST supplier bills are included in the same ledger where applicable.
+- Download creates an A4 portrait PDF named with PML number and Supplier name; long ledgers continue across pages.
+- Login, authentication, D1 migration, Worker backend, Party Ledger and Invoice modules were not modified.
