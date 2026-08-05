@@ -364,3 +364,12 @@ V37 A4 INVOICE LAYOUT FIX
 - Exact A4 landscape print/PDF sizing.
 - Removed the generated round stamp and replaced it with the supplied Meera Logistics / J.K. Jadeja / Partner stamp-signature image.
 - Fixed table sizing, spacing and overlap.
+
+
+V38 REAL PDF DOWNLOAD & WHATSAPP SHARE
+- Invoice buttons now show only Download (no Print wording).
+- Download creates a real A4 landscape PDF named with Invoice Number and Party Name.
+- WhatsApp generates the same PDF and uses the device Web Share sheet to attach the PDF directly.
+- On desktop browsers that cannot share files, the PDF is downloaded and WhatsApp opens as a safe fallback.
+- Partner stamp/signature area is moved upward.
+- Login, D1 migrations and Worker backend are unchanged.

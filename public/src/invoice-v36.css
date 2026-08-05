@@ -49,11 +49,11 @@
 .v36-totals th{width:48%;text-align:left}.v36-totals td{width:52%;text-align:right;font-weight:800;white-space:nowrap}
 .v36-totals .grand td{background:#5b99c7;color:#fff;font-size:10.5px}.v36-totals .grand th{font-size:10px}
 
-.v36-signatures{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:16%;padding:18px 10% 0;min-height:82px;flex:0 0 auto}
+.v36-signatures{margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:16%;padding:8px 10% 0;min-height:76px;flex:0 0 auto}
 .v36-signatures>div{text-align:center;position:relative;padding-top:34px}
 .v36-signatures span{display:block;border-top:1px solid #555;margin-bottom:6px}
 .v36-signatures b{font-size:10px}
-.v36-partner-stamp{position:absolute;left:50%;transform:translateX(-50%);bottom:18px;width:155px;max-height:66px;object-fit:contain;pointer-events:none}
+.v36-partner-stamp{position:absolute;left:50%;transform:translateX(-50%);bottom:25px;width:155px;max-height:66px;object-fit:contain;pointer-events:none}
 
 .v36-many-lines .v36-lines{margin-top:13px}.v36-many-lines .v36-lines td{padding:3px 2px;font-size:7.3px}.v36-many-lines .v36-bottom{margin-top:12px}
 .v36-very-many-lines .v36-lines{margin-top:10px}.v36-very-many-lines .v36-lines th{padding:3px 1px;font-size:6.5px}.v36-very-many-lines .v36-lines td{padding:2px 1px;font-size:6.5px}.v36-very-many-lines .v36-bottom{margin-top:8px}.v36-very-many-lines .v36-comments{min-height:62px}.v36-very-many-lines .v36-signatures{min-height:65px;padding-top:8px}
@@ -76,6 +76,9 @@
   .v36-lines th{font-size:6.5px;padding:1.2mm .4mm}.v36-lines td{font-size:7px;padding:1.4mm .5mm}
   .v36-comments{min-height:19mm}.v36-comments>b{font-size:9px;padding:1mm}.v36-comments>div{font-size:7.5px;padding:2mm}
   .v36-totals th,.v36-totals td{font-size:8px;padding:1.3mm}
-  .v36-signatures{min-height:20mm;padding:4mm 24mm 0;gap:40mm}.v36-signatures b{font-size:8px}
-  .v36-partner-stamp{width:38mm;max-height:16mm;bottom:4mm}
+  .v36-signatures{margin-top:3mm;min-height:18mm;padding:2mm 24mm 0;gap:40mm}.v36-signatures b{font-size:8px}
+  .v36-partner-stamp{width:38mm;max-height:16mm;bottom:5.5mm}
 }
+
+/* V38 off-screen render stage used for real A4 PDF download/share. */
+.v36-pdf-stage{position:fixed;left:-20000px;top:0;width:1122px;height:794px;background:#fff;z-index:-9999;overflow:hidden;pointer-events:none}.v36-pdf-stage .v36-invoice{transform:none!important;margin:0!important}

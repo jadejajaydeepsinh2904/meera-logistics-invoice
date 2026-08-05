@@ -1,31 +1,26 @@
 {
-  "version": "V37-A4-INVOICE-TABLE-STAMP-FIX",
-  "login_backend_modified": false,
-  "core_app_modified": false,
+  "version": "V38-REAL-PDF-WHATSAPP-SHARE",
   "checks": {
-    "node:public/src/app.js": "passed",
-    "node:public/src/invoice-v36.js": "passed",
-    "node:public/src/core/api.js": "passed",
-    "node:worker/src/index.js": "passed",
-    "node:worker/src/seed-data.js": "passed",
-    "login_backend_core_unchanged": "passed",
-    "invoice_table_compact_no_trip_no_no_line_lr": "passed",
-    "summary_lr_retained": "passed",
-    "a4_landscape_layout": "passed",
-    "supplied_partner_stamp_asset": "passed",
-    "totals_rows_fixed": "passed"
+    "invoice_button_only_download": "passed",
+    "real_pdf_blob_generation": "passed",
+    "invoice_named_pdf": "passed",
+    "web_share_pdf_file": "passed",
+    "desktop_fallback": "passed",
+    "signature_moved_up": "passed",
+    "login_backend_unchanged": "passed",
+    "cache_version_38": "passed"
   },
   "total_files": 26,
   "files": [
     {
       "path": "README.md",
-      "size": 14377,
-      "sha256": "fefd50286eb2c1e321c640e91ee4fbe94579280fceb15f77dacda72f9adcc7fb"
+      "size": 14875,
+      "sha256": "722f35847a0332ba1b73afd575cf1a8860e762416dde60e1ed619b1ddf281b78"
     },
     {
       "path": "START-HERE.txt",
-      "size": 13161,
-      "sha256": "a0cba631537ceba35ea4dcefbdda911d59c2faea843dc0c7a5584c2780c774b9"
+      "size": 13659,
+      "sha256": "b6d30289b113ae8e0b403ea7279289792683abee26d3bdeecfc03cad90971738"
     },
     {
       "path": "public/assets/meera-logo.png",
@@ -85,7 +80,7 @@
     {
       "path": "public/index.html",
       "size": 647,
-      "sha256": "4a2d2d6d2cd879521a3836c052f00e57057b74f6a0705852f3af4d827d0ca7c3"
+      "sha256": "38910c07d23f8d0e0c17464f34dd7b84f2b57c53987b2914c6b010e8c02d7e3e"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -94,8 +89,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 103396,
-      "sha256": "01fc09ad7c615088b464ff56a1143127b398eac95742398e0e9c3ef808a1b36e"
+      "size": 103383,
+      "sha256": "b98afa12cdf008e33b47d082e63715794ef0daaa072aad5bebc85c67373ae63e"
     },
     {
       "path": "public/src/core/api.js",
@@ -104,13 +99,13 @@
     },
     {
       "path": "public/src/invoice-v36.css",
-      "size": 6811,
-      "sha256": "d9fc54b0b743dd1c6bfedf8460735f623fe255e51749dce3f43199e37689a936"
+      "size": 7114,
+      "sha256": "2620e17b254cbd4b53dd7a803e773265ccf07b9e275163aa0fc0289494a17089"
     },
     {
       "path": "public/src/invoice-v36.js",
-      "size": 10875,
-      "sha256": "73203a1e5c44bf03b3b955c9187a54f7e801f24b843ee24509b3de0868b98946"
+      "size": 15364,
+      "sha256": "144407ffa84da542ba9962308b64e5261dbbdd1fe63927c30626504b7040ad95"
     },
     {
       "path": "public/src/styles.css",

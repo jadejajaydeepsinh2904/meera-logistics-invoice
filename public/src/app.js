@@ -363,7 +363,7 @@ function tripsPanel(d){
 function invoicesPanel(d){
   const rows=sortInvoicesSeries(filterRows(d.invoices,['invoice_no','invoice_date','party_name','lr_no','material']),true);
   return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Invoice Desk</h2><small>GST invoices linked with trips</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search invoices…"><button class="btn primary" data-action="new-invoice">New Invoice</button><button class="btn light" data-action="export-invoices">Excel CSV</button></div></div>${table(['Invoice','Type','Date','Party','LR / Material','Trips','Subtotal','GST','Total','Action'],rows.map(i=>[
-    `<b>${esc(i.invoice_no)}</b>`,statusBadge(invoiceTypeLabel(i)),esc(i.invoice_date),esc(i.party_name),`${esc(i.lr_no||'-')}<br><small>${esc(i.material)}</small>`,String(i.items.length),money(i.subtotal),money(i.gst_amount),`<b>${money(i.total)}</b>`,`<div class="action-set"><button class="mini green" data-action="view-invoice" data-id="${esc(i.id)}">View</button><button class="mini" data-action="edit-invoice" data-id="${esc(i.id)}">Edit</button><button class="mini gray" data-action="download-invoice" data-id="${esc(i.id)}">Download PDF</button><button class="mini gray" data-action="share-invoice" data-id="${esc(i.id)}">WhatsApp</button><button class="mini danger" data-action="delete-invoice" data-id="${esc(i.id)}">Delete</button></div>`
+    `<b>${esc(i.invoice_no)}</b>`,statusBadge(invoiceTypeLabel(i)),esc(i.invoice_date),esc(i.party_name),`${esc(i.lr_no||'-')}<br><small>${esc(i.material)}</small>`,String(i.items.length),money(i.subtotal),money(i.gst_amount),`<b>${money(i.total)}</b>`,`<div class="action-set"><button class="mini green" data-action="view-invoice" data-id="${esc(i.id)}">View</button><button class="mini" data-action="edit-invoice" data-id="${esc(i.id)}">Edit</button><button class="mini gray" data-action="download-invoice" data-id="${esc(i.id)}">Download</button><button class="mini gray" data-action="share-invoice" data-id="${esc(i.id)}">WhatsApp</button><button class="mini danger" data-action="delete-invoice" data-id="${esc(i.id)}">Delete</button></div>`
   ]),'1100px')}</div></section>`;
 }
 
@@ -396,7 +396,7 @@ function pmBillsPanel(d){
         `<div class="action-set">
           <button class="mini green" data-action="view-pm-bill" data-id="${esc(b.id)}">View</button>
           <button class="mini" data-action="edit-pm-bill" data-id="${esc(b.id)}">Edit</button>
-          <button class="mini gray" data-action="download-pm-bill" data-id="${esc(b.id)}">PDF</button>
+          <button class="mini gray" data-action="download-pm-bill" data-id="${esc(b.id)}">Download</button>
           <button class="mini danger" data-action="delete-pm-bill" data-id="${esc(b.id)}">Delete</button>
         </div>`
       ]),'1250px')}
@@ -445,7 +445,7 @@ function partiesPanel(d){
                   `<div class="action-set">
                     <button class="mini green" data-action="view-invoice" data-id="${esc(i.id)}">View</button>
                     <button class="mini" data-action="edit-invoice" data-id="${esc(i.id)}">Edit</button>
-                    <button class="mini gray" data-action="download-invoice" data-id="${esc(i.id)}">PDF</button>
+                    <button class="mini gray" data-action="download-invoice" data-id="${esc(i.id)}">Download</button>
                     <button class="mini danger" data-action="delete-invoice" data-id="${esc(i.id)}">Delete</button>
                   </div>`
                 ];
@@ -535,7 +535,7 @@ function tdsDeclarationForm(){
     <div class="form-actions">
       <button type="button" class="btn light" data-close-form>Cancel</button>
       <button type="button" class="btn soft" id="previewTds">Preview</button>
-      <button type="button" class="btn primary" id="downloadTds">Download PDF</button>
+      <button type="button" class="btn primary" id="downloadTds">Download</button>
     </div>
   </form>`,{onMount:host=>{
     wireMasterSelects(host);
@@ -757,7 +757,7 @@ function universalTripScreen(trip){
           <div class="ut-actions">
             <button class="btn green" data-action="edit-trip" data-id="${esc(trip.id)}">Edit Universal Trip</button>
             ${f.invoice
-              ? `<button class="btn primary" data-action="view-invoice" data-id="${esc(f.invoice.id)}">View / Download Bill</button>`
+              ? `<button class="btn primary" data-action="view-invoice" data-id="${esc(f.invoice.id)}">View Bill</button>`
               : `<button class="btn primary" data-action="trip-create-invoice" data-id="${esc(trip.id)}">Create Bill</button>`}
           </div>
           <div class="ut-money">
@@ -1437,7 +1437,7 @@ async function viewSupplierLedger(name){
 function invoiceTemplate(i){return invoicePrintHtml(i)}
 function viewInvoice(i){
   if(!i)return;
-  const host=modal(`Invoice ${i.invoice_no}`,`${invoiceTemplate(i)}<div class="form-actions no-print"><button class="btn light" id="editInvoiceFromView">Edit Invoice</button><button class="btn primary" id="downloadInvoiceFromView">Download PDF</button></div>`,{onMount:host=>{host.querySelector('.modal').classList.add('invoice-modal');host.querySelector('#editInvoiceFromView').onclick=()=>{host.remove();invoiceForm(i)};host.querySelector('#downloadInvoiceFromView').onclick=()=>downloadInvoicePdf(i)}});
+  const host=modal(`Invoice ${i.invoice_no}`,`${invoiceTemplate(i)}<div class="form-actions no-print"><button class="btn light" id="editInvoiceFromView">Edit Invoice</button><button class="btn primary" id="downloadInvoiceFromView">Download</button></div>`,{onMount:host=>{host.querySelector('.modal').classList.add('invoice-modal');host.querySelector('#editInvoiceFromView').onclick=()=>{host.remove();invoiceForm(i)};host.querySelector('#downloadInvoiceFromView').onclick=()=>downloadInvoicePdf(i)}});
 }
 function downloadInvoicePdf(i){
   if(!i)return;
