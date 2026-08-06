@@ -465,9 +465,26 @@ function partyPaymentsPanel(d){
     `<b>${esc(p.receipt_no||p.id)}</b>`,esc(p.payment_date),esc(p.party_name),statusBadge(p.payment_mode),esc(p.reference||'-'),esc(p.notes||'-'),`<b>${money(p.amount)}</b>`,actionButtons('party-payment',p.id)
   ]),'950px')}</div></section>`;
 }
+function supplierTruckNumbers(d,ownerName){
+  const owner=norm(ownerName),numbers=new Set();
+  for(const t of d.trucks||[])if(norm(t.owner_name)===owner&&t.truck_no)numbers.add(norm(t.truck_no));
+  for(const e of d.truckEntries||[])if(norm(e.owner_name)===owner&&e.truck_no)numbers.add(norm(e.truck_no));
+  for(const p of d.supplierPayments||[])if(norm(p.owner_name)===owner&&p.truck_no)numbers.add(norm(p.truck_no));
+  for(const b of d.pmBills||[])if(norm(b.supplier_name)===owner)for(const item of b.items||[])if(item.truck_no)numbers.add(norm(item.truck_no));
+  return [...numbers].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+}
 function suppliersPanel(d){
-  const rows=filterRows(d.supplierLedger,['owner_name']);
-  return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Supplier Khata</h2><small>Truck malik payable and payment ledger</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search supplier…"><button class="btn green" data-action="new-supplier-payment">Pay Supplier</button></div></div><div class="row-list">${rows.map(s=>`<button class="ledger-row" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}"><div><b>${esc((s.ledger_no?s.ledger_no+' · ':'')+s.owner_name)}</b><small>${s.entries} freight entries · ${s.pm_bills||0} PM bills · ${s.payments} payments · ${s.truck_count} trucks</small></div><div class="money-right"><b>${money(s.pending)}</b><small>Payable ${money(s.payable)}</small></div></button>`).join('')}</div></div></section>`;
+  const all=d.supplierLedger||[];
+  const rows=all.filter(s=>{
+    if(!state.search)return true;
+    const trucks=supplierTruckNumbers(d,s.owner_name).join(' ').toLowerCase();
+    return String(s.owner_name||'').toLowerCase().includes(state.search)||String(s.ledger_no||'').toLowerCase().includes(state.search)||trucks.includes(state.search);
+  });
+  return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Supplier Khata</h2><small>Truck malik, owner-wise vehicles, payable and payment ledger</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search supplier or truck…"><button class="btn green" data-action="new-supplier-payment">Pay Supplier</button></div></div><div class="row-list">${rows.map(s=>{
+    const trucks=supplierTruckNumbers(d,s.owner_name);
+    const truckHtml=trucks.length?`<div class="supplier-truck-list">${trucks.map(no=>`<span class="supplier-truck-chip"><b>${esc(no)}</b><small>${esc(s.owner_name)}</small></span>`).join('')}</div>`:'<div class="supplier-truck-empty">No truck linked. Audit Alertમાંથી Add Truck કરો.</div>';
+    return `<button class="ledger-row supplier-ledger-row" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}"><div class="supplier-ledger-main"><b>${esc((s.ledger_no?s.ledger_no+' · ':'')+s.owner_name)}</b><small>${s.entries} freight entries · ${s.pm_bills||0} PM bills · ${s.payments} payments · ${trucks.length} trucks</small>${truckHtml}</div><div class="money-right"><b>${money(s.pending)}</b><small>Payable ${money(s.payable)}</small></div></button>`;
+  }).join('')}</div></div></section>`;
 }
 function truckEntriesPanel(d){
   const rows=filterRows(d.truckEntries,['entry_date','truck_no','owner_name','loading_point','unloading_point']);
@@ -521,13 +538,13 @@ function tdsDeclarationForm(){
 
     <div class="span2 universal-section-title billing"><b>MEERA LOGISTICS DETAILS</b><small>બધી details editable છે</small></div>
     ${selectField('Entity Type','entityType',['PARTNERSHIP FIRM','PROPRIETORSHIP','COMPANY','LLP'],'PARTNERSHIP FIRM')}
-    ${field('Firm Name','firmName','MEERA LOGISTICS','text','required')}
-    ${field('Firm PAN','firmPan','ACFFM2544N','text','required')}
-    ${field('Firm GST Number','firmGst','24ACFFM2544N1Z1','text')}
-    ${field('Phone','firmPhone','9558959579','tel')}
-    ${field('Email','firmEmail','meera.logistics99@gmail.com','email')}
-    ${textarea('Firm Address','firmAddress','OFFICE NO.101, MOMAI COMPLEX, BEDI BANDAR ROAD, JAMNAGAR','span2')}
-    ${field('Authorized Partner Name','authorizedPartner','AUTHORIZED PARTNER','text','required')}
+    ${field('Firm Name','firmName',window.ML_SETTINGS?.companyName||'MEERA LOGISTICS','text','required')}
+    ${field('Firm PAN','firmPan',window.ML_SETTINGS?.pan||'ACFFM2544N','text','required')}
+    ${field('Firm GST Number','firmGst',window.ML_SETTINGS?.gstNo||'24ACFFM2544N1Z1','text')}
+    ${field('Phone','firmPhone',window.ML_SETTINGS?.phone||'9558959579','tel')}
+    ${field('Email','firmEmail',window.ML_SETTINGS?.email||'meera.logistics99@gmail.com','email')}
+    ${textarea('Firm Address','firmAddress',window.ML_SETTINGS?.address||'OFFICE NO.101, MOMAI COMPLEX, BEDI BANDAR ROAD, JAMNAGAR','span2')}
+    ${field('Authorized Partner Name','authorizedPartner',window.ML_SETTINGS?.authorizedPartner||'AUTHORIZED PARTNER','text','required')}
     ${field('Place','place','JAMNAGAR','text','required')}
     ${field('Financial Year','financialYear',fy,'text','required')}
     ${field('Maximum Goods Carriages','maxVehicles','10','number','min="1" required')}
@@ -613,11 +630,45 @@ function expensesPanel(d){
 }
 function reportsPanel(d){
   return `<section class="panel active"><div class="cards">${metric('Invoice Subtotal',d.summary.invoiceSubtotal)}${metric('Supplier Payable',d.summary.supplierPayable)}${metric('Supplier Paid',d.summary.supplierPaid)}${metric('Office Expenses',d.summary.expenses)}${metric('Estimated Profit',d.summary.estimatedProfit)}${metric('Party Outstanding',d.summary.partyOutstanding)}</div>
-  <div class="grid2"><div class="card"><div class="section-title"><h2>Audit Alerts</h2><button class="btn light" data-action="restore-backup">Restore Backup</button></div>${d.issues.length?d.issues.map(x=>`<div class="audit-item ${x.severity==='warning'?'warning':''}"><b>${esc(x.type)}</b><small>${esc(x.text)}</small></div>`).join(''):'<div class="notice">No detected ledger issues.</div>'}</div>
+  <div class="grid2"><div class="card"><div class="section-title"><div><h2>Audit Alerts</h2><small>દરેક query માટે Solve button થી સીધો fix screen ખૂલશે</small></div><button class="btn light" data-action="restore-backup">Restore Backup</button></div>${d.issues.length?d.issues.map(x=>`<div class="audit-item audit-resolvable ${x.severity==='warning'?'warning':''}"><div class="audit-copy"><b>${esc(x.type)}</b><small>${esc(x.text)}</small></div><button class="mini green audit-solve" data-action="resolve-audit" data-id="${encodeURIComponent(JSON.stringify(x))}">Solve</button></div>`).join(''):'<div class="notice">No detected ledger issues.</div>'}</div>
   <div class="card"><div class="section-title"><h2>Recent Changes</h2></div>${d.audits.slice(0,30).map(x=>`<div class="audit-item"><b>${esc(x.action)} · ${esc(x.entity)}</b><small>${esc(x.created_at)} · ${esc(x.entity_id||'')}</small></div>`).join('')}</div></div></section>`;
 }
 
+
+function resolveAuditIssue(raw){
+  let issue={};
+  try{issue=JSON.parse(decodeURIComponent(raw||''))}catch{issue={type:'UNKNOWN',text:String(raw||'')}}
+  const type=String(issue.type||'').toUpperCase();
+  if(type==='MISSING_TRUCK_MASTER'){
+    const truckNo=norm(issue.entityId||String(issue.text||'').split(' is used')[0]);
+    const trip=state.data.trips.find(t=>norm(t.truck_no)===truckNo)||{};
+    const entry=state.data.truckEntries.find(e=>norm(e.truck_no)===truckNo)||{};
+    return truckForm({
+      truck_no:truckNo,
+      owner_name:entry.owner_name||trip.driver_name||'',
+      owner_mobile:trip.driver_mobile||'',
+      bank_details:entry.bank_details||''
+    });
+  }
+  if(type==='TRIP_WITHOUT_INVOICE'){
+    const trip=state.data.trips.find(t=>String(t.id)===String(issue.entityId||''))||
+      state.data.trips.find(t=>String(issue.text||'').includes(String(t.id)));
+    if(!trip)return alert('Trip not found. Refresh કરીને ફરી Solve કરો.');
+    return invoiceForm({},trip);
+  }
+  if(type==='PARTY_OVERPAYMENT'){
+    const name=issue.entityId||String(issue.text||'').split(':')[0];
+    return viewPartyLedger(name);
+  }
+  if(type==='SUPPLIER_OVERPAYMENT'){
+    const name=issue.entityId||String(issue.text||'').split(':')[0];
+    return viewSupplierLedger(name);
+  }
+  alert('Aa alert mate automatic fix screen available nathi. System Health ma details check karo.');
+}
+
 function handleAction(action,id){
+  if(action==='resolve-audit')return resolveAuditIssue(id);
   if(action==='new-trip'||action==='edit-trip')return tripForm(action==='edit-trip'?(find('trip',id)||{}):{});
   if(action==='view-trip')return universalTripScreen(find('trip',id));
   if(action==='view-linked-invoice')return viewInvoice(find('invoice',id));
@@ -646,6 +697,7 @@ function handleAction(action,id){
   if(action==='new-party-payment'||action==='edit-party-payment')return partyPaymentForm(action==='edit-party-payment'?(find('party-payment',id)||{}):{});
   if(action==='delete-party-payment')return remove(`/party-payments/${id}`,'Delete this party payment?');
   if(action==='view-supplier-ledger')return viewSupplierLedger(decodeURIComponent(id));
+  if(action==='edit-trip-supplier')return editTripSupplier(find('trip',id));
   if(action==='new-truck-entry'||action==='edit-truck-entry')return truckEntryForm(action==='edit-truck-entry'?(find('truck-entry',id)||{}):{});
   if(action==='delete-truck-entry')return remove(`/truck-entries/${id}`,'Delete this supplier entry?');
   if(action==='new-supplier-payment'||action==='edit-supplier-payment')return supplierPaymentForm(action==='edit-supplier-payment'?(find('supplier-payment',id)||{}):{});
@@ -669,6 +721,66 @@ async function remove(path,message){if(!confirm(message))return;try{await api(pa
 
 
 
+function tripSupplierName(trip){
+  const d=state.data;
+  const linkedEntry=d.truckEntries.find(e=>String(e.trip_id||'')===String(trip.id));
+  const truck=d.trucks.find(t=>norm(t.truck_no)===norm(trip.truck_no));
+  return norm(trip.supplier_name||linkedEntry?.owner_name||truck?.owner_name||trip.driver_name||'SUPPLIER');
+}
+function tripPutBody(trip,supplierName){
+  return {
+    tripDate:trip.trip_date||today(),
+    partyName:trip.party_name||'',
+    truckNo:trip.truck_no||'',
+    driverName:trip.driver_name||'',
+    driverMobile:trip.driver_mobile||'',
+    supplierName:supplierName||tripSupplierName(trip),
+    material:trip.material||'',
+    loadingPoint:trip.loading_point||'',
+    unloadingPoint:trip.unloading_point||'',
+    lrNumber:trip.lr_number||'',
+    loadingWeight:Number(trip.loading_weight??trip.weight??0),
+    unloadingWeight:Number(trip.unloading_weight??trip.weight??0),
+    billingWeight:Number(trip.billing_weight??trip.weight??0),
+    weight:Number(trip.billing_weight??trip.weight??0),
+    rate:Number(trip.rate||0),
+    status:trip.status||'BOOKED',
+    notes:trip.notes||'',
+    podFileName:trip.pod_file_name||'',
+    podData:trip.pod_data||''
+  };
+}
+function editTripSupplier(trip){
+  if(!trip)return;
+  const names=[...new Set([
+    ...(state.data.supplierLedger||[]).map(x=>x.owner_name),
+    ...(state.data.trucks||[]).map(x=>x.owner_name),
+    ...(state.data.truckEntries||[]).map(x=>x.owner_name),
+    ...(state.data.trips||[]).map(x=>x.supplier_name)
+  ].filter(Boolean).map(norm))].sort();
+  const current=tripSupplierName(trip);
+  const host=modal(`Edit Supplier · ${trip.trip_no||trip.id}`,`<form class="form-grid" id="tripSupplierForm">
+    ${datalistField('Supplier / Truck Malik Name','supplierName',current,'tripSupplierNames',names,'required')}
+    <div class="span2 notice">Aa supplier khali aa Trip Number sathe save thashe. Linked Supplier Entry ane Supplier Payment pan aa name par update thashe.</div>
+    <div class="form-actions"><button type="button" class="btn light" data-cancel>Cancel</button><button class="btn primary">Save Supplier</button></div>
+  </form>`,{small:true,onMount:host=>{
+    host.querySelector('[data-cancel]').onclick=()=>host.remove();
+    host.querySelector('#tripSupplierForm').onsubmit=async event=>{
+      event.preventDefault();
+      const button=event.submitter;
+      const supplierName=norm(new FormData(event.target).get('supplierName'));
+      if(!supplierName){alert('Supplier name required.');return}
+      try{
+        setBusy(button,true);
+        await api('/trips/'+trip.id,{method:'PUT',body:JSON.stringify(tripPutBody(trip,supplierName))});
+        const fresh=await api('/bootstrap');
+        state.data=fresh;writeCache(fresh);host.remove();
+        universalTripScreen(fresh.trips.find(x=>String(x.id)===String(trip.id)));
+      }catch(error){alert(error.message||'Unable to update supplier.')}
+      finally{setBusy(button,false)}
+    };
+  }});
+}
 function tripFinancials(trip){
   const d=state.data;
   const invoiceItems=[];
@@ -678,7 +790,13 @@ function tripFinancials(trip){
     }
   }
   const invoice=invoiceItems[0]?.invoice||null;
-  const revenue=invoice?Number(invoice.total||0):invoiceItems.reduce((a,x)=>a+Number(x.amount||0),0);
+  // Revenue must be this Trip/Truck line only, never the complete multi-truck invoice total.
+  const linkedLineAmount=invoiceItems.reduce((sum,item)=>{
+    const amount=item.amount??(Number(item.weight||0)*Number(item.rate||0));
+    return sum+Number(amount||0);
+  },0);
+  const tripOwnAmount=Number(trip.billing_weight??trip.weight??0)*Number(trip.rate||0);
+  const revenue=linkedLineAmount>0?linkedLineAmount:tripOwnAmount;
 
   const partyPayments=d.partyPayments.filter(p=>String(p.trip_id||'')===String(trip.id));
   const partyPaid=partyPayments.reduce((a,x)=>a+Number(x.amount||0),0);
@@ -688,7 +806,7 @@ function tripFinancials(trip){
     (!e.trip_id && e.truck_no===trip.truck_no && e.entry_date===trip.trip_date)
   );
   const supplierPayable=supplierEntries.reduce((a,x)=>a+Number(x.payable||0),0);
-  const ownerNames=[...new Set(supplierEntries.map(x=>x.owner_name).filter(Boolean))];
+  const ownerNames=[...new Set([trip.supplier_name,...supplierEntries.map(x=>x.owner_name)].filter(Boolean).map(norm))];
 
   const supplierPays=d.supplierPayments.filter(p=>String(p.trip_id||'')===String(trip.id));
   const supplierPaid=supplierPays.reduce((a,x)=>a+Number(x.amount||0),0);
@@ -714,7 +832,7 @@ function tripProgress(status){
 function universalTripScreen(trip){
   if(!trip)return;
   const f=tripFinancials(trip);
-  const owner=f.ownerNames[0]||state.data.trucks.find(t=>t.truck_no===trip.truck_no)?.owner_name||trip.driver_name||'SUPPLIER';
+  const owner=tripSupplierName(trip);
   const partyPending=f.revenue-f.partyPaid;
   const supplierPending=f.supplierPayable-f.supplierPaid;
 
@@ -751,8 +869,8 @@ function universalTripScreen(trip){
             <div><small>INVOICE DATE</small><b>${esc(f.invoice?.invoice_date||'-')}</b></div>
             <div><small>PARTY GST</small><b>${esc(f.invoice?.party_gst||state.data.parties.find(p=>p.party_name===trip.party_name)?.gst_no||'-')}</b></div>
             <div><small>GST</small><b>${f.invoice?`${esc(f.invoice.sgst)}% + ${esc(f.invoice.cgst)}%`:'9% + 9%'}</b></div>
-            <div><small>LR NO.</small><b>${esc(f.invoice?.lr_no||'-')}</b></div>
-            <div><small>INVOICE TOTAL</small><b>${money(f.invoice?.total||0)}</b></div>
+            <div><small>LR NO.</small><b>${esc(f.invoiceItems[0]?.lr_number||trip.lr_number||'-')}</b></div>
+            <div><small>TRIP BILL AMOUNT</small><b>${money(f.revenue)}</b></div>
           </div>
           <div class="ut-actions">
             <button class="btn green" data-action="edit-trip" data-id="${esc(trip.id)}">Edit Universal Trip</button>
@@ -784,7 +902,7 @@ function universalTripScreen(trip){
 
       <section class="ut-pane" data-ut-pane="supplier">
         <div class="ut-card">
-          <h3>${esc(owner)}</h3>
+          <div class="section-title"><div><h3>${esc(owner)}</h3><small>${esc(trip.trip_no||trip.id)} · ${esc(trip.truck_no)}</small></div><button class="btn light" data-action="edit-trip-supplier" data-id="${esc(trip.id)}">Edit Supplier</button></div>
           <div class="ut-money">
             <div><span>Truck Hire Cost</span><b>${money(f.supplierPayable)}</b></div>
             <div><span>(-) Supplier Payments</span><b>${money(f.supplierPaid)}</b></div>
@@ -828,6 +946,15 @@ function tripForm(x={},afterSave=null){
   const initialUnloading=Number(x.unloading_weight??linkedItem?.unloading_weight??x.weight??0);
   const initialBilling=Number(x.billing_weight??linkedItem?.weight??x.weight??initialUnloading);
   const initialShortage=Math.max(0,initialLoading-initialUnloading);
+  const linkedSupplierEntry=d.truckEntries.find(e=>String(e.trip_id||'')===String(x.id||''))||null;
+  const initialSupplier=norm(x.supplier_name||linkedSupplierEntry?.owner_name||d.trucks.find(t=>norm(t.truck_no)===norm(x.truck_no))?.owner_name||x.driver_name||'');
+  const supplierNames=[...new Set([
+    ...(d.supplierLedger||[]).map(s=>s.owner_name),
+    ...(d.trucks||[]).map(t=>t.owner_name),
+    ...(d.truckEntries||[]).map(e=>e.owner_name),
+    ...(d.trips||[]).map(t=>t.supplier_name)
+  ].filter(Boolean).map(norm))].sort();
+  const existingAdvance=(d.supplierPayments||[]).filter(p=>String(p.trip_id||'')===String(x.id||'')&&/ADVANCE/i.test(String(p.reference||p.notes||''))).reduce((sum,p)=>sum+Number(p.amount||0),0);
 
   const host=modal(edit?'Edit Universal Trip':'New Universal Trip',`<form class="form-grid" id="tripForm">
     <div class="span2 invoice-type-switch">
@@ -864,17 +991,18 @@ function tripForm(x={},afterSave=null){
     ${field('Invoice Number','invoiceNo',linkedInvoice?.invoice_no||(initialType==='NON_GST'?d.nextNonGstInvoiceNo:d.nextInvoiceNo),'text','required')}
     ${field('Invoice Date','invoiceDate',linkedInvoice?.invoice_date||x.trip_date||today(),'date','required')}
     <div class="trip-gst-field">${field('Party GST Number','partyGst',linkedInvoice?.party_gst||partyMaster.gst_no||'','text','readonly')}</div>
-    <div class="trip-gst-field">${field('SGST %','sgst',linkedInvoice?.sgst??9,'number','step="0.01"')}</div>
-    <div class="trip-gst-field">${field('CGST %','cgst',linkedInvoice?.cgst??9,'number','step="0.01"')}</div>
+    <div class="trip-gst-field">${field('SGST %','sgst',linkedInvoice?.sgst??Number(window.ML_SETTINGS?.defaultSgst??9),'number','step="0.01"')}</div>
+    <div class="trip-gst-field">${field('CGST %','cgst',linkedInvoice?.cgst??Number(window.ML_SETTINGS?.defaultCgst??9),'number','step="0.01"')}</div>
     ${field('Diesel','diesel',linkedInvoice?.diesel||0,'number','step="0.01"')}
     ${field('Munshi Charges','munshi',linkedInvoice?.munshi||0,'number','step="0.01"')}
     <label class="field span2"><span>Party Address</span><textarea name="partyAddress" readonly>${esc(linkedInvoice?.party_address||partyMaster.address||'')}</textarea></label>
-    ${textarea('Invoice Comments','comments',linkedInvoice?.comments||'1. Payment due within 30 days.\\n2. Mention invoice number in payment reference.','span2')}
+    ${textarea('Invoice Comments','comments',linkedInvoice?.comments||window.ML_SETTINGS?.defaultComments||'1. Payment due within 30 days.\\n2. Mention invoice number in payment reference.','span2')}
 
-    <div class="span2 universal-section-title supplier"><b>SUPPLIER / TRUCK MALIK</b><small>Supplier payable પણ આ Trip સાથે link થશે</small></div>
-    ${field('Supplier Rate','supplierRate',0,'number','step="0.01"')}
-    ${field('Commission','commission',0,'number','step="0.01"')}
-    ${field('Supplier Advance','supplierAdvance',0,'number','step="0.01"')}
+    <div class="span2 universal-section-title supplier"><b>SUPPLIER / TRUCK MALIK</b><small>Supplier aa Trip Number sathe separately save ane edit thashe</small></div>
+    ${datalistField('Supplier / Truck Malik Name','supplierName',initialSupplier,'tripSupplierNamesMain',supplierNames,'required')}
+    ${field('Supplier Rate','supplierRate',linkedSupplierEntry?.rate||0,'number','step="0.01"')}
+    ${field('Commission','commission',linkedSupplierEntry?.commission||0,'number','step="0.01"')}
+    ${field('Supplier Advance','supplierAdvance',existingAdvance,'number','step="0.01"')}
 
     ${textarea('Trip Notes','notes',x.notes||'','span2')}
     <label class="field span2"><span>POD Images (multiple allowed)</span><input id="podFiles" type="file" accept="image/*" multiple></label>
@@ -885,6 +1013,13 @@ function tripForm(x={},afterSave=null){
     const tripTypeInput=host.querySelector('[name=tripType]');
     const invoiceNoInput=host.querySelector('[name=invoiceNo]');
     const partySelect=host.querySelector('[name=partyName]');
+    const truckSelect=host.querySelector('[name=truckNo]');
+    const supplierInput=host.querySelector('[name=supplierName]');
+    supplierInput.addEventListener('input',()=>supplierInput.dataset.manual='1');
+    truckSelect.addEventListener('change',()=>{
+      const truck=d.trucks.find(t=>norm(t.truck_no)===norm(truckSelect.value));
+      if(truck?.owner_name && (!supplierInput.value || supplierInput.dataset.manual!=='1'))supplierInput.value=norm(truck.owner_name);
+    });
 
     const applyTripType=(type,forceNumber=true)=>{
       tripTypeInput.value=type;
@@ -1019,7 +1154,7 @@ function tripForm(x={},afterSave=null){
             tripId,
             entryDate:body.tripDate,
             truckNo:body.truckNo,
-            ownerName:truck.owner_name||body.driverName||'',
+            ownerName:body.supplierName||truck.owner_name||body.driverName||'',
             bankDetails:truck.bank_details||'',
             loadingPoint:body.loadingPoint,
             unloadingPoint:body.unloadingPoint,
@@ -1096,8 +1231,8 @@ function invoiceForm(x={},tripContext=null){
     ${field('Loading Date','loadingDate',x.loading_date||today(),'date')}
     ${field('Diesel','diesel',x.diesel||0,'number','step="0.01"')}
     ${field('Munshi','munshi',x.munshi||0,'number','step="0.01"')}
-    <div class="gst-field">${field('SGST %','sgst',x.sgst??9,'number','step="0.01"')}</div>
-    <div class="gst-field">${field('CGST %','cgst',x.cgst??9,'number','step="0.01"')}</div>
+    <div class="gst-field">${field('SGST %','sgst',x.sgst??Number(window.ML_SETTINGS?.defaultSgst??9),'number','step="0.01"')}</div>
+    <div class="gst-field">${field('CGST %','cgst',x.cgst??Number(window.ML_SETTINGS?.defaultCgst??9),'number','step="0.01"')}</div>
 
     <div class="span2"><div class="section-title"><div><h3>Truck Details</h3><small>એક invoiceમાં જેટલી truck જોઈએ એટલી add કરો</small></div><div class="toolbar"><button type="button" class="btn green" id="addTripFromInvoice">+ New Trip</button><button type="button" class="btn soft" id="addLine">+ Add Another Truck</button></div></div><div class="invoice-lines" id="invoiceLines"></div></div>
 
@@ -1107,7 +1242,7 @@ function invoiceForm(x={},tripContext=null){
       <div><small>Total</small><b id="sumTotal">₹0.00</b></div>
     </div>
 
-    ${textarea('Comments / Payment Terms','comments',x.comments||'1. Payment due within 30 days.\\n2. Mention invoice number in payment reference.','span2')}
+    ${textarea('Comments / Payment Terms','comments',x.comments||window.ML_SETTINGS?.defaultComments||'1. Payment due within 30 days.\\n2. Mention invoice number in payment reference.','span2')}
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">${edit?'Update':'Save'} Invoice</button></div>
   </form>`,{onMount:host=>{
     wireMasterSelects(host);

@@ -426,3 +426,26 @@ V43 SMART OPERATIONS SUITE
 - Offline/PWA service worker caches the app and queues API writes for synchronization when internet returns.
 - Truck Document Gallery supports multiple compressed images, filters, preview, expiry and Recycle Bin deletion.
 - Existing login code and schema_version 34 are unchanged; advanced tables initialize only when Smart Tools are opened.
+
+
+V44 AUDIT SOLVE + SUPPLIER TRUCKS + SETTINGS
+- Reports & Audit alerts now include Solve buttons.
+- Missing Truck Master opens Add Truck with the number prefilled.
+- Supplier Khata lists every vehicle linked to each truck owner.
+- Supplier Ledger View/PDF shows Truck Number together with Supplier Name.
+- Settings button is available in Sidebar, Dashboard and Topbar.
+- Settings store company profile, invoice defaults, interface density and backup preferences online.
+- Invoice View/PDF and TDS defaults use saved company settings.
+- Service Worker navigation is network-first to avoid stale old screens.
+- Open /cache-reset-v44.html once after deployment to clear the previous PWA cache.
+- Login and D1 schema_version 34 are unchanged.
+
+
+V45 TRIP AMOUNT & SUPPLIER EDIT
+- Universal Trip revenue now uses only the linked Trip/Truck invoice line amount, never the full multi-truck invoice total.
+- Profit = this Trip line freight - this Trip supplier payable - this Trip expenses. GST is not treated as profit.
+- Party tab shows TRIP BILL AMOUNT and the line-wise LR Number.
+- Supplier Name is saved separately on every Trip and is editable from both Universal Trip form and Supplier tab.
+- Editing a Trip supplier updates linked Truck/Supplier Entry and Supplier Payments for the same trip_id.
+- A new PML supplier account is created automatically when a new per-trip supplier name is used.
+- Login/authentication and schema_version 34 are unchanged; supplier_name is added lazily only when Trip operations run.

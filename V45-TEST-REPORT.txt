@@ -1,0 +1,20 @@
+MEERA LOGISTICS V45 TEST REPORT
+
+public/src/app.js: passed
+public/src/advanced-v44.js: passed
+public/src/invoice-v36.js: passed
+public/src/party-ledger-v40.js: passed
+public/src/supplier-ledger-v41.js: passed
+public/sw-v45.js: passed
+worker/src/index.js: passed
+worker/src/seed-data.js: passed
+trip_line_revenue_not_full_invoice: passed
+trip_profit_formula: passed
+trip_supplier_edit_ui: passed
+trip_supplier_lazy_column: passed
+linked_supplier_records_update: passed
+pml_auto_create: passed
+schema_version_34_unchanged: passed
+cache_v45: passed
+
+Expected formula: Trip Profit = linked invoice line amount - trip supplier payable - trip expenses.

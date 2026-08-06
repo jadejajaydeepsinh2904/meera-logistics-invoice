@@ -1,0 +1,32 @@
+MEERA LOGISTICS V44 AUDIT + SUPPLIER TRUCKS + SETTINGS TEST REPORT
+
+PASSED
+- JavaScript syntax: all frontend modules, Service Worker and Cloudflare Worker
+- Login code exact comparison against V43: unchanged
+- D1 schema_version remains 34
+- Audit Alerts show a Solve button
+- MISSING_TRUCK_MASTER Solve opens Add Truck with truck number prefilled
+- TRIP_WITHOUT_INVOICE Solve opens invoice creation for the linked Trip
+- Party/Supplier overpayment Solve opens the matching ledger
+- Duplicate missing-truck alerts are de-duplicated by Truck Number
+- Supplier Khata shows every linked vehicle under the supplier/owner
+- Supplier search works by Supplier name, PML number and Truck number
+- Supplier Ledger View shows Truck Number with Supplier Name
+- Supplier Ledger PDF shows Truck / Supplier and supplier-wise truck list
+- Settings button appears in Sidebar, Dashboard and Topbar
+- Settings are stored online in a lazy D1 app_settings table
+- Settings company details apply to Invoice View, Print, PDF and TDS defaults
+- Settings SGST/CGST/comments apply to new Trip and Invoice defaults
+- Compact interface and Online/Offline indicator settings work locally
+- Scheduled backup switch is respected by Worker scheduled tasks
+- Navigation uses network-first Service Worker strategy
+- cache-reset-v44.html clears old PWA cache and loads V44
+
+PDF TESTS
+- Supplier Ledger: A4 portrait, Truck/Supplier text verified
+- Invoice: A4 landscape, company settings text verified
+
+PROTECTED
+- Password login flow unchanged
+- Core D1 schema version unchanged
+- Existing Invoice, Trip, Party and Supplier records are preserved

@@ -26,6 +26,19 @@ const formatDate=value=>{
 };
 const invoiceType=invoice=>(invoice.invoice_type||'GST')==='NON_GST'?'NON-GST':'GST';
 
+const DEFAULT_COMPANY_SETTINGS={
+  companyName:'MEERA LOGISTICS',
+  address:'OFFICE NO.101, MOMAI COMPLEX, BEDI BANDAR ROAD, JAMNAGAR',
+  phone:'9558959579',
+  email:'meera.logistics99@gmail.com',
+  gstNo:'24ACFFM2544N1Z1'
+};
+function companySettings(){
+  if(typeof window!=='undefined'&&window.ML_SETTINGS)return {...DEFAULT_COMPANY_SETTINGS,...window.ML_SETTINGS};
+  try{return {...DEFAULT_COMPANY_SETTINGS,...JSON.parse(localStorage.getItem('ml_app_settings_v44')||'{}')}}catch{return {...DEFAULT_COMPANY_SETTINGS}}
+}
+
+
 function jpegDimensions(bytes){
   let offset=2;
   while(offset+9<bytes.length){
@@ -150,6 +163,7 @@ function buildPdfFile(content,assets){
 }
 
 function createInvoiceContent(invoice,data){
+  const company=companySettings();
   const pdf=new CanvasPdf();
   const items=invoice.items||[];
   const nonGst=invoiceType(invoice)==='NON-GST';
@@ -164,16 +178,16 @@ function createInvoiceContent(invoice,data){
   pdf.strokeColor(0.12,0.24,0.46);pdf.lineWidth(1.2);pdf.rect(8,8,PAGE_W-16,PAGE_H-16);
 
   pdf.image('Logo',24,502,62,62);
-  pdf.text('MEERA LOGISTICS',104,536,25,{font:'F2'});
+  pdf.text(company.companyName,104,536,25,{font:'F2'});
   drawCell(pdf,{x:607,y:536,w:207,h:25,text:invoice.invoice_no||'-',font:'F2',size:12,color:[0.72,0.36,0.10]});
   drawCell(pdf,{x:607,y:511,w:207,h:25,text:nonGst?'Non-GST Transport Invoice':'Transport Invoice',font:'F2',size:11,color:[0.72,0.36,0.10]});
 
   const infoX=24,infoY=434,infoW=390,infoH=58,infoRow=14.5,infoLabel=100;
   const infoRows=[
-    ['Address','OFFICE NO.101, MOMAI COMPLEX, BEDI BANDAR ROAD, JAMNAGAR'],
-    ['Phone','9558959579'],
-    ['Email','meera.logistics99@gmail.com'],
-    ['GST No.','24ACFFM2544N1Z1']
+    ['Address',company.address],
+    ['Phone',company.phone],
+    ['Email',company.email],
+    ['GST No.',company.gstNo]
   ];
   infoRows.forEach((row,index)=>{
     const y=infoY+infoH-(index+1)*infoRow;

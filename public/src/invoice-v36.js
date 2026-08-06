@@ -14,6 +14,19 @@ const formatDate=value=>{
 };
 const invoiceType=invoice=>(invoice.invoice_type||'GST')==='NON_GST'?'NON-GST':'GST';
 
+const DEFAULT_COMPANY_SETTINGS={
+  companyName:'MEERA LOGISTICS',
+  address:'OFFICE NO.101, MOMAI COMPLEX, BEDI BANDAR ROAD, JAMNAGAR',
+  phone:'9558959579',
+  email:'meera.logistics99@gmail.com',
+  gstNo:'24ACFFM2544N1Z1'
+};
+function companySettings(){
+  if(window.ML_SETTINGS)return {...DEFAULT_COMPANY_SETTINGS,...window.ML_SETTINGS};
+  try{return {...DEFAULT_COMPANY_SETTINGS,...JSON.parse(localStorage.getItem('ml_app_settings_v44')||'{}')}}catch{return {...DEFAULT_COMPANY_SETTINGS}}
+}
+
+
 let bootstrapPromise=null;
 async function getBootstrap(){
   try{
@@ -33,6 +46,7 @@ function tripNumber(data,tripId){
   return (data.trips||[]).find(trip=>String(trip.id)===String(tripId))?.trip_no||'-';
 }
 function invoiceMarkup(invoice,data){
+  const company=companySettings();
   const items=invoice.items||[];
   const nonGst=invoiceType(invoice)==='NON-GST';
   const lrNumbers=[...new Set(items.map(item=>String(item.lr_number||'').trim()).filter(Boolean))];
@@ -50,16 +64,16 @@ function invoiceMarkup(invoice,data){
   return `<article class="v36-invoice${rowClass}">
     <header class="v36-head">
       <img class="v36-logo" src="/assets/meera-logo.png" alt="Meera Logistics logo">
-      <div class="v36-company-name">MEERA LOGISTICS</div>
+      <div class="v36-company-name">${esc(company.companyName)}</div>
       <div class="v36-title"><b>${esc(invoice.invoice_no)}</b><span>${nonGst?'Non-GST Transport Invoice':'Transport Invoice'}</span></div>
     </header>
 
     <section class="v36-top-grid">
       <table class="v36-info"><tbody>
-        <tr><th>Address</th><td>OFFICE NO.101, MOMAI COMPLEX, BEDI BANDAR ROAD, JAMNAGAR</td></tr>
-        <tr><th>Phone</th><td>9558959579</td></tr>
-        <tr><th>Email</th><td><span class="v36-email">meera.logistics99@gmail.com</span></td></tr>
-        <tr><th>GST No.</th><td>24ACFFM2544N1Z1</td></tr>
+        <tr><th>Address</th><td>${esc(company.address)}</td></tr>
+        <tr><th>Phone</th><td>${esc(company.phone)}</td></tr>
+        <tr><th>Email</th><td><span class="v36-email">${esc(company.email)}</span></td></tr>
+        <tr><th>GST No.</th><td>${esc(company.gstNo)}</td></tr>
       </tbody></table>
 
       <table class="v36-summary"><tbody>
@@ -148,10 +162,11 @@ async function downloadInvoice(invoice,data){
   saveBlob(blob,safeInvoicePdfName(invoice));
 }
 function invoiceShareText(invoice){
+  const company=companySettings();
   const items=invoice.items||[];
   const lrs=[...new Set(items.map(item=>item.lr_number).filter(Boolean))].join(' / ');
   const trucks=items.map(item=>item.truck_no).filter(Boolean).join(', ');
-  return `MEERA LOGISTICS\nInvoice: ${invoice.invoice_no} (${invoiceType(invoice)})\nDate: ${formatDate(invoice.invoice_date)}\nParty: ${invoice.party_name}\nLR No.: ${lrs||'-'}\nTruck: ${trucks||'-'}\nAmount: ${money(invoice.total)}`;
+  return `${company.companyName}\nInvoice: ${invoice.invoice_no} (${invoiceType(invoice)})\nDate: ${formatDate(invoice.invoice_date)}\nParty: ${invoice.party_name}\nLR No.: ${lrs||'-'}\nTruck: ${trucks||'-'}\nAmount: ${money(invoice.total)}`;
 }
 async function shareInvoice(invoice,data){
   const blob=await createInvoicePdfBlob(invoice,data);
@@ -182,7 +197,7 @@ function exportInvoices(data){
   }
   const csv='\uFEFF'+rows.map(row=>row.map(value=>`"${String(value??'').replaceAll('"','""')}"`).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
-  const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='MEERA LOGISTICS INVOICE HISTORY.csv';link.click();URL.revokeObjectURL(link.href);
+  const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`${safeInvoicePdfName({invoice_no:companySettings().companyName,party_name:'INVOICE HISTORY'}).replace(/\.pdf$/i,'')}.csv`;link.click();URL.revokeObjectURL(link.href);
 }
 
 document.addEventListener('click',async event=>{

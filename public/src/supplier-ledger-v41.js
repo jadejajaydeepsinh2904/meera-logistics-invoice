@@ -28,7 +28,7 @@ async function loadSupplierLedger(name){
 function ledgerSheet(payload,name,bootstrap){
   const model=buildSupplierLedgerModel(payload,name,bootstrap);
   const rows=model.rows.length?model.rows.map((row,index)=>`<tr>
-    <td>${index+1}</td><td>${esc(row.lrNumber||'-')}</td><td>${esc(formatDate(row.tripDate))}</td><td><b>${esc(row.truckNo||'-')}</b></td>
+    <td>${index+1}</td><td>${esc(row.lrNumber||'-')}</td><td>${esc(formatDate(row.tripDate))}</td><td class="sl41-truck-owner"><b>${esc(row.truckNo||'-')}</b><small>${esc(row.supplierName||model.ownerName)}</small></td>
     <td>${esc(row.route||'-')}</td><td>${esc(row.material||'-')}</td><td>${esc(row.rateText||'-')}</td>
     <td class="sl41-money">Rs. ${amount(Math.round(row.hireCost))}</td><td class="sl41-money">Rs. ${amount(Math.round(row.advance))}</td>
     <td class="sl41-money">Rs. ${amount(Math.round(row.charges))}</td><td class="sl41-money">Rs. ${amount(Math.round(row.deduction))}</td>
@@ -40,9 +40,9 @@ function ledgerSheet(payload,name,bootstrap){
       <div class="sl41-supplier">${esc(model.ledgerNo?model.ledgerNo+' · '+model.ownerName:model.ownerName)}</div>
     </header>
     <div class="sl41-rule"></div>
-    <div class="sl41-summary"><b>Total Due :</b><strong>${model.tripCount} Trips${model.pmBillCount?` + ${model.pmBillCount} PM Bills`:''} &nbsp;|&nbsp; Rs. ${amount(Math.round(model.totalDue))}</strong></div>
+    <div class="sl41-summary"><div><b>Total Due :</b><small>${model.truckNumbers.length?` Trucks: ${esc(model.truckNumbers.join(' · '))}`:' No Truck Master linked'}</small></div><strong>${model.tripCount} Trips${model.pmBillCount?` + ${model.pmBillCount} PM Bills`:''} &nbsp;|&nbsp; Rs. ${amount(Math.round(model.totalDue))}</strong></div>
     <div class="sl41-table-wrap"><table class="sl41-table"><thead><tr>
-      <th>S.No.</th><th>LR Number</th><th>Trip Date</th><th>Truck No</th><th>Route</th><th>Material</th><th>Rate</th>
+      <th>S.No.</th><th>LR Number</th><th>Trip Date</th><th>Truck No / Supplier</th><th>Route</th><th>Material</th><th>Rate</th>
       <th>Truck Hire Cost</th><th>Advance</th><th>Charges</th><th>Deduction</th><th>Payments</th><th>Total Due</th>
     </tr></thead><tbody>${rows}</tbody></table></div>
     <footer><span>Page 1</span><span>Automatically generated supplier ledger - Meera Logistics</span><span></span></footer>

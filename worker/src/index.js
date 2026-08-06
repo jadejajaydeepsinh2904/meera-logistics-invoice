@@ -100,9 +100,31 @@ async function ensureTripWeightColumns(env){
     `ALTER TABLE trips ADD COLUMN unloading_weight REAL DEFAULT 0`,
     `ALTER TABLE trips ADD COLUMN shortage REAL DEFAULT 0`,
     `ALTER TABLE trips ADD COLUMN billing_weight REAL DEFAULT 0`,
+    `ALTER TABLE trips ADD COLUMN supplier_name TEXT DEFAULT ''`,
     `ALTER TABLE invoice_items ADD COLUMN lr_number TEXT DEFAULT ''`
   ];
   for(const sql of statements)await safe(env,sql);
+}
+
+async function ensureSupplierAccountForName(env,value){
+  const name=upper(value);
+  if(!name)return '';
+  const existing=await first(env,`SELECT ledger_no FROM supplier_accounts WHERE owner_name=? LIMIT 1`,name);
+  if(existing?.ledger_no)return existing.ledger_no;
+  const rows=await all(env,`SELECT ledger_no FROM supplier_accounts`);
+  let next=rows.reduce((max,row)=>Math.max(max,Number(String(row.ledger_no||'').replace(/\D/g,''))||0),0)+1;
+  for(let attempt=0;attempt<1000;attempt++,next++){
+    const ledgerNo=`PML ${String(next).padStart(3,'0')}`;
+    try{
+      await run(env,`INSERT INTO supplier_accounts(id,ledger_no,owner_name) VALUES(?,?,?)`,uid('SUP'),ledgerNo,name);
+      return ledgerNo;
+    }catch(error){
+      const now=await first(env,`SELECT ledger_no FROM supplier_accounts WHERE owner_name=? LIMIT 1`,name);
+      if(now?.ledger_no)return now.ledger_no;
+      if(!/UNIQUE|constraint/i.test(String(error?.message||error)))throw error;
+    }
+  }
+  throw new Error('Unable to allocate supplier ledger number');
 }
 
 async function recalcInvoiceById(env,invoiceId){
@@ -535,6 +557,12 @@ async function bootstrap(env,user){
   const partyLedger=Object.values(partyMap).map(x=>({...x,billed:round2(x.billed),received:round2(x.received),outstanding:round2(x.billed-x.received)})).sort((a,b)=>b.outstanding-a.outstanding);
 
   const supplierMap={};
+  for(const trip of trips){
+    const n=upper(trip.supplier_name||'');
+    if(!n)continue;
+    supplierMap[n]??={owner_name:n,payable:0,paid:0,entries:0,payments:0,trucks:new Set(),pm_bills:0};
+    if(trip.truck_no)supplierMap[n].trucks.add(trip.truck_no);
+  }
   for(const e of truckEntries){
     const n=e.owner_name||'UNKNOWN';
     supplierMap[n]??={owner_name:n,payable:0,paid:0,entries:0,payments:0,trucks:new Set()};
@@ -566,11 +594,15 @@ async function bootstrap(env,user){
   const expenseTotal=round2(expenses.reduce((a,x)=>a+num(x.amount),0));
 
   const issues=[];
-  for(const p of partyLedger)if(p.outstanding<-.01)issues.push({severity:'warning',type:'PARTY_OVERPAYMENT',text:`${p.party_name}: received amount is ${Math.abs(p.outstanding).toFixed(2)} greater than billing. Verify missing invoice or advance.`});
-  for(const s of supplierLedger)if(s.pending<-.01)issues.push({severity:'warning',type:'SUPPLIER_OVERPAYMENT',text:`${s.owner_name}: supplier payment is ${Math.abs(s.pending).toFixed(2)} greater than payable.`});
+  for(const p of partyLedger)if(p.outstanding<-.01)issues.push({severity:'warning',type:'PARTY_OVERPAYMENT',entityType:'party',entityId:p.party_name,text:`${p.party_name}: received amount is ${Math.abs(p.outstanding).toFixed(2)} greater than billing. Verify missing invoice or advance.`});
+  for(const s of supplierLedger)if(s.pending<-.01)issues.push({severity:'warning',type:'SUPPLIER_OVERPAYMENT',entityType:'supplier',entityId:s.owner_name,text:`${s.owner_name}: supplier payment is ${Math.abs(s.pending).toFixed(2)} greater than payable.`});
+  const missingTruckNos=new Set();
   for(const t of trips){
-    if(!invoiceItems.some(i=>String(i.trip_id||'')===String(t.id)))issues.push({severity:'info',type:'TRIP_WITHOUT_INVOICE',text:`Trip ${t.id} (${t.truck_no}) has no linked invoice.`});
-    if(!trucks.some(x=>x.truck_no===t.truck_no))issues.push({severity:'warning',type:'MISSING_TRUCK_MASTER',text:`${t.truck_no} is used in trips but missing from Truck Master.`});
+    if(!invoiceItems.some(i=>String(i.trip_id||'')===String(t.id)))issues.push({severity:'info',type:'TRIP_WITHOUT_INVOICE',entityType:'trip',entityId:t.id,text:`Trip ${t.id} (${t.truck_no}) has no linked invoice.`});
+    if(!trucks.some(x=>x.truck_no===t.truck_no)&&!missingTruckNos.has(t.truck_no)){
+      missingTruckNos.add(t.truck_no);
+      issues.push({severity:'warning',type:'MISSING_TRUCK_MASTER',entityType:'truck',entityId:t.truck_no,text:`${t.truck_no} is used in trips but missing from Truck Master.`});
+    }
   }
 
   return {
@@ -624,6 +656,10 @@ async function ensureAdvancedTables(env){
       `CREATE TABLE IF NOT EXISTS monthly_exports(
         id TEXT PRIMARY KEY,month_key TEXT UNIQUE NOT NULL,summary TEXT DEFAULT '{}',
         payload TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS app_settings(
+        setting_key TEXT PRIMARY KEY,setting_value TEXT NOT NULL,updated_by TEXT DEFAULT '',
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       )`
     ];
     for(const sql of tables)await env.DB.prepare(sql).run();
@@ -639,13 +675,52 @@ async function ensureAdvancedTables(env){
   return advancedInitPromise;
 }
 
+
+const DEFAULT_APP_SETTINGS={
+  companyName:'MEERA LOGISTICS',
+  address:'OFFICE NO.101, MOMAI COMPLEX, BEDI BANDAR ROAD, JAMNAGAR',
+  phone:'9558959579',
+  email:'meera.logistics99@gmail.com',
+  gstNo:'24ACFFM2544N1Z1',
+  pan:'ACFFM2544N',
+  authorizedPartner:'J. K. JADEJA',
+  defaultSgst:9,
+  defaultCgst:9,
+  defaultComments:'1. Payment due within 30 days.\n2. Mention invoice number in payment reference.',
+  compactMode:'COMFORTABLE',
+  showOnlineStatus:true,
+  automaticBackups:true
+};
+async function readAppSettings(env){
+  await ensureAdvancedTables(env);
+  const row=await first(env,`SELECT setting_value FROM app_settings WHERE setting_key='APP'`);
+  if(!row?.setting_value)return {...DEFAULT_APP_SETTINGS};
+  try{return {...DEFAULT_APP_SETTINGS,...JSON.parse(row.setting_value)}}catch{return {...DEFAULT_APP_SETTINGS}}
+}
+async function writeAppSettings(env,user,input={}){
+  await ensureAdvancedTables(env);
+  const cleanSettings={...DEFAULT_APP_SETTINGS};
+  for(const key of Object.keys(DEFAULT_APP_SETTINGS))if(input[key]!==undefined)cleanSettings[key]=input[key];
+  cleanSettings.defaultSgst=num(cleanSettings.defaultSgst);
+  cleanSettings.defaultCgst=num(cleanSettings.defaultCgst);
+  cleanSettings.compactMode=String(cleanSettings.compactMode||'COMFORTABLE').toUpperCase()==='COMPACT'?'COMPACT':'COMFORTABLE';
+  cleanSettings.showOnlineStatus=!!cleanSettings.showOnlineStatus;
+  cleanSettings.automaticBackups=!!cleanSettings.automaticBackups;
+  await run(env,`INSERT INTO app_settings(setting_key,setting_value,updated_by,updated_at)
+    VALUES('APP',?,?,CURRENT_TIMESTAMP)
+    ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value,updated_by=excluded.updated_by,updated_at=CURRENT_TIMESTAMP`,
+    JSON.stringify(cleanSettings),user?.username||'');
+  await audit(env,user,'UPDATE','settings','APP',cleanSettings);
+  return cleanSettings;
+}
+
 const ADVANCED_EXPORT_TABLES={
   Parties:{table:'party_accounts',columns:['id','ledger_no','party_name','address','gst_no','mobile','email','created_at','updated_at']},
   PartyPayments:{table:'party_payments',columns:['id','receipt_no','trip_id','party_name','payment_date','amount','payment_mode','reference','notes','created_at','updated_at']},
   Trucks:{table:'trucks',columns:['id','truck_no','owner_name','owner_mobile','bank_details','created_at','updated_at']},
   Routes:{table:'routes',columns:['id','loading_point','unloading_point','created_at','updated_at']},
   Materials:{table:'materials',columns:['id','material_name','created_at']},
-  Trips:{table:'trips',columns:['id','trip_no','invoice_id','invoice_item_id','trip_date','party_name','truck_no','driver_name','driver_mobile','material','loading_point','unloading_point','lr_number','loading_weight','unloading_weight','shortage','billing_weight','weight','rate','status','notes','pod_file_name','created_at','updated_at']},
+  Trips:{table:'trips',columns:['id','trip_no','invoice_id','invoice_item_id','trip_date','party_name','truck_no','driver_name','driver_mobile','material','loading_point','unloading_point','lr_number','loading_weight','unloading_weight','shortage','billing_weight','supplier_name','weight','rate','status','notes','pod_file_name','created_at','updated_at']},
   Invoices:{table:'invoices',columns:['id','invoice_no','invoice_type','invoice_date','party_name','party_address','party_gst','lr_no','material','loading_date','sgst','cgst','diesel','munshi','subtotal','gst_amount','total','comments','created_at','updated_at']},
   InvoiceItems:{table:'invoice_items',columns:['id','invoice_id','trip_id','lr_number','truck_no','description','loading_weight','unloading_weight','shortage','weight','rate','amount','created_at']},
   PMBills:{table:'pm_bills',columns:['id','bill_no','bill_date','party_name','party_address','supplier_name','notes','subtotal','supplier_total','profit','created_at','updated_at']},
@@ -655,7 +730,8 @@ const ADVANCED_EXPORT_TABLES={
   SupplierPayments:{table:'supplier_payments',columns:['id','receipt_no','trip_id','owner_name','truck_no','payment_date','amount','payment_mode','reference','notes','created_at','updated_at']},
   Expenses:{table:'expenses',columns:['id','trip_id','expense_date','category','amount','notes','created_at','updated_at']},
   Documents:{table:'truck_documents',columns:['id','truck_no','kind','file_name','file_type','expiry_date','notes','created_at']},
-  Bookings:{table:'workflow_bookings',columns:['id','booking_no','booking_date','party_name','truck_no','material','loading_point','unloading_point','expected_date','status','approval_status','approved_by','approved_at','dispatch_date','trip_id','notes','created_by','created_at','updated_at']}
+  Bookings:{table:'workflow_bookings',columns:['id','booking_no','booking_date','party_name','truck_no','material','loading_point','unloading_point','expected_date','status','approval_status','approved_by','approved_at','dispatch_date','trip_id','notes','created_by','created_at','updated_at']},
+  Settings:{table:'app_settings',columns:['setting_key','setting_value','updated_by','updated_at']}
 };
 
 async function advancedRows(env,config,where='',...args){
@@ -851,7 +927,8 @@ async function runScheduledTasks(env,scheduledTime=Date.now()){
   const d=new Date(scheduledTime);
   const day=d.getUTCDate();
   const dateKey=d.toISOString().slice(0,10);
-  await createBackupSnapshot(env,'SCHEDULED',dateKey);
+  const settings=await readAppSettings(env);
+  if(settings.automaticBackups!==false)await createBackupSnapshot(env,'SCHEDULED',dateKey);
   if(day===1){
     const prev=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()-1,1));
     await createMonthlyExport(env,prev.toISOString().slice(0,7));
@@ -896,7 +973,12 @@ export default {
       }
 
       // V43 advanced operations are initialized only when these tools are opened.
-      if(['advanced-data','workflow-bookings','approvals','recycle-bin','system-health','backups','monthly-exports','excel-export','excel-import'].includes(resource))await ensureAdvancedTables(env);
+      if(['advanced-data','workflow-bookings','approvals','recycle-bin','system-health','backups','monthly-exports','excel-export','excel-import','settings'].includes(resource))await ensureAdvancedTables(env);
+
+      if(resource==='settings'){
+        if(req.method==='GET')return json(await readAppSettings(env));
+        if(req.method==='PUT')return json(await writeAppSettings(env,user,await requestBody(req)));
+      }
 
       if(resource==='advanced-data'&&req.method==='GET'){
         const [bookings,approvals,recycle,backups,monthly]=await Promise.all([
@@ -1000,6 +1082,7 @@ export default {
       if(resource==='export'&&req.method==='GET')return json(await bootstrap(env,user));
 
       if(resource==='import'&&req.method==='POST'){
+        await ensureTripWeightColumns(env);
         const b=await requestBody(req);
         const data=b.data||b;
         if(!data || !Array.isArray(data.parties))return json({error:'Invalid backup file'},400);
@@ -1013,7 +1096,7 @@ export default {
         for(const t of rows.trucks||[])await run(env,`INSERT OR REPLACE INTO trucks(id,truck_no,owner_name,owner_mobile,bank_details) VALUES(?,?,?,?,?)`,t.id||uid('TRK'),upper(t.truck_no),upper(t.owner_name),t.owner_mobile||'',t.bank_details||'');
         for(const r of rows.routes||[])await run(env,`INSERT OR REPLACE INTO routes(id,loading_point,unloading_point) VALUES(?,?,?)`,r.id||uid('RTE'),upper(r.loading_point),upper(r.unloading_point));
         for(const m of rows.materials||[])await run(env,`INSERT OR REPLACE INTO materials(id,material_name) VALUES(?,?)`,m.id||uid('MAT'),upper(m.material_name));
-        for(const t of rows.trips||[])await run(env,`INSERT OR REPLACE INTO trips(id,trip_date,party_name,truck_no,driver_name,driver_mobile,material,loading_point,unloading_point,weight,rate,status,notes,pod_file_name,pod_data) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,t.id||uid('TRIP'),t.trip_date,upper(t.party_name),upper(t.truck_no),upper(t.driver_name),t.driver_mobile||'',upper(t.material),upper(t.loading_point),upper(t.unloading_point),num(t.weight),num(t.rate),upper(t.status||'BOOKED'),t.notes||'',t.pod_file_name||'',t.pod_data||'');
+        for(const t of rows.trips||[])await run(env,`INSERT OR REPLACE INTO trips(id,trip_date,party_name,truck_no,driver_name,driver_mobile,supplier_name,material,loading_point,unloading_point,weight,rate,status,notes,pod_file_name,pod_data) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,t.id||uid('TRIP'),t.trip_date,upper(t.party_name),upper(t.truck_no),upper(t.driver_name),t.driver_mobile||'',upper(t.supplier_name),upper(t.material),upper(t.loading_point),upper(t.unloading_point),num(t.weight),num(t.rate),upper(t.status||'BOOKED'),t.notes||'',t.pod_file_name||'',t.pod_data||'');
         for(const i of rows.invoices||[])await run(env,`INSERT OR REPLACE INTO invoices(id,invoice_no,invoice_type,invoice_date,party_name,party_address,party_gst,lr_no,material,loading_date,sgst,cgst,diesel,munshi,subtotal,gst_amount,total,comments) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,i.id||uid('INV'),i.invoice_no,i.invoice_type||'GST',i.invoice_date,upper(i.party_name),i.party_address||'',i.party_gst||'',i.lr_no||'',upper(i.material),i.loading_date||'',num(i.sgst),num(i.cgst),num(i.diesel),num(i.munshi),num(i.subtotal),num(i.gst_amount),num(i.total),i.comments||'');
         for(const it of rows.invoiceItems||[])await run(env,`INSERT OR REPLACE INTO invoice_items(id,invoice_id,trip_id,truck_no,description,loading_weight,unloading_weight,shortage,weight,rate,amount) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,it.id||uid('II'),it.invoice_id,it.trip_id||'',upper(it.truck_no),upper(it.description),num(it.loading_weight||it.weight),num(it.unloading_weight||it.weight),num(it.shortage),num(it.weight),num(it.rate),num(it.amount));
         for(const e of rows.truckEntries||[])await run(env,`INSERT OR REPLACE INTO truck_payments(id,trip_id,entry_date,truck_no,owner_name,bank_details,loading_point,unloading_point,weight,rate,commission,payable,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,e.id||uid('TE'),e.trip_id||'',e.entry_date,upper(e.truck_no),upper(e.owner_name),e.bank_details||'',upper(e.loading_point),upper(e.unloading_point),num(e.weight),num(e.rate),num(e.commission),num(e.payable),e.notes||'');
@@ -1105,16 +1188,21 @@ export default {
             await run(env,`INSERT INTO trips(
               id,trip_no,trip_date,party_name,truck_no,driver_name,driver_mobile,material,
               loading_point,unloading_point,lr_number,loading_weight,unloading_weight,shortage,
-              billing_weight,weight,rate,status,notes,pod_file_name,pod_data
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+              billing_weight,supplier_name,weight,rate,status,notes,pod_file_name,pod_data
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
               newId,tripNo,b.tripDate,upper(b.partyName),upper(b.truckNo),upper(b.driverName),
               b.driverMobile||'',upper(b.material),upper(b.loadingPoint),upper(b.unloadingPoint),
               clean(b.lrNumber),round2(b.loadingWeight),round2(b.unloadingWeight),
               round2(Math.max(0,num(b.loadingWeight)-num(b.unloadingWeight))),
-              round2(b.billingWeight||b.unloadingWeight||b.loadingWeight),
+              round2(b.billingWeight||b.unloadingWeight||b.loadingWeight),upper(b.supplierName),
               round2(b.billingWeight||b.unloadingWeight||b.loadingWeight),round2(b.rate),
               upper(b.status||'BOOKED'),b.notes||'',b.podFileName||'',b.podData||''
             );
+            if(upper(b.supplierName)){
+              await ensureSupplierAccountForName(env,b.supplierName);
+              await run(env,`UPDATE truck_payments SET owner_name=?,updated_at=CURRENT_TIMESTAMP WHERE trip_id=?`,upper(b.supplierName),newId);
+              await run(env,`UPDATE supplier_payments SET owner_name=?,updated_at=CURRENT_TIMESTAMP WHERE trip_id=?`,upper(b.supplierName),newId);
+            }
             await audit(env,user,'CREATE','trip',newId,b);
             return json({ok:true,id:newId,tripNo});
           }
@@ -1123,16 +1211,21 @@ export default {
           await run(env,`UPDATE trips SET
             trip_date=?,party_name=?,truck_no=?,driver_name=?,driver_mobile=?,material=?,
             loading_point=?,unloading_point=?,lr_number=?,loading_weight=?,unloading_weight=?,
-            shortage=?,billing_weight=?,weight=?,rate=?,status=?,notes=?,pod_file_name=?,
+            shortage=?,billing_weight=?,supplier_name=?,weight=?,rate=?,status=?,notes=?,pod_file_name=?,
             pod_data=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
             b.tripDate,upper(b.partyName),upper(b.truckNo),upper(b.driverName),b.driverMobile||'',
             upper(b.material),upper(b.loadingPoint),upper(b.unloadingPoint),clean(b.lrNumber),
             round2(b.loadingWeight),round2(b.unloadingWeight),
             round2(Math.max(0,num(b.loadingWeight)-num(b.unloadingWeight))),
-            round2(b.billingWeight||b.unloadingWeight||b.loadingWeight),
+            round2(b.billingWeight||b.unloadingWeight||b.loadingWeight),upper(b.supplierName),
             round2(b.billingWeight||b.unloadingWeight||b.loadingWeight),round2(b.rate),
             upper(b.status||'BOOKED'),b.notes||'',b.podFileName||'',b.podData||'',id
           );
+          if(upper(b.supplierName)){
+            await ensureSupplierAccountForName(env,b.supplierName);
+            await run(env,`UPDATE truck_payments SET owner_name=?,updated_at=CURRENT_TIMESTAMP WHERE trip_id=?`,upper(b.supplierName),id);
+            await run(env,`UPDATE supplier_payments SET owner_name=?,updated_at=CURRENT_TIMESTAMP WHERE trip_id=?`,upper(b.supplierName),id);
+          }
 
           // Keep the linked invoice line synchronized.
           if(old?.invoice_item_id){

@@ -75,6 +75,8 @@ export function buildSupplierLedgerModel(payload={},name='',bootstrap={}){
     expensesByTrip.get(tripId).push(expense);
   }
 
+  const truckNumbers=new Set();
+  for(const truck of bootstrap.trucks||[])if(String(truck.owner_name||'').toUpperCase()===String(ownerName).toUpperCase()&&truck.truck_no)truckNumbers.add(String(truck.truck_no).toUpperCase());
   const rows=[];
   for(const entry of payload.entries||[]){
     const tripId=String(entry.trip_id||'');
@@ -91,12 +93,14 @@ export function buildSupplierLedgerModel(payload={},name='',bootstrap={}){
     const calculated=round2(weight*rate);
     const hireCost=calculated||round2(num(entry.payable)+deduction);
     const totalDue=round2(hireCost+charges-advance-deduction-payments);
+    if(entry.truck_no||trip.truck_no)truckNumbers.add(String(entry.truck_no||trip.truck_no).toUpperCase());
     rows.push({
       kind:'TRIP',
       sortDate:entry.entry_date||trip.trip_date||'',
       lrNumber:item.lr_number||invoice.lr_no||trip.lr_number||'-',
       tripDate:entry.entry_date||trip.trip_date||'',
       truckNo:entry.truck_no||trip.truck_no||'-',
+      supplierName:ownerName,
       route:`${entry.loading_point||trip.loading_point||'-'} to ${entry.unloading_point||trip.unloading_point||'-'}`,
       material:trip.material||invoice.material||'Market',
       rateText:`Rs. ${money(rate)} x ${number3(weight)} T`,
@@ -111,12 +115,14 @@ export function buildSupplierLedgerModel(payload={},name='',bootstrap={}){
       const weight=num(item?.weight);
       const rate=num(item?.supplier_rate);
       const hireCost=round2(item?num(item.supplier_amount):num(bill.supplier_total));
+      if(item?.truck_no)truckNumbers.add(String(item.truck_no).toUpperCase());
       rows.push({
         kind:'PM_BILL',
         sortDate:bill.bill_date||'',
         lrNumber:bill.bill_no||'-',
         tripDate:bill.bill_date||'',
         truckNo:item?.truck_no||'-',
+        supplierName:ownerName,
         route:item?`${item.loading_point||'-'} to ${item.unloading_point||'-'}`:'PM Bill',
         material:'NON-GST BILL',
         rateText:item?`Rs. ${money(rate)} x ${number3(weight)} T`:'-',
@@ -144,7 +150,7 @@ export function buildSupplierLedgerModel(payload={},name='',bootstrap={}){
     }
     if(remaining>0){
       rows.push({
-        kind:'PAYMENT',sortDate:payment.payment_date||'',lrNumber:payment.receipt_no||'-',tripDate:payment.payment_date||'',truckNo:payment.truck_no||'-',
+        kind:'PAYMENT',sortDate:payment.payment_date||'',lrNumber:payment.receipt_no||'-',tripDate:payment.payment_date||'',truckNo:payment.truck_no||'-',supplierName:ownerName,
         route:'GENERAL SUPPLIER PAYMENT',material:'PAYMENT',rateText:'-',hireCost:0,
         advance:classifyPayment(payment)==='advance'?remaining:0,charges:0,deduction:0,payments:classifyPayment(payment)==='advance'?0:remaining,
         totalDue:-remaining
@@ -163,7 +169,7 @@ export function buildSupplierLedgerModel(payload={},name='',bootstrap={}){
   return {
     ownerName,ledgerNo,asOn,fromDate:dates[0]||'',toDate:dates[dates.length-1]||'',
     tripCount:(payload.entries||[]).length,pmBillCount:(payload.pmBills||[]).length,
-    rows,totalDue:apiBalance,calculatedDue
+    rows,totalDue:apiBalance,calculatedDue,truckNumbers:[...truckNumbers].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}))
   };
 }
 
@@ -216,7 +222,7 @@ function drawCell(pdf,{x,y,w,h,text='',font='F1',size=5.1,align='left',fill=null
   }
 }
 const columns=[
-  ['S.No.',18],['LR Number',36],['Trip Date',38],['Truck No',50],['Route',55],['Material',40],['Rate',58],
+  ['S.No.',18],['LR Number',36],['Trip Date',38],['Truck / Supplier',58],['Route',47],['Material',40],['Rate',58],
   ['Truck Hire Cost',48],['Advance',38],['Charges',36],['Deduction',40],['Payments',40],['Total Due',46]
 ];
 const tableX=26;
@@ -230,7 +236,8 @@ function drawHeader(pdf,model,pageNo,totalPages,firstPage){
     pdf.text('Total Due :',26,758,8,{font:'F2',color:[0.05,0.12,0.22]});
     const summary=`${model.tripCount} Trips${model.pmBillCount?` + ${model.pmBillCount} PM Bills`:''}  |  Rs. ${money(Math.round(model.totalDue))}`;
     pdf.text(summary,PAGE_W-27,758,8,{font:'F2',align:'right',color:[0.05,0.12,0.22]});
-    return 740;
+    if(model.truckNumbers?.length)pdf.wrappedText(`Trucks: ${model.truckNumbers.join(' / ')}`,26,744,PAGE_W-52,6.2,{font:'F1',align:'left',maxLines:2,color:[0.25,0.32,0.42]});
+    return model.truckNumbers?.length?726:740;
   }
   pdf.text('MEERA LOGISTICS',26,813,10,{font:'F2',color:[0.05,0.12,0.22]});
   pdf.text(`${model.ledgerNo?model.ledgerNo+' - ':''}${model.ownerName}`,PAGE_W-27,813,8,{font:'F2',align:'right',color:[0.05,0.12,0.22]});
@@ -247,7 +254,7 @@ function drawTableHeader(pdf,top){
 }
 function drawDataRow(pdf,row,index,y,h){
   const values=[
-    String(index+1),row.lrNumber||'-',formatDate(row.tripDate),row.truckNo||'-',row.route||'-',row.material||'-',row.rateText||'-',
+    String(index+1),row.lrNumber||'-',formatDate(row.tripDate),`${row.truckNo||'-'} / ${row.supplierName||'-'}`,row.route||'-',row.material||'-',row.rateText||'-',
     `Rs. ${money(Math.round(row.hireCost))}`,`Rs. ${money(Math.round(row.advance))}`,`Rs. ${money(Math.round(row.charges))}`,`Rs. ${money(Math.round(row.deduction))}`,
     `Rs. ${money(Math.round(row.payments))}`,`Rs. ${money(Math.round(row.totalDue))}`
   ];

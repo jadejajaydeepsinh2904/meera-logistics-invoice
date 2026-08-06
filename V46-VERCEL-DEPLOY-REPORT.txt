@@ -1,0 +1,10 @@
+V46 VERCEL DEPLOY FIX
+
+Root cause fixed:
+- GitHub root contained an old package.json that was actually invoice data, so Vercel treated it as a Node package.
+- V46 replaces it with a valid minimal package.json.
+- Dependency installation is explicitly skipped.
+- Build command only confirms the static public folder is ready.
+- Output directory remains public.
+- V45 Trip Amount and Supplier Edit features are unchanged.
+- Login, Cloudflare Worker and D1 schema are unchanged.

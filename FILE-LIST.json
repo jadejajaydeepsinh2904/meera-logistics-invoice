@@ -1,52 +1,52 @@
 {
-  "version": "V43-SMART-OPERATIONS-SUITE",
-  "source": "V42 clean dashboard + V41 supplier ledger + V40 party ledger + V39 stable invoice",
-  "login_code_changed": false,
-  "schema_version": "34 unchanged",
+  "version": "V46-VERCEL-DEPLOY-FIX",
+  "source": "V45 Trip Amount + Supplier Edit full project",
+  "protected_backend_changed": false,
   "checks": {
+    "valid_root_package_json": "passed",
+    "vercel_install_skipped": "passed",
+    "static_build_command": "passed",
+    "output_directory_public": "passed",
     "javascript_syntax": "passed",
-    "worker_runtime_booking_approval_dispatch_trip": "passed",
-    "recycle_restore_runtime": "passed",
-    "system_health_runtime": "passed",
-    "monthly_export_runtime": "passed",
-    "scheduled_backup_runtime": "passed",
-    "excel_export_import_runtime": "passed",
-    "pwa_service_worker_syntax": "passed",
-    "compact_sidebar": "passed",
-    "calendar": "passed",
-    "command_palette": "passed",
-    "multi_image_gallery": "passed",
-    "json_validation": "passed"
+    "public_index_exists": "passed",
+    "login_worker_d1_unchanged": "passed"
   },
-  "features": [
-    "Creative Professional Calendar",
-    "Recycle Bin with Restore",
-    "Command Palette Ctrl+K",
-    "System Health Dashboard",
-    "Booking to Approval to Dispatch to Trip Workflow",
-    "Approval System",
-    "Automatic Monthly Excel Generation",
-    "Daily Scheduled Backup",
-    "Multi-sheet Excel Import/Export",
-    "Offline PWA Queue and Sync",
-    "Truck Documents Multi-image Gallery"
-  ],
-  "total_files": 39,
+  "total_files": 46,
   "files": [
     {
-      "path": "ADVANCED-V43-TEST-REPORT.txt",
-      "size": 1385,
-      "sha256": "7175c297a99629beb5c07a0cddf6777780d8232d0d00f4b95494c94b2f7d9e2b"
+      "path": ".vercelignore",
+      "size": 23,
+      "sha256": "a075e028fd7ee97f3b4cc2062c5449406cbbe47f5ef22929ddf31b360cf6b939"
     },
     {
       "path": "README.md",
-      "size": 19166,
-      "sha256": "5305fa0ebaab16e6e2da3bdf5130df813449652417494219cdc657a38eefab2c"
+      "size": 20681,
+      "sha256": "2e34aef15873ef466d0feb55e2d4ef36f15e8af94abea1e11f1066ae0b87b8d6"
     },
     {
       "path": "START-HERE.txt",
-      "size": 16514,
-      "sha256": "d1bdbe880f97c6a6567ffcdb92548f0d56959b77f0bea73e63b9e4bddd91d21e"
+      "size": 18029,
+      "sha256": "d5a5cec68a808e7d16d6fdd1c92a636b4e7ae1f9aad97c67274dc0eca7b924ac"
+    },
+    {
+      "path": "V44-TEST-REPORT.txt",
+      "size": 1611,
+      "sha256": "2d6f172465ed27194f106b7605bc31a9393fd585f3837d5688c6416227c8dd93"
+    },
+    {
+      "path": "V45-TEST-REPORT.txt",
+      "size": 646,
+      "sha256": "b1076577e0b4dd88fdad41755764b5d41d4c515b44e4f072a5593de7cfb10411"
+    },
+    {
+      "path": "V46-VERCEL-DEPLOY-REPORT.txt",
+      "size": 475,
+      "sha256": "162219c8587a2ec9dc398714ed33484b13386b8f791b52633433c7d072afd8d0"
+    },
+    {
+      "path": "package.json",
+      "size": 245,
+      "sha256": "9cebe7ba146f445b1a6543f45e8b006cd2de70f4ef4ce825466079d72bc78913"
     },
     {
       "path": "public/assets/meera-logo-pdf.jpg",
@@ -67,6 +67,16 @@
       "path": "public/assets/meera-partner-stamp.png",
       "size": 103399,
       "sha256": "c79b6f6a60394e5dc4f2d1a528f57ef52cf37f44c764794f942897cfa283d1c1"
+    },
+    {
+      "path": "public/cache-reset-v44.html",
+      "size": 866,
+      "sha256": "8d51843fa1d6182bbff51829afe04d7458b78cb5db773ae51e35be0b123314cc"
+    },
+    {
+      "path": "public/cache-reset-v45.html",
+      "size": 589,
+      "sha256": "5d796a1ee31bcddacf60571deb6a3d8480553af1cec7b2079fd8af9dcd6a9ae5"
     },
     {
       "path": "public/data/invoices.json",
@@ -116,7 +126,7 @@
     {
       "path": "public/index.html",
       "size": 1047,
-      "sha256": "d09db119dad78c7a4eba606369ef211e6abc659f1ec83197e505afa19970ffdb"
+      "sha256": "feb2e91a60ab10ad462dbbde45f646cfa6cdffed3bdb48d6f73d34873c539e45"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -124,19 +134,19 @@
       "sha256": "a2220c9b3905a08496b7b578b6194306bd22c5d0e6728a4c6416d5e9365a4ade"
     },
     {
-      "path": "public/src/advanced-v43.css",
-      "size": 8422,
-      "sha256": "11f07691d2f2c2f46121b347b0f21c1e8e654cefb5b7d497a158fe30486dc4ec"
+      "path": "public/src/advanced-v44.css",
+      "size": 9563,
+      "sha256": "2751845ce85704a27d9212bed3008eab758b277d532d21db54bcac598b0966be"
     },
     {
-      "path": "public/src/advanced-v43.js",
-      "size": 32084,
-      "sha256": "3867d9d1ee4c7d4fbaa3de1abd18b6d048f0e149fd409166b317167a9e819f79"
+      "path": "public/src/advanced-v44.js",
+      "size": 38374,
+      "sha256": "39deb37da6a5b5130203e6acad4374b083a8689f16a66033d3d96cc78ff29233"
     },
     {
       "path": "public/src/app.js",
-      "size": 103349,
-      "sha256": "c70ebbb8ed99cb5c5ae1158d7ef428229480ba00c69428f80ef0c3237f457304"
+      "size": 111934,
+      "sha256": "ea38adfbb0b0b2090b8a63993323bc74e6b7a60aea80b305722a5b2624614ac8"
     },
     {
       "path": "public/src/core/api.js",
@@ -145,8 +155,8 @@
     },
     {
       "path": "public/src/invoice-pdf-v39.js",
-      "size": 14313,
-      "sha256": "d0734017ccc08cb65614f668b3ab9d774b5f4419e37cde0d40d950a9a5acecf3"
+      "size": 14811,
+      "sha256": "8c30e8d8f04390f19d31ad9971f8d84da3f21e5d5ed78015c71e36758346ae75"
     },
     {
       "path": "public/src/invoice-v36.css",
@@ -155,8 +165,8 @@
     },
     {
       "path": "public/src/invoice-v36.js",
-      "size": 12615,
-      "sha256": "eff61f949c90187c94fc838a5d3675f9a80c465854d9b54ad672dd33e07b343e"
+      "size": 13261,
+      "sha256": "5803ea5631162cdacc814eff8d8d006b1e90867d3e7d7d38600bcb85f3d861e6"
     },
     {
       "path": "public/src/party-ledger-pdf-v40.js",
@@ -180,28 +190,33 @@
     },
     {
       "path": "public/src/supplier-ledger-pdf-v41.js",
-      "size": 16236,
-      "sha256": "e2f5cbfb47604476ba159a0fd56139c41684aea02f01bb8858abe4e45f901395"
+      "size": 17069,
+      "sha256": "ae207f0716c9ed8e82df7c58661d1d6e5c66a60eef8a3bd718becf6676d8bc67"
     },
     {
       "path": "public/src/supplier-ledger-v41.css",
-      "size": 3807,
-      "sha256": "582b1205a9da8e1d1a6cc7134c60dee6c11ae7d1692c60e04e7091bb97f4b3fc"
+      "size": 4615,
+      "sha256": "00a63c162c860ccd5d31c1cd927994fac48994053aee84d38ca66022fc8bbe76"
     },
     {
       "path": "public/src/supplier-ledger-v41.js",
-      "size": 6745,
-      "sha256": "d8b30f4a25fd33eedc51023f143f12562a8821695fda163b35309687237afc8e"
+      "size": 6968,
+      "sha256": "3127397e6a7b98ed0eb7c9069f82fe54b2c14c0a8bb3bbd3344d059889d40dd9"
     },
     {
-      "path": "public/sw-v43.js",
-      "size": 3812,
-      "sha256": "1c3a5913cd7578786d4955bfdae057b0ec1f7626a34970714036e9730688896e"
+      "path": "public/sw-v44.js",
+      "size": 4165,
+      "sha256": "075df98f87eac13776eca058fb4fcd7f14757f9819e604f613682675882795bb"
+    },
+    {
+      "path": "public/sw-v45.js",
+      "size": 4165,
+      "sha256": "7bee83e1b300b27613aea59248442b9e54d05581ac4c1d10a07b41beb23c8fa9"
     },
     {
       "path": "vercel.json",
-      "size": 482,
-      "sha256": "1c529052a69a7985fbd2d8651b94c46f708f7794798e486440a1af7e8922a761"
+      "size": 541,
+      "sha256": "128ed16c320827e9a774b0c2f3c20153261749c13e92426ea7026af427b64cbb"
     },
     {
       "path": "worker/migrations/0001_init.sql",
@@ -215,8 +230,8 @@
     },
     {
       "path": "worker/src/index.js",
-      "size": 98293,
-      "sha256": "0f1d600beed33503026c5112149f276874d59d9b3d809cb8a29d1659a26ff258"
+      "size": 103410,
+      "sha256": "acd37f25509385b0d42c39fab97d1e221e436c9ee583087dae6231b6c5089da2"
     },
     {
       "path": "worker/src/seed-data.js",
