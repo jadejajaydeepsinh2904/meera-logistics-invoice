@@ -1,17 +1,19 @@
 {
-  "version": "V46-VERCEL-DEPLOY-FIX",
-  "source": "V45 Trip Amount + Supplier Edit full project",
-  "protected_backend_changed": false,
+  "version": "V47-PARTY-LEDGER-NUMBER-FIX",
+  "source": "V46 Vercel Deploy Fix full project",
+  "protected_login_changed": false,
+  "schema_version": "34 unchanged",
   "checks": {
-    "valid_root_package_json": "passed",
-    "vercel_install_skipped": "passed",
-    "static_build_command": "passed",
-    "output_directory_public": "passed",
+    "party_auto_mlp_series": "passed",
+    "legacy_blank_ledger_repair": "passed",
+    "duplicate_ledger_collision_retry": "passed",
+    "quick_add_party_mlp": "passed",
+    "party_form_auto_readonly": "passed",
     "javascript_syntax": "passed",
-    "public_index_exists": "passed",
-    "login_worker_d1_unchanged": "passed"
+    "vercel_build": "passed",
+    "login_d1_schema_unchanged": "passed"
   },
-  "total_files": 46,
+  "total_files": 48,
   "files": [
     {
       "path": ".vercelignore",
@@ -20,13 +22,13 @@
     },
     {
       "path": "README.md",
-      "size": 20681,
-      "sha256": "2e34aef15873ef466d0feb55e2d4ef36f15e8af94abea1e11f1066ae0b87b8d6"
+      "size": 21301,
+      "sha256": "dcaf688237d461723982fb0253f84259b089241fb7fa1d5a4917ab30dcf87c54"
     },
     {
       "path": "START-HERE.txt",
-      "size": 18029,
-      "sha256": "d5a5cec68a808e7d16d6fdd1c92a636b4e7ae1f9aad97c67274dc0eca7b924ac"
+      "size": 18649,
+      "sha256": "ca18468b9f8effd753968326b6fac59e2daeb6d0eba06e838bcf5e6464948387"
     },
     {
       "path": "V44-TEST-REPORT.txt",
@@ -42,6 +44,11 @@
       "path": "V46-VERCEL-DEPLOY-REPORT.txt",
       "size": 475,
       "sha256": "162219c8587a2ec9dc398714ed33484b13386b8f791b52633433c7d072afd8d0"
+    },
+    {
+      "path": "V47-PARTY-LEDGER-FIX-REPORT.txt",
+      "size": 618,
+      "sha256": "85b7723e0e7706f36f04d5a6bb6e864cac777bf7ede788ad2dc3973434d79ff3"
     },
     {
       "path": "package.json",
@@ -77,6 +84,11 @@
       "path": "public/cache-reset-v45.html",
       "size": 589,
       "sha256": "5d796a1ee31bcddacf60571deb6a3d8480553af1cec7b2079fd8af9dcd6a9ae5"
+    },
+    {
+      "path": "public/cache-reset-v47.html",
+      "size": 542,
+      "sha256": "71e91d67627fcfd1255ee85040a191169627116d2bd52661afdc6b95200e844d"
     },
     {
       "path": "public/data/invoices.json",
@@ -126,7 +138,7 @@
     {
       "path": "public/index.html",
       "size": 1047,
-      "sha256": "feb2e91a60ab10ad462dbbde45f646cfa6cdffed3bdb48d6f73d34873c539e45"
+      "sha256": "4191c28c7a867ef533481d21800eeb161a446cf461ae467ba4087ba3305e826c"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -145,8 +157,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 111934,
-      "sha256": "ea38adfbb0b0b2090b8a63993323bc74e6b7a60aea80b305722a5b2624614ac8"
+      "size": 111982,
+      "sha256": "db2c398d3a46fa4ae68dd92d16cd311fca84702bdcb10705e0e7ca0efdb4741a"
     },
     {
       "path": "public/src/core/api.js",
@@ -230,8 +242,8 @@
     },
     {
       "path": "worker/src/index.js",
-      "size": 103410,
-      "sha256": "acd37f25509385b0d42c39fab97d1e221e436c9ee583087dae6231b6c5089da2"
+      "size": 107502,
+      "sha256": "8193e5d19610cfb6c7bcfd896b6a0ca1ba463ef03cdc2153dce838605a7e9cf3"
     },
     {
       "path": "worker/src/seed-data.js",

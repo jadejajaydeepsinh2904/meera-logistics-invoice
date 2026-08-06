@@ -106,6 +106,54 @@ async function ensureTripWeightColumns(env){
   for(const sql of statements)await safe(env,sql);
 }
 
+async function currentPartyLedgerMax(env){
+  const rows=await all(env,`SELECT ledger_no FROM party_accounts WHERE COALESCE(TRIM(ledger_no),'')<>''`);
+  let max=0;
+  for(const row of rows){
+    const match=String(row.ledger_no||'').match(/MLP\s*0*(\d+)/i);
+    if(match)max=Math.max(max,Number(match[1]));
+  }
+  return max;
+}
+async function reservePartyLedgerNumber(env){
+  let next=(await currentPartyLedgerMax(env))+1;
+  for(let attempt=0;attempt<1000;attempt++,next++){
+    const ledgerNo=`MLP ${String(next).padStart(3,'0')}`;
+    const exists=await first(env,`SELECT id FROM party_accounts WHERE ledger_no=? LIMIT 1`,ledgerNo);
+    if(!exists)return ledgerNo;
+  }
+  throw new Error('Unable to allocate Party ledger number');
+}
+async function ensurePartyLedgerForId(env,id){
+  const row=await first(env,`SELECT id,ledger_no FROM party_accounts WHERE id=? LIMIT 1`,id);
+  if(!row)return '';
+  if(String(row.ledger_no||'').trim())return String(row.ledger_no).trim();
+  for(let attempt=0;attempt<1000;attempt++){
+    const ledgerNo=await reservePartyLedgerNumber(env);
+    try{
+      await run(env,`UPDATE party_accounts SET ledger_no=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND COALESCE(TRIM(ledger_no),'')=''`,ledgerNo,id);
+      const saved=await first(env,`SELECT ledger_no FROM party_accounts WHERE id=? LIMIT 1`,id);
+      if(saved?.ledger_no)return saved.ledger_no;
+    }catch(error){
+      if(!/UNIQUE|constraint/i.test(String(error?.message||error)))throw error;
+    }
+  }
+  throw new Error('Unable to save Party ledger number');
+}
+async function ensureAllPartyLedgerNumbers(env){
+  const rows=await all(env,`SELECT id FROM party_accounts WHERE ledger_no IS NULL OR TRIM(ledger_no)='' ORDER BY party_name,id`);
+  for(const row of rows)await ensurePartyLedgerForId(env,row.id);
+}
+async function normalizeRequestedPartyLedger(env,value,excludeId=''){
+  const requested=upper(value);
+  if(!requested)return reservePartyLedgerNumber(env);
+  const exists=excludeId
+    ? await first(env,`SELECT id FROM party_accounts WHERE ledger_no=? AND id<>? LIMIT 1`,requested,excludeId)
+    : await first(env,`SELECT id FROM party_accounts WHERE ledger_no=? LIMIT 1`,requested);
+  if(exists)throw new Error(`Party ledger number ${requested} already exists`);
+  return requested;
+}
+
 async function ensureSupplierAccountForName(env,value){
   const name=upper(value);
   if(!name)return '';
@@ -472,7 +520,9 @@ async function audit(env,user,action,entity,id,payload={}){
 async function upsertMasters(env,b){
   if(b.partyName){
     const name=upper(b.partyName);
-    await run(env, `INSERT OR IGNORE INTO party_accounts(id,party_name) VALUES(?,?)`,uid('PA'),name);
+    await run(env, `INSERT OR IGNORE INTO party_accounts(id,ledger_no,party_name) VALUES(?,?,?)`,uid('PA'),null,name);
+    const party=await first(env,`SELECT id FROM party_accounts WHERE party_name=? LIMIT 1`,name);
+    if(party?.id)await ensurePartyLedgerForId(env,party.id);
   }
   if(b.truckNo){
     const no=upper(b.truckNo);
@@ -508,6 +558,7 @@ function nextNumber(rows,defaultPrefix='ML - '){
 function pathParts(path){ return path.replace(/^\/api\/?/,'').split('/').filter(Boolean); }
 
 async function bootstrap(env,user){
+  await ensureAllPartyLedgerNumbers(env);
   const [
     parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
     pmBills,pmBillItems,truckEntries,supplierPayments,supplierAccounts,expenses,documents,audits
@@ -1091,7 +1142,7 @@ export default {
           for(const t of tables)await env.DB.prepare(`DELETE FROM ${t}`).run();
         }
         const rows=data;
-        for(const p of rows.parties||[])await run(env,`INSERT OR REPLACE INTO party_accounts(id,ledger_no,party_name,address,gst_no,mobile,email) VALUES(?,?,?,?,?,?,?)`,p.id||uid('PA'),p.ledger_no||'',upper(p.party_name),p.address||'',p.gst_no||'',p.mobile||'',p.email||'');
+        for(const p of rows.parties||[])await run(env,`INSERT OR REPLACE INTO party_accounts(id,ledger_no,party_name,address,gst_no,mobile,email) VALUES(?,?,?,?,?,?,?)`,p.id||uid('PA'),String(p.ledger_no||'').trim()||null,upper(p.party_name),p.address||'',p.gst_no||'',p.mobile||'',p.email||'');
         for(const p of rows.partyPayments||[])await run(env,`INSERT OR REPLACE INTO party_payments(id,receipt_no,trip_id,party_name,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?)`,p.id||uid('PP'),p.receipt_no||'',p.trip_id||'',upper(p.party_name),p.payment_date,num(p.amount),upper(p.payment_mode),p.reference||'',p.notes||'');
         for(const t of rows.trucks||[])await run(env,`INSERT OR REPLACE INTO trucks(id,truck_no,owner_name,owner_mobile,bank_details) VALUES(?,?,?,?,?)`,t.id||uid('TRK'),upper(t.truck_no),upper(t.owner_name),t.owner_mobile||'',t.bank_details||'');
         for(const r of rows.routes||[])await run(env,`INSERT OR REPLACE INTO routes(id,loading_point,unloading_point) VALUES(?,?,?)`,r.id||uid('RTE'),upper(r.loading_point),upper(r.unloading_point));
@@ -1102,6 +1153,7 @@ export default {
         for(const e of rows.truckEntries||[])await run(env,`INSERT OR REPLACE INTO truck_payments(id,trip_id,entry_date,truck_no,owner_name,bank_details,loading_point,unloading_point,weight,rate,commission,payable,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,e.id||uid('TE'),e.trip_id||'',e.entry_date,upper(e.truck_no),upper(e.owner_name),e.bank_details||'',upper(e.loading_point),upper(e.unloading_point),num(e.weight),num(e.rate),num(e.commission),num(e.payable),e.notes||'');
         for(const p of rows.supplierPayments||[])await run(env,`INSERT OR REPLACE INTO supplier_payments(id,receipt_no,trip_id,owner_name,truck_no,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?,?)`,p.id||uid('SP'),p.receipt_no||'',p.trip_id||'',upper(p.owner_name),upper(p.truck_no),p.payment_date,num(p.amount),upper(p.payment_mode),p.reference||'',p.notes||'');
         for(const e of rows.expenses||[])await run(env,`INSERT OR REPLACE INTO expenses(id,trip_id,expense_date,category,amount,notes) VALUES(?,?,?,?,?,?)`,e.id||uid('EXP'),e.trip_id||'',e.expense_date,upper(e.category),num(e.amount),e.notes||'');
+        await ensureAllPartyLedgerNumbers(env);
         await audit(env,user,'IMPORT','backup','', {mode:b.mode||'merge'});
         return json({ok:true});
       }
@@ -1111,12 +1163,34 @@ export default {
         if(req.method==='POST'){
           const b=await requestBody(req),name=upper(b.partyName),newId=uid('PA');
           if(!name)return json({error:'Party name required'},400);
-          await run(env,`INSERT INTO party_accounts(id,ledger_no,party_name,address,gst_no,mobile,email) VALUES(?,?,?,?,?,?,?)`,newId,b.ledgerNo||'',name,b.address||'',upper(b.gstNo),b.mobile||'',b.email||'');
-          await audit(env,user,'CREATE','party',newId,b);return json({ok:true,id:newId});
+          const existingName=await first(env,`SELECT id FROM party_accounts WHERE party_name=? LIMIT 1`,name);
+          if(existingName)return json({error:'Party name already exists'},409);
+          try{
+            const ledgerNo=await normalizeRequestedPartyLedger(env,b.ledgerNo);
+            await run(env,`INSERT INTO party_accounts(id,ledger_no,party_name,address,gst_no,mobile,email) VALUES(?,?,?,?,?,?,?)`,newId,ledgerNo,name,b.address||'',upper(b.gstNo),b.mobile||'',b.email||'');
+            await audit(env,user,'CREATE','party',newId,{...b,ledgerNo});
+            return json({ok:true,id:newId,ledgerNo});
+          }catch(error){
+            const message=String(error?.message||error);
+            if(/UNIQUE|constraint|already exists/i.test(message))return json({error:message.includes('already exists')?message:'Party ledger number already exists. Please try again.'},409);
+            throw error;
+          }
         }
         if(req.method==='PUT'&&id){
-          const b=await requestBody(req),old=await first(env,`SELECT party_name FROM party_accounts WHERE id=?`,id),name=upper(b.partyName);
-          await run(env,`UPDATE party_accounts SET ledger_no=?,party_name=?,address=?,gst_no=?,mobile=?,email=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,b.ledgerNo||'',name,b.address||'',upper(b.gstNo),b.mobile||'',b.email||'',id);
+          const b=await requestBody(req),old=await first(env,`SELECT party_name,ledger_no FROM party_accounts WHERE id=?`,id),name=upper(b.partyName);
+          if(!old)return json({error:'Party not found'},404);
+          if(!name)return json({error:'Party name required'},400);
+          const duplicateName=await first(env,`SELECT id FROM party_accounts WHERE party_name=? AND id<>? LIMIT 1`,name,id);
+          if(duplicateName)return json({error:'Party name already exists'},409);
+          try{
+            const ledgerNo=String(b.ledgerNo||old.ledger_no||'').trim()||await normalizeRequestedPartyLedger(env,'',id);
+            if(ledgerNo!==String(old.ledger_no||'').trim())await normalizeRequestedPartyLedger(env,ledgerNo,id);
+            await run(env,`UPDATE party_accounts SET ledger_no=?,party_name=?,address=?,gst_no=?,mobile=?,email=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,ledgerNo,name,b.address||'',upper(b.gstNo),b.mobile||'',b.email||'',id);
+          }catch(error){
+            const message=String(error?.message||error);
+            if(/UNIQUE|constraint|already exists/i.test(message))return json({error:message.includes('already exists')?message:'Party ledger number already exists. Please try again.'},409);
+            throw error;
+          }
           if(old&&old.party_name!==name){
             await run(env,`UPDATE invoices SET party_name=? WHERE party_name=?`,name,old.party_name);
             await run(env,`UPDATE trips SET party_name=? WHERE party_name=?`,name,old.party_name);

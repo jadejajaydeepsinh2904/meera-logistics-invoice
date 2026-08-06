@@ -1366,7 +1366,7 @@ function invoiceForm(x={},tripContext=null){
 function partyForm(x={}){
   x=x||{};
   const edit=!!x.id,host=modal(edit?'Edit Party':'New Party',`<form class="form-grid" id="partyForm">
-    ${field('Ledger Number','ledgerNo',x.ledger_no||'')}
+    ${field('Ledger Number (Auto)','ledgerNo',x.ledger_no||'','text','readonly placeholder="Auto MLP"')}
     ${field('Party Name','partyName',x.party_name||'','text','required')}
     ${field('GST Number','gstNo',x.gst_no||'')}
     ${field('Mobile','mobile',x.mobile||'','tel')}

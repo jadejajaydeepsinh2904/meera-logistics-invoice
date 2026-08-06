@@ -389,3 +389,15 @@ V45 TRIP AMOUNT & SUPPLIER EDIT
 - Editing a Trip supplier updates linked Truck/Supplier Entry and Supplier Payments for the same trip_id.
 - A new PML supplier account is created automatically when a new per-trip supplier name is used.
 - Login/authentication and schema_version 34 are unchanged; supplier_name is added lazily only when Trip operations run.
+
+
+V47 PARTY LEDGER NUMBER FIX
+
+- Fixed D1 UNIQUE constraint failed: party_accounts.ledger_no.
+- Every new Party receives the next collision-safe MLP series automatically.
+- Existing blank/NULL Party ledger numbers are repaired after successful login during bootstrap.
+- Quick Add Party and master auto-creation also receive MLP numbers.
+- Duplicate Party names and manually duplicated ledger numbers return a clear message instead of a raw D1 error.
+- Party form shows Ledger Number as automatic/read-only.
+- Login, authentication and D1 schema_version 34 were not changed.
+- V46 Vercel deployment fix remains included.
