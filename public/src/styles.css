@@ -341,15 +341,67 @@ select option[value="__ADD_NEW__"]{font-weight:800;color:#2457d2}
 .invoice-line input[readonly]{background:#f3f6fa}
 @media(max-width:700px){.invoice-line{grid-template-columns:1fr 1fr!important;min-width:0!important}.invoice-line button{align-self:end}}
 
-/* V54 Supplier / Truck UX */
-.v54-supplier-row{align-items:stretch;gap:14px}
-.v54-ledger-open{all:unset;display:block;cursor:pointer;flex:1;min-width:0}
-.v54-supplier-actions{display:flex;min-width:190px;flex-direction:column;align-items:flex-end;gap:7px;justify-content:center}
-.v54-supplier-actions .btn{width:150px;padding:7px 10px}
-.v54-truck-pay-chip{display:flex!important;align-items:center;gap:8px;padding:7px 8px!important}
-.v54-truck-main{all:unset;cursor:pointer;display:flex;flex-direction:column;min-width:145px}
-.v54-truck-pay-chip .mini{white-space:nowrap}
+/* V54/V55 Supplier / Truck UX */
 .v54-linked-trucks{display:flex;gap:7px;flex-wrap:wrap;padding-top:7px}
 .v54-linked-truck{border:1px solid #d5dbe5;background:#f7f9fc;border-radius:999px;padding:7px 11px;cursor:pointer;font-weight:700}
 .v54-linked-truck.active{outline:2px solid currentColor}
-@media(max-width:760px){.v54-supplier-row{flex-direction:column}.v54-supplier-actions{align-items:stretch;width:100%}.v54-supplier-actions .btn{width:100%}.v54-truck-pay-chip{width:100%;justify-content:space-between}.v54-truck-main{min-width:0}}
+.v54-supplier-actions{align-items:stretch;width:100%}.v54-supplier-actions .btn{width:100%}.v54-truck-pay-chip{width:100%;justify-content:space-between}.v54-truck-main{min-width:0}}
+
+/* V55 Clean Supplier Khata */
+.v55-supplier-title{align-items:flex-end}
+.v55-supplier-list{display:grid;gap:12px;margin-top:4px}
+.v55-supplier-card{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 270px;
+  gap:18px;
+  align-items:center;
+  padding:16px 18px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#fff;
+  box-shadow:0 1px 2px rgba(15,23,42,.03)
+}
+.v55-supplier-card:hover{border-color:#b8c5d6}
+.v55-supplier-main{min-width:0;display:grid;gap:10px}
+.v55-supplier-name{
+  all:unset;
+  cursor:pointer;
+  display:block;
+  min-width:0
+}
+.v55-supplier-name b{display:block;font-size:14px;line-height:1.35;color:var(--text)}
+.v55-supplier-name small{display:block;margin-top:5px;color:var(--muted);font-size:10px}
+.v55-truck-list{display:flex;gap:7px;flex-wrap:wrap}
+.v55-truck-chip{
+  display:inline-flex;
+  align-items:center;
+  min-height:28px;
+  padding:5px 10px;
+  border:1px solid #cfe0f5;
+  border-radius:999px;
+  background:#edf5ff;
+  color:#103d73
+}
+.v55-truck-chip b{font-size:10px;white-space:nowrap}
+.v55-no-truck{font-size:10px;color:var(--muted);padding:5px 0}
+.v55-supplier-summary{
+  display:grid;
+  gap:10px;
+  justify-items:end;
+  border-left:1px solid var(--line);
+  padding-left:18px
+}
+.v55-money{text-align:right}
+.v55-money small{display:block;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.v55-money b{display:block;margin-top:3px;font-size:18px;line-height:1.2}
+.v55-money span{display:block;margin-top:4px;font-size:9px;color:var(--muted)}
+.v55-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.v55-actions .btn{min-width:112px}
+@media(max-width:760px){
+  .v55-supplier-title{align-items:stretch}
+  .v55-supplier-card{grid-template-columns:1fr;gap:12px;padding:14px}
+  .v55-supplier-summary{border-left:0;border-top:1px solid var(--line);padding-left:0;padding-top:12px;justify-items:stretch}
+  .v55-money{text-align:left}
+  .v55-actions{justify-content:stretch}
+  .v55-actions .btn{flex:1;min-width:0}
+}

@@ -4,7 +4,7 @@
   <script>
   (async()=>{
     const q=new URLSearchParams(location.search);
-    if(q.get('reset')==='v54'){
+    if(q.get('reset')==='v55'){
       try{
         if('serviceWorker' in navigator){
           for(const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
@@ -27,7 +27,7 @@
   <meta name="theme-color" content="#10284c">
   <meta name="description" content="Meera Logistics Transport ERP">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/src/styles.css?v=54">
+  <link rel="stylesheet" href="/src/styles.css?v=55">
   <link rel="stylesheet" href="/src/invoice-v36.css?v=54">
   <link rel="stylesheet" href="/src/party-ledger-v40.css?v=40">
   <link rel="stylesheet" href="/src/supplier-ledger-v41.css?v=44">
@@ -36,7 +36,7 @@
 </head>
 <body>
   <div id="app"></div>
-  <script type="module" src="/src/app.js?v=54"></script>
+  <script type="module" src="/src/app.js?v=55"></script>
   <script type="module" src="/src/invoice-v36.js?v=54"></script>
   <script type="module" src="/src/party-ledger-v40.js?v=40"></script>
   <script type="module" src="/src/supplier-ledger-v41.js?v=44"></script>

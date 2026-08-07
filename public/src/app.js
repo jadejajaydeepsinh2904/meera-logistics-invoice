@@ -589,16 +589,43 @@ function suppliersPanel(d){
   const rows=all.filter(s=>{
     if(!state.search)return true;
     const trucks=supplierTruckNumbers(d,s.owner_name).join(' ').toLowerCase();
-    return String(s.owner_name||'').toLowerCase().includes(state.search)||String(s.ledger_no||'').toLowerCase().includes(state.search)||trucks.includes(state.search);
+    return String(s.owner_name||'').toLowerCase().includes(state.search)
+      ||String(s.ledger_no||'').toLowerCase().includes(state.search)
+      ||trucks.includes(state.search);
   });
-  return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Supplier Khata</h2><small>Supplier-wise ane truck-wise payable / payment</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search supplier or truck…"><button class="btn green" data-action="new-supplier-payment">Pay Supplier</button></div></div><div class="row-list">${rows.map(s=>{
-    const trucks=supplierTruckNumbers(d,s.owner_name);
-    const truckHtml=trucks.length?`<div class="supplier-truck-list">${trucks.map(no=>{
-      const bal=supplierTruckBalance(d,s.owner_name,no);
-      return `<div class="supplier-truck-chip v54-truck-pay-chip"><button class="v54-truck-main" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}"><b>${esc(no)}</b><small>${esc(s.owner_name)} · Pending ${money(bal.pending)}</small></button><button class="mini green" data-action="pay-supplier-truck" data-id="${supplierPayActionId(s.owner_name,no,bal.pending)}">₹ Pay</button></div>`;
-    }).join('')}</div>`:'<div class="supplier-truck-empty">No truck linked. New Truck Add dropdown thi truck link karo.</div>';
-    return `<div class="ledger-row supplier-ledger-row v54-supplier-row"><button class="supplier-ledger-main v54-ledger-open" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}"><b>${esc((s.ledger_no?s.ledger_no+' · ':'')+s.owner_name)}</b><small>${s.entries} freight entries · ${s.pm_bills||0} PM bills · ${s.payments} payments · ${trucks.length} trucks</small>${truckHtml}</button><div class="money-right v54-supplier-actions"><b>${money(s.pending)}</b><small>Payable ${money(s.payable)}</small><button class="btn green" data-action="pay-supplier-owner" data-id="${supplierPayActionId(s.owner_name,'',s.pending)}">₹ Pay Supplier</button><button class="btn soft" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}">Ledger View</button></div></div>`;
-  }).join('')}</div></div></section>`;
+  return `<section class="panel active"><div class="card">
+    <div class="section-title v55-supplier-title">
+      <div><h2>Supplier Khata</h2><small>Supplier-wise payable, payment ane linked trucks</small></div>
+      <div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search supplier or truck…"><button class="btn green" data-action="new-supplier-payment">Pay Supplier</button></div>
+    </div>
+    <div class="v55-supplier-list">${rows.map(s=>{
+      const trucks=supplierTruckNumbers(d,s.owner_name);
+      const truckHtml=trucks.length
+        ? `<div class="v55-truck-list">${trucks.map(no=>`<span class="v55-truck-chip"><b>${esc(no)}</b></span>`).join('')}</div>`
+        : `<div class="v55-no-truck">No truck linked</div>`;
+      const pending=Math.max(0,Number(s.pending||0));
+      return `<article class="v55-supplier-card">
+        <div class="v55-supplier-main">
+          <button class="v55-supplier-name" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}">
+            <b>${esc((s.ledger_no?s.ledger_no+' · ':'')+s.owner_name)}</b>
+            <small>${s.entries} freight entries · ${s.pm_bills||0} PM bills · ${s.payments} payments · ${trucks.length} trucks</small>
+          </button>
+          ${truckHtml}
+        </div>
+        <div class="v55-supplier-summary">
+          <div class="v55-money">
+            <small>Pending</small>
+            <b>${money(s.pending)}</b>
+            <span>Payable ${money(s.payable)} · Paid ${money(s.paid||0)}</span>
+          </div>
+          <div class="v55-actions">
+            <button class="btn green" data-action="pay-supplier-owner" data-id="${supplierPayActionId(s.owner_name,'',pending)}">₹ Pay Supplier</button>
+            <button class="btn soft" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}">Ledger View</button>
+          </div>
+        </div>
+      </article>`;
+    }).join('')||'<div class="empty">No supplier found.</div>'}</div>
+  </div></section>`;
 }
 function truckEntriesPanel(d){
   const rows=filterRows(d.truckEntries,['entry_date','truck_no','owner_name','loading_point','unloading_point']);

@@ -608,3 +608,23 @@ DATABASE
 
 CACHE RESET
 - Use /?reset=v54 after Vercel deployment.
+
+
+V55 CLEAN SUPPLIER KHATA
+
+Requested change:
+- Truck-wise Pay button removed completely from Supplier Khata UI.
+- Only one Pay Supplier button is shown for each supplier.
+- Ledger View remains available.
+- Linked truck numbers are shown as clean non-clicking chips only.
+- Supplier row layout rebuilt to prevent mixed/overlapping buttons and nested-button HTML.
+- Pending, Payable and Paid amounts are grouped cleanly on the right.
+- Mobile layout stacks cleanly.
+- All V54 dropdown/New Truck/New Supplier/Trip Supplier edit features remain unchanged.
+- Database schema remains V53; no D1 migration is needed for V55.
+- Invoice exact PDF View fix remains unchanged.
+
+Deploy:
+1. Upload complete V55 ZIP to GitHub main.
+2. Vercel redeploy is enough for this UI-only change.
+3. Open /?reset=v55 once.
