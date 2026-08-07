@@ -23,5 +23,11 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/cache-reset-v53",
+      "destination": "/cache-reset-v53.html"
+    }
   ]
 }

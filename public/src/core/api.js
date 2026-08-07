@@ -5,7 +5,8 @@ export const clearToken = () => localStorage.removeItem('ml_token');
 
 export async function api(path, options={}){
   const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),20000);
+  const timeoutMs=Number(options.timeoutMs||((path==='/login'||path==='/bootstrap')?45000:20000));
+  const timeout=setTimeout(()=>controller.abort(),timeoutMs);
   const headers = {...(options.headers||{})};
   if(!(options.body instanceof FormData)) headers['Content-Type']='application/json';
   if(options.auth!==false&&token()) headers.Authorization=`Bearer ${token()}`;

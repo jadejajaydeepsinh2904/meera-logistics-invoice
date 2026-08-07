@@ -1,0 +1,1 @@
+-- V53: fast user schema inspection, persistent SaaS marker, schema_version 53.

@@ -66,17 +66,21 @@ function canWriteResource(user,resource){
 }
 
 async function ensureUserTenantColumns(env){
-  // users is special because it is not in TENANT_TABLES.
-  // Run this before any company-scoped user query.
-  const statements=[
-    `ALTER TABLE users ADD COLUMN company_id TEXT DEFAULT '${DEFAULT_COMPANY_ID}'`,
-    `ALTER TABLE users ADD COLUMN full_name TEXT DEFAULT ''`,
-    `ALTER TABLE users ADD COLUMN email TEXT DEFAULT ''`,
-    `ALTER TABLE users ADD COLUMN mobile TEXT DEFAULT ''`,
-    `ALTER TABLE users ADD COLUMN updated_at TEXT DEFAULT ''`
+  const row=await first(env,`SELECT sql FROM sqlite_master WHERE type='table' AND name='users'`);
+  const sql=String(row?.sql||'');
+  if(!sql)return;
+  const columns=[
+    ['company_id',`ALTER TABLE users ADD COLUMN company_id TEXT DEFAULT '${DEFAULT_COMPANY_ID}'`],
+    ['full_name',`ALTER TABLE users ADD COLUMN full_name TEXT DEFAULT ''`],
+    ['email',`ALTER TABLE users ADD COLUMN email TEXT DEFAULT ''`],
+    ['mobile',`ALTER TABLE users ADD COLUMN mobile TEXT DEFAULT ''`],
+    ['updated_at',`ALTER TABLE users ADD COLUMN updated_at TEXT DEFAULT ''`]
   ];
-  for(const sql of statements)await safe(env,sql);
-  await run(env,`UPDATE users SET company_id=? WHERE company_id IS NULL OR TRIM(company_id)=''`,DEFAULT_COMPANY_ID);
+  const missing=columns.filter(([name])=>!new RegExp(`\\b${name}\\b`,'i').test(sql));
+  if(missing.length)await env.DB.batch(missing.map(([,ddl])=>env.DB.prepare(ddl)));
+  if(missing.some(([name])=>name==='company_id')){
+    await run(env,`UPDATE users SET company_id=? WHERE company_id IS NULL OR TRIM(company_id)=''`,DEFAULT_COMPANY_ID);
+  }
 }
 async function healTenantColumns(env){
   if(tenantColumnPromise)return tenantColumnPromise;
@@ -110,6 +114,11 @@ async function healTenantColumns(env){
 async function ensureSaasFoundation(env){
   if(saasFoundationPromise)return saasFoundationPromise;
   saasFoundationPromise=(async()=>{
+    try{
+      const ready=await first(env,`SELECT value FROM app_meta WHERE key='saas_ready_v53'`);
+      if(ready?.value==='1')return true;
+    }catch(_){}
+
   const creates=[
     `CREATE TABLE IF NOT EXISTS companies(
       id TEXT PRIMARY KEY,company_code TEXT UNIQUE NOT NULL,company_name TEXT NOT NULL,
@@ -159,7 +168,7 @@ async function ensureSaasFoundation(env){
 
   await run(env,`UPDATE users SET company_id=? WHERE company_id IS NULL OR TRIM(company_id)=''`,DEFAULT_COMPANY_ID);
 
-    try{await run(env,`INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('saas_ready_v52','1',CURRENT_TIMESTAMP)`)}catch(_){}
+    try{await run(env,`INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('saas_ready_v53','1',CURRENT_TIMESTAMP)`)}catch(_){}
     return true;
   })().catch(error=>{saasFoundationPromise=null;throw error});
   return saasFoundationPromise;
@@ -789,38 +798,26 @@ async function repairTripSeriesAndInvoiceLinks(env){
   }
 }
 async function ensureDatabase(env){
-  if(initPromise) return initPromise;
-  initPromise = (async()=>{
-    // V52 existing-database fast upgrade. This is the normal path for the user's live D1.
-    // It intentionally does NOT rebuild large tables before returning a login/API response.
-    try{
-      const existing=await all(env,`SELECT name FROM sqlite_master WHERE type='table' AND name IN ('users','trips','invoices','app_meta')`);
-      const names=new Set(existing.map(x=>x.name));
-      if(names.has('users')&&names.has('trips')&&names.has('invoices')&&names.has('app_meta')){
-        await ensureSaasFoundation(env);
-        await healTenantColumns(env);
-        await run(env,`INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','52',CURRENT_TIMESTAMP)`);
-        return true;
-      }
-    }catch(_){/* brand-new or very old database falls through to full initializer */}
-
-    // Fast path: on an already-configured database, avoid repeating all DDL
-    // statements on every Worker cold start.
+  if(initPromise)return initPromise;
+  initPromise=(async()=>{
     try{
       const ready=await first(env,`SELECT value FROM app_meta WHERE key='schema_version'`);
-      if(ready?.value==='52'){
-        // A V51 database is considered healthy only when tenant columns exist
-        // across auth + core + advanced tables. If any check fails, the full
-        // idempotent recovery migration below runs again.
-        await first(env,`SELECT id,company_id,role FROM users LIMIT 1`);
-        await first(env,`SELECT trip_no,invoice_id,invoice_item_id,company_id FROM trips LIMIT 1`);
-        await first(env,`SELECT invoice_no,company_id FROM invoices LIMIT 1`);
-        await first(env,`SELECT ledger_no,company_id FROM supplier_accounts LIMIT 1`);
-        await first(env,`SELECT setting_key,company_id FROM app_settings LIMIT 1`);
-        await first(env,`SELECT id FROM companies LIMIT 1`);
-        return;
+      if(ready?.value==='53')return true;
+    }catch(_){}
+
+    try{
+      const existing=await all(env,`SELECT name FROM sqlite_master WHERE type='table' AND name IN ('users','sessions','trips','invoices','app_meta')`);
+      const names=new Set(existing.map(x=>x.name));
+      if(names.has('users')&&names.has('sessions')&&names.has('trips')&&names.has('invoices')&&names.has('app_meta')){
+        await ensureSaasFoundation(env);
+        await healTenantColumns(env);
+        await run(env,`INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','53',CURRENT_TIMESTAMP)`);
+        return true;
       }
-    }catch(_){/* first deployment or an incomplete older schema */}
+    }catch(error){
+      initPromise=null;
+      throw error;
+    }
 
     const creates = [
       `CREATE TABLE IF NOT EXISTS app_meta(key TEXT PRIMARY KEY,value TEXT,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
@@ -1013,7 +1010,7 @@ async function ensureDatabase(env){
     await run(env,`CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_company_no
       ON trips(company_id,trip_no)
       WHERE trip_no IS NOT NULL AND TRIM(trip_no)<>''`);
-    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','52',CURRENT_TIMESTAMP)`);
+    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','53',CURRENT_TIMESTAMP)`);
   })().catch(e=>{ initPromise=null; throw e; });
   return initPromise;
 }
@@ -1180,7 +1177,7 @@ async function bootstrap(env,user){
   const gstPrefix=company.invoice_prefix||'ML';
   const nonGstPrefix=company.non_gst_prefix||'JAY';
   return {
-    version:'V52-Fast-D1-Migration',
+    version:'V53-Stable-Fast-Login',
     user:{...user,permissions:permissionsForRole(user.role)},saas,parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
     pmBills,pmBillItems,truckEntries,supplierPayments,supplierAccounts,expenses,documents,audits,partyLedger,supplierLedger,issues,
     nextInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='GST').map(x=>x.invoice_no),`${gstPrefix} - `),
@@ -1543,7 +1540,7 @@ export default {
       const resource=parts[0]||'';
       const id=decodeURIComponent(parts[1]||'');
 
-      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'V52-Fast-D1-Migration'}),{headers:{...HEADERS,'cache-control':'public,max-age=15'}});
+      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'V53-Stable-Fast-Login'}),{headers:{...HEADERS,'cache-control':'public,max-age=15'}});
       if(resource==='saas-plans'&&req.method==='GET'){
         await ensureDatabase(env);
         const plans=await all(env,`SELECT id,plan_name,monthly_price,yearly_price,max_users,max_trips_month,max_invoices_month,max_storage_mb,features_json,play_product_id_monthly,play_product_id_yearly FROM saas_plans WHERE active=1 ORDER BY sort_order`);
@@ -1580,7 +1577,7 @@ export default {
       // schema initializer if this is a brand-new database.
       if(resource==='login'&&req.method==='POST'){
         await ensureDatabase(env);
-        if(ctx?.waitUntil)ctx.waitUntil(progressTenantUpgradeV52(env,2).catch(()=>{}));
+        if(ctx?.waitUntil)ctx.waitUntil(progressTenantUpgradeV52(env,1).catch(()=>{}));
         const b=await requestBody(req);
         const hash=await sha256(b.password||'');
         const user=await first(env,`SELECT id,username,role,company_id,full_name,email,mobile FROM users WHERE LOWER(username)=LOWER(?) AND password_hash=? AND active=1`,clean(b.username),hash);
@@ -1589,11 +1586,11 @@ export default {
         const token=crypto.randomUUID();
         await run(env,`DELETE FROM sessions WHERE expires_at<=datetime('now')`);
         await run(env,`INSERT INTO sessions(token,user_id,expires_at) VALUES(?,?,datetime('now','+30 days'))`,token,user.id);
-        return json({token,user,saas:await saasContext(env,user)});
+        return json({token,user});
       }
 
       await ensureDatabase(env);
-      if(ctx?.waitUntil)ctx.waitUntil(progressTenantUpgradeV52(env,2).catch(()=>{}));
+      if(ctx?.waitUntil)ctx.waitUntil(progressTenantUpgradeV52(env,1).catch(()=>{}));
       const user=await auth(req,env);
       if(!user)return json({error:'Unauthorized'},401);
 
@@ -1604,7 +1601,7 @@ export default {
       if(resource==='migration-status'&&req.method==='GET'){
         const stage=await first(env,`SELECT value FROM app_meta WHERE key='tenant_stage_v52'`);
         const ready=await first(env,`SELECT value FROM app_meta WHERE key='tenant_unique_v52'`);
-        return json({schemaVersion:'52',stage:Number(stage?.value||0),total:V52_TENANT_REBUILDS.length,ready:ready?.value==='1'});
+        return json({schemaVersion:'53',stage:Number(stage?.value||0),total:V52_TENANT_REBUILDS.length,ready:ready?.value==='1'});
       }
 
       if(resource==='saas-context'&&req.method==='GET')return json(await subscriptionAccess(env,user));

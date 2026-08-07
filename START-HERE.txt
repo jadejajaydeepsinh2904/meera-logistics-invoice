@@ -549,3 +549,29 @@ DEPLOY ORDER
 4. Use the app normally for a few requests; staged tenant upgrade completes automatically.
 5. Redeploy Vercel.
 6. Open /cache-reset-v52.html once.
+
+
+V53 STABLE FAST LOGIN + ROOT CACHE RESET
+
+FIXED
+- V52 could still time out because ensureSaasFoundation called five ALTER TABLE statements on every fresh Worker isolate.
+- V53 inspects users schema once and only ALTERs genuinely missing columns.
+- Persistent saas_ready_v53 marker skips repeated SaaS CREATE/seed work.
+- Healthy schema_version 53 requests use one version lookup then continue.
+- Login no longer waits for SaaS usage calculations.
+- Heavy company-unique migration stays in waitUntil, one table per request.
+- Login/bootstrap first-load timeout is 45s; normal API remains 20s.
+
+CACHE RESET
+Recommended URL: /?reset=v53
+It uses the homepage route, so no separate reset page is required.
+Fallback route /cache-reset-v53 is also included.
+
+RETAINED
+- Multi-company isolation architecture.
+- Company signup/14-day trial after tenant migration readiness.
+- Exact Invoice View = same generated PDF as Download.
+- Subscription/team roles.
+- Non-GST Party GST.
+- Party MLP fix.
+- Vercel static deployment fix.
