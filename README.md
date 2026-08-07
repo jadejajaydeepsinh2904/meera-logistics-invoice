@@ -498,3 +498,47 @@ V49 is the SaaS FOUNDATION. Public signup for outside transport companies is int
 Database:
 - schema_version upgrades from 34 to 49 automatically on first Worker request.
 - Existing business records are not deleted.
+
+
+V50 MULTI-COMPANY + EXACT INVOICE PDF VIEW
+
+DONE
+1. Full multi-company tenant isolation:
+   - company_id on Parties, Party Payments, Trucks, Routes, Materials, Trips, Invoices,
+     Invoice Items, PM Bills, PM Bill Items, Supplier Entries, Supplier Payments,
+     Supplier Accounts, Expenses, Truck Documents, Audit Logs, Bookings, Approvals,
+     Recycle Bin, Backups, Monthly Exports and Settings.
+   - Bootstrap, Party Ledger, Supplier Ledger, Advanced Data, Health, Backup,
+     Monthly Export and Excel Export are company-scoped.
+   - Record-ID tenant guard blocks cross-company direct access.
+   - New records are stamped with the logged-in user's company_id.
+   - Existing V49 Meera Logistics data is migrated to CMP-MEERA.
+
+2. Company-scoped numbering / uniqueness:
+   - Same Party name, Truck number, Material, Invoice number, Supplier/PML,
+     Booking number and month key can exist in different companies.
+   - Trip number uniqueness is company-wise.
+   - Existing data is not deleted.
+
+3. New company signup:
+   - Create Transport Company from login screen.
+   - 14-day Trial subscription.
+   - New OWNER login.
+   - New company starts with an empty isolated workspace.
+
+4. Invoice View fixed:
+   - View Invoice no longer uses a separate mixed HTML layout.
+   - It renders the exact same generated vector PDF blob used by Download.
+   - Therefore View and Download are the same invoice format.
+   - Print also opens the same PDF preview.
+
+5. Previous fixes retained:
+   - V49 SaaS/roles/subscription foundation.
+   - V48 Non-GST Party GST display.
+   - V47 Party automatic MLP ledger allocation.
+   - V46 Vercel build fix.
+
+DATABASE
+- schema_version 49 -> 50.
+- Worker automatically performs one-time tenant migration.
+- Cloudflare Worker MUST be redeployed before using V50 frontend.

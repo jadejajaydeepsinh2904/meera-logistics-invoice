@@ -248,6 +248,36 @@ async function loadData({background=false}={}){
   }finally{state.loading=false}
 }
 function navButton(id,label){return `<button class="${state.panel===id?'active':''}" data-panel="${id}"><span class="dot"></span>${label}</button>`}
+
+function openCompanyRegistration(){
+  document.querySelector('.v50-register-bg')?.remove();
+  const host=document.createElement('div');host.className='modal-bg v50-register-bg';
+  host.innerHTML=`<div class="modal"><header><b>Create Transport Company</b><button type="button" data-v50-close>✕</button></header><form id="v50RegisterForm" class="form-grid">
+    ${field('Company Name','companyName','')}
+    ${field('Owner Name','fullName','')}
+    ${field('Mobile','mobile','')}
+    ${field('Email','email','','email')}
+    ${field('GST Number (optional)','gstNo','')}
+    ${field('PAN Number (optional)','panNo','')}
+    ${field('Address','address','')}
+    ${field('Login Username','username','')}
+    ${field('Password','password','','password','minlength="6" required')}
+    <div class="wide"><small>14-day Trial will be created. Every company gets isolated Parties, Trucks, Trips, Invoices, Suppliers, Payments, Documents and Reports.</small></div>
+    <div class="form-actions wide"><button class="primary">Create Company</button></div>
+  </form></div>`;
+  document.body.appendChild(host);
+  host.querySelector('[data-v50-close]').onclick=()=>host.remove();
+  host.querySelector('#v50RegisterForm').onsubmit=async e=>{
+    e.preventDefault();const button=e.submitter;button.disabled=true;button.textContent='Creating...';
+    try{
+      const result=await api('/register-company',{method:'POST',auth:false,body:JSON.stringify(Object.fromEntries(new FormData(e.target).entries()))});
+      alert(`Company created. Trial valid until ${result.trialEndsAt}. Now login with your new username.`);
+      host.remove();
+    }catch(error){alert(error.message||'Unable to create company')}
+    finally{button.disabled=false;button.textContent='Create Company'}
+  };
+}
+
 function render(){
   const d=state.data;
   const titles={dashboard:'Dashboard',trips:'Trip History (Transport Khata)',invoices:'Invoice History',parties:'Party Khata',partyPayments:'Party Payments',suppliers:'Supplier Khata',truckEntries:'Truck / Supplier Entries',supplierPayments:'Supplier Payments',trucks:'Truck & Document',masters:'Master',forms:'Forms',expenses:'Office Expenses',reports:'Reports & Audit'};
@@ -1625,3 +1655,8 @@ if(token()){
   if(cached?.data){state.data=cached.data;render();loadData({background:true})}
   else loadData();
 }else loginView();
+
+document.addEventListener('click',event=>{
+  const button=event.target.closest('[data-v50-register-company]');
+  if(button){event.preventDefault();openCompanyRegistration()}
+});

@@ -21,9 +21,13 @@ const DEFAULT_COMPANY_SETTINGS={
   email:'meera.logistics99@gmail.com',
   gstNo:'24ACFFM2544N1Z1'
 };
-function companySettings(){
-  if(window.ML_SETTINGS)return {...DEFAULT_COMPANY_SETTINGS,...window.ML_SETTINGS};
-  try{return {...DEFAULT_COMPANY_SETTINGS,...JSON.parse(localStorage.getItem('ml_app_settings_v44')||'{}')}}catch{return {...DEFAULT_COMPANY_SETTINGS}}
+function companySettings(data){
+  let local={};
+  if(window.ML_SETTINGS)local=window.ML_SETTINGS;
+  else try{local=JSON.parse(localStorage.getItem('ml_app_settings_v44')||'{}')}catch{}
+  const c=data?.saas?.company||{};
+  const tenant=c.id?{companyName:c.company_name||'',address:c.address||'',phone:c.mobile||'',email:c.email||'',gstNo:c.gst_no||''}:{};
+  return {...DEFAULT_COMPANY_SETTINGS,...local,...tenant};
 }
 
 
@@ -46,7 +50,7 @@ function tripNumber(data,tripId){
   return (data.trips||[]).find(trip=>String(trip.id)===String(tripId))?.trip_no||'-';
 }
 function invoiceMarkup(invoice,data){
-  const company=companySettings();
+  const company=companySettings(data);
   const items=invoice.items||[];
   const nonGst=invoiceType(invoice)==='NON-GST';
   const lrNumbers=[...new Set(items.map(item=>String(item.lr_number||'').trim()).filter(Boolean))];
@@ -128,19 +132,58 @@ function invoiceMarkup(invoice,data){
   </article>`;
 }
 function closeViewer(){document.querySelector('.v36-viewer-bg')?.remove()}
-function openViewer(invoice,data){
+async function openViewer(invoice,data){
   closeViewer();
   const host=document.createElement('div');
   host.className='v36-viewer-bg';
-  host.innerHTML=`<div class="v36-viewer"><div class="v36-viewer-head"><b>Invoice ${esc(invoice.invoice_no)}</b><div><button data-v36-edit>Edit</button><button data-v36-print>Print</button><button data-v36-download>Download</button><button data-v36-share>WhatsApp</button><button data-v36-close>Close</button></div></div><div class="v36-viewer-body">${invoiceMarkup(invoice,data)}</div></div>`;
+  host.innerHTML=`<div class="v36-viewer v50-pdf-viewer">
+    <div class="v36-viewer-head"><b>Invoice ${esc(invoice.invoice_no)}</b><div>
+      <button data-v36-edit>Edit</button><button data-v36-print>Print</button>
+      <button data-v36-download>Download</button><button data-v36-share>WhatsApp</button><button data-v36-close>Close</button>
+    </div></div>
+    <div class="v36-viewer-body v50-pdf-body"><div class="v50-pdf-loading">Preparing exact invoice preview…</div></div>
+  </div>`;
   document.body.appendChild(host);
   host.addEventListener('click',event=>{if(event.target===host)closeViewer()});
   host.querySelector('[data-v36-close]').onclick=closeViewer;
-  host.querySelector('[data-v36-print]').onclick=()=>printInvoice(invoice,data);
-  host.querySelector('[data-v36-download]').onclick=async event=>{const button=event.currentTarget;button.disabled=true;button.textContent='Downloading...';try{await downloadInvoice(invoice,data)}catch(error){alert(error.message||'Unable to download invoice.')}finally{button.disabled=false;button.textContent='Download'}};
-  host.querySelector('[data-v36-share]').onclick=async event=>{const button=event.currentTarget;button.disabled=true;button.textContent='Preparing PDF...';try{await shareInvoice(invoice,data)}catch(error){alert(error.message||'Unable to share invoice PDF.')}finally{button.disabled=false;button.textContent='WhatsApp'}};
+
+  let previewUrl='';
+  try{
+    const blob=await createInvoicePdfBlob(invoice,data);
+    previewUrl=URL.createObjectURL(blob);
+    const body=host.querySelector('.v50-pdf-body');
+    body.innerHTML=`<iframe class="v50-invoice-pdf-frame" title="Invoice ${esc(invoice.invoice_no)} PDF preview"></iframe>`;
+    body.querySelector('iframe').src=previewUrl;
+    host.dataset.previewUrl=previewUrl;
+  }catch(error){
+    host.querySelector('.v50-pdf-body').innerHTML=`<div class="v50-pdf-fallback"><b>PDF preview could not load.</b><p>${esc(error.message||'Preview error')}</p>${invoiceMarkup(invoice,data)}</div>`;
+  }
+
+  const release=()=>{const url=host.dataset.previewUrl;if(url)URL.revokeObjectURL(url)};
+  host.querySelector('[data-v36-close]').addEventListener('click',release,{once:true});
+
+  host.querySelector('[data-v36-print]').onclick=async()=>{
+    try{
+      if(!host.dataset.previewUrl){
+        const blob=await createInvoicePdfBlob(invoice,data);host.dataset.previewUrl=URL.createObjectURL(blob);
+      }
+      const win=window.open(host.dataset.previewUrl,'_blank');
+      if(!win)throw new Error('Please allow pop-ups to print the PDF.');
+      setTimeout(()=>{try{win.print()}catch{}},800);
+    }catch(error){alert(error.message||'Unable to print invoice PDF.')}
+  };
+  host.querySelector('[data-v36-download]').onclick=async event=>{
+    const button=event.currentTarget;button.disabled=true;button.textContent='Downloading...';
+    try{await downloadInvoice(invoice,data)}catch(error){alert(error.message||'Unable to download invoice.')}
+    finally{button.disabled=false;button.textContent='Download'}
+  };
+  host.querySelector('[data-v36-share]').onclick=async event=>{
+    const button=event.currentTarget;button.disabled=true;button.textContent='Preparing PDF...';
+    try{await shareInvoice(invoice,data)}catch(error){alert(error.message||'Unable to share invoice PDF.')}
+    finally{button.disabled=false;button.textContent='WhatsApp'}
+  };
   host.querySelector('[data-v36-edit]').onclick=()=>{
-    closeViewer();
+    release();closeViewer();
     const button=document.createElement('button');
     button.dataset.action='edit-invoice';button.dataset.id=invoice.id;button.hidden=true;
     document.body.appendChild(button);button.click();button.remove();
@@ -162,8 +205,8 @@ async function downloadInvoice(invoice,data){
   const blob=await createInvoicePdfBlob(invoice,data);
   saveBlob(blob,safeInvoicePdfName(invoice));
 }
-function invoiceShareText(invoice){
-  const company=companySettings();
+function invoiceShareText(invoice,data){
+  const company=companySettings(data);
   const items=invoice.items||[];
   const lrs=[...new Set(items.map(item=>item.lr_number).filter(Boolean))].join(' / ');
   const trucks=items.map(item=>item.truck_no).filter(Boolean).join(', ');
@@ -173,13 +216,13 @@ async function shareInvoice(invoice,data){
   const blob=await createInvoicePdfBlob(invoice,data);
   const fileName=safeInvoicePdfName(invoice);
   const file=new File([blob],fileName,{type:'application/pdf',lastModified:Date.now()});
-  const shareData={title:`Invoice ${invoice.invoice_no}`,text:invoiceShareText(invoice),files:[file]};
+  const shareData={title:`Invoice ${invoice.invoice_no}`,text:invoiceShareText(invoice,data),files:[file]};
   if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){
     try{await navigator.share(shareData);return}
     catch(error){if(error?.name==='AbortError')return}
   }
   saveBlob(blob,fileName);
-  window.open(`https://wa.me/?text=${encodeURIComponent(invoiceShareText(invoice))}`,'_blank');
+  window.open(`https://wa.me/?text=${encodeURIComponent(invoiceShareText(invoice,data))}`,'_blank');
   alert(`PDF downloaded as "${fileName}". Attach this PDF in WhatsApp.`);
 }
 function exportInvoices(data){
@@ -198,7 +241,7 @@ function exportInvoices(data){
   }
   const csv='\uFEFF'+rows.map(row=>row.map(value=>`"${String(value??'').replaceAll('"','""')}"`).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
-  const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`${safeInvoicePdfName({invoice_no:companySettings().companyName,party_name:'INVOICE HISTORY'}).replace(/\.pdf$/i,'')}.csv`;link.click();URL.revokeObjectURL(link.href);
+  const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`${safeInvoicePdfName({invoice_no:companySettings(data).companyName,party_name:'INVOICE HISTORY'}).replace(/\.pdf$/i,'')}.csv`;link.click();URL.revokeObjectURL(link.href);
 }
 
 document.addEventListener('click',async event=>{
@@ -215,6 +258,6 @@ document.addEventListener('click',async event=>{
     if(action==='print-invoice'){printInvoice(invoice,data);return}
     if(action==='download-invoice'){await downloadInvoice(invoice,data);return}
     if(action==='share-invoice'){await shareInvoice(invoice,data);return}
-    openViewer(invoice,data);
+    await openViewer(invoice,data);
   }catch(error){alert(error.message||'Unable to open invoice.')}
 },true);

@@ -33,9 +33,19 @@ const DEFAULT_COMPANY_SETTINGS={
   email:'meera.logistics99@gmail.com',
   gstNo:'24ACFFM2544N1Z1'
 };
-function companySettings(){
-  if(typeof window!=='undefined'&&window.ML_SETTINGS)return {...DEFAULT_COMPANY_SETTINGS,...window.ML_SETTINGS};
-  try{return {...DEFAULT_COMPANY_SETTINGS,...JSON.parse(localStorage.getItem('ml_app_settings_v44')||'{}')}}catch{return {...DEFAULT_COMPANY_SETTINGS}}
+function companySettings(data){
+  let local={};
+  if(typeof window!=='undefined'&&window.ML_SETTINGS)local=window.ML_SETTINGS;
+  else try{local=JSON.parse(localStorage.getItem('ml_app_settings_v44')||'{}')}catch{}
+  const c=data?.saas?.company||{};
+  const tenant=c.id?{
+    companyName:c.company_name||'',
+    address:c.address||'',
+    phone:c.mobile||'',
+    email:c.email||'',
+    gstNo:c.gst_no||''
+  }:{};
+  return {...DEFAULT_COMPANY_SETTINGS,...local,...tenant};
 }
 
 
@@ -163,7 +173,7 @@ function buildPdfFile(content,assets){
 }
 
 function createInvoiceContent(invoice,data){
-  const company=companySettings();
+  const company=companySettings(data);
   const pdf=new CanvasPdf();
   const items=invoice.items||[];
   const nonGst=invoiceType(invoice)==='NON-GST';
@@ -178,8 +188,9 @@ function createInvoiceContent(invoice,data){
 
   pdf.strokeColor(0.12,0.24,0.46);pdf.lineWidth(1.2);pdf.rect(8,8,PAGE_W-16,PAGE_H-16);
 
-  pdf.image('Logo',24,502,62,62);
-  pdf.text(company.companyName,104,536,25,{font:'F2'});
+  const isMeera=!data?.saas?.company?.id||data.saas.company.id==='CMP-MEERA';
+  if(isMeera)pdf.image('Logo',24,502,62,62);
+  pdf.text(company.companyName,isMeera?104:24,536,isMeera?25:22,{font:'F2'});
   drawCell(pdf,{x:607,y:536,w:207,h:25,text:invoice.invoice_no||'-',font:'F2',size:12,color:[0.72,0.36,0.10]});
   drawCell(pdf,{x:607,y:511,w:207,h:25,text:nonGst?'Non-GST Transport Invoice':'Transport Invoice',font:'F2',size:11,color:[0.72,0.36,0.10]});
 
@@ -275,7 +286,7 @@ function createInvoiceContent(invoice,data){
   pdf.strokeColor(0.25,0.25,0.25);pdf.lineWidth(0.6);
   pdf.line(105,lineY,360,lineY);pdf.line(535,lineY,790,lineY);
   pdf.text('Signature of the Customer',232,lineY-12,7.5,{font:'F2',align:'center'});
-  pdf.image('Stamp',602,lineY+7,122,51);
+  if(isMeera)pdf.image('Stamp',602,lineY+7,122,51);
   pdf.text('Signature of the Supplier',662,lineY-12,7.5,{font:'F2',align:'center'});
 
   return pdf.toBytes();

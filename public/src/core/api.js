@@ -8,7 +8,7 @@ export async function api(path, options={}){
   const timeout=setTimeout(()=>controller.abort(),20000);
   const headers = {...(options.headers||{})};
   if(!(options.body instanceof FormData)) headers['Content-Type']='application/json';
-  if(token()) headers.Authorization=`Bearer ${token()}`;
+  if(options.auth!==false&&token()) headers.Authorization=`Bearer ${token()}`;
   try{
     const res=await fetch(API_BASE+path,{...options,headers,signal:controller.signal});
     const data=await res.json().catch(()=>({}));

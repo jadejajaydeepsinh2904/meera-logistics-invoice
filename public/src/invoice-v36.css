@@ -85,3 +85,16 @@
   .v36-signatures{margin-top:1.5mm;min-height:22mm;padding:0 24mm;gap:40mm}.v36-signatures>div{padding-top:12mm}.v36-signatures b{font-size:8px}
   .v36-partner-stamp{width:38mm;max-height:16mm;bottom:8mm}
 }
+
+/* V50: View Invoice uses the exact same vector PDF generator as Download */
+.v50-pdf-viewer{width:min(1400px,98vw);height:min(96vh,980px)}
+.v50-pdf-viewer .v36-viewer-body.v50-pdf-body{padding:0;background:#525659;overflow:hidden;display:flex;min-height:0}
+.v50-invoice-pdf-frame{width:100%;height:100%;min-height:calc(96vh - 62px);border:0;background:#525659}
+.v50-pdf-loading{margin:auto;color:#fff;padding:30px;font-weight:700}
+.v50-pdf-fallback{background:#fff;margin:15px;padding:15px;width:100%;overflow:auto}
+@media(max-width:700px){
+  .v50-pdf-viewer{width:100vw;height:100vh;border-radius:0}
+  .v50-invoice-pdf-frame{min-height:calc(100vh - 70px)}
+  .v36-viewer-head{gap:6px;align-items:flex-start}
+  .v36-viewer-head>div{display:flex;gap:4px;flex-wrap:wrap}
+}

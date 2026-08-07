@@ -72,7 +72,7 @@ async function openSaasCenter(){
         <div class="v49-summary"><small>THIS MONTH</small><b>${u.trips||0} Trips · ${u.invoices||0} Bills</b><span>${u.users||0}/${s.max_users||1} users</span></div>
       </div>
       <form id="v49CompanyForm" class="a43-form a44-settings-form">
-        <div class="a44-settings-section wide"><b>Company Profile</b><small>Each transporter account will have its own identity</small></div>
+        <div class="a44-settings-section wide"><b>Company Profile</b><small>Each transporter has a fully isolated company workspace</small></div>
         ${settingField('Company Name','companyName',c.company_name||'')}
         ${settingField('Legal Name','legalName',c.legal_name||'')}
         ${settingField('GST Number','gstNo',c.gst_no||'')}

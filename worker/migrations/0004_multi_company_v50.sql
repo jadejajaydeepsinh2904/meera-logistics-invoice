@@ -1,0 +1,7 @@
+-- V50 Multi-company tenant isolation reference.
+-- The Worker performs the safe online migration automatically.
+-- Every operational table receives company_id.
+-- User-facing unique numbers are changed from global unique to company-scoped unique:
+-- party ledger/name, truck number, material, invoice number, PM bill number,
+-- supplier ledger/name, booking number, monthly export month and app settings.
+-- Existing V49 data is backfilled to CMP-MEERA.
