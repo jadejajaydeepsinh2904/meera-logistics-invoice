@@ -401,3 +401,14 @@ V47 PARTY LEDGER NUMBER FIX
 - Party form shows Ledger Number as automatic/read-only.
 - Login, authentication and D1 schema_version 34 were not changed.
 - V46 Vercel deployment fix remains included.
+
+
+V48 NON-GST PARTY GST DISPLAY FIX
+
+- Non-GST Invoice keeps Party GST Number visible just like Party Address.
+- Non-GST Universal Trip also shows Party GST Number.
+- SGST and CGST remain 0%/hidden for Non-GST; this change only displays/stores the Party GSTIN.
+- New Non-GST invoices save Party GSTIN in D1 instead of clearing it.
+- Old Non-GST invoices with blank stored GSTIN fall back to the Party Master GST Number when viewed/downloaded.
+- GST Invoice behavior is unchanged.
+- Login and D1 schema_version 34 are unchanged.

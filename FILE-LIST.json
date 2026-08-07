@@ -1,19 +1,20 @@
 {
-  "version": "V47-PARTY-LEDGER-NUMBER-FIX",
-  "source": "V46 Vercel Deploy Fix full project",
-  "protected_login_changed": false,
+  "version": "V48-NON-GST-PARTY-GST",
+  "source": "V47 full project",
   "schema_version": "34 unchanged",
   "checks": {
-    "party_auto_mlp_series": "passed",
-    "legacy_blank_ledger_repair": "passed",
-    "duplicate_ledger_collision_retry": "passed",
-    "quick_add_party_mlp": "passed",
-    "party_form_auto_readonly": "passed",
+    "non_gst_backend_keeps_party_gst": "passed",
+    "trip_non_gst_party_gst_not_cleared": "passed",
+    "trip_party_gst_visible_separate_class": "passed",
+    "invoice_party_gst_visible_separate_class": "passed",
+    "pdf_party_master_fallback": "passed",
+    "view_party_master_fallback": "passed",
+    "schema_34_unchanged": "passed",
     "javascript_syntax": "passed",
     "vercel_build": "passed",
-    "login_d1_schema_unchanged": "passed"
+    "non_gst_test_pdf_created": "passed"
   },
-  "total_files": 48,
+  "total_files": 50,
   "files": [
     {
       "path": ".vercelignore",
@@ -22,13 +23,13 @@
     },
     {
       "path": "README.md",
-      "size": 21301,
-      "sha256": "dcaf688237d461723982fb0253f84259b089241fb7fa1d5a4917ab30dcf87c54"
+      "size": 21829,
+      "sha256": "92ed7140673db6e316a3e57c600a2ee78e6ca7ed9d9e4849b24090b842cf478f"
     },
     {
       "path": "START-HERE.txt",
-      "size": 18649,
-      "sha256": "ca18468b9f8effd753968326b6fac59e2daeb6d0eba06e838bcf5e6464948387"
+      "size": 19177,
+      "sha256": "a39e4765f89aa53de9bf134913bb6a4efe250e28d7d3af68551003098bedeb16"
     },
     {
       "path": "V44-TEST-REPORT.txt",
@@ -49,6 +50,11 @@
       "path": "V47-PARTY-LEDGER-FIX-REPORT.txt",
       "size": 618,
       "sha256": "85b7723e0e7706f36f04d5a6bb6e864cac777bf7ede788ad2dc3973434d79ff3"
+    },
+    {
+      "path": "V48-NON-GST-PARTY-GST-REPORT.txt",
+      "size": 526,
+      "sha256": "cb4e6b41a70b5c51f6578f246c6385ef8cf3d0f5dc908de57ade06e3b2578d73"
     },
     {
       "path": "package.json",
@@ -89,6 +95,11 @@
       "path": "public/cache-reset-v47.html",
       "size": 542,
       "sha256": "71e91d67627fcfd1255ee85040a191169627116d2bd52661afdc6b95200e844d"
+    },
+    {
+      "path": "public/cache-reset-v48.html",
+      "size": 542,
+      "sha256": "150d46f6bcee744a5995ce10f241afdeca8c0a3487544a217a41c651c2c5e9f3"
     },
     {
       "path": "public/data/invoices.json",
@@ -138,7 +149,7 @@
     {
       "path": "public/index.html",
       "size": 1047,
-      "sha256": "4191c28c7a867ef533481d21800eeb161a446cf461ae467ba4087ba3305e826c"
+      "sha256": "db31ddc9bdd7f2515278b846f6f414396188c8467f7d169cc839dc96380a04cc"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -157,8 +168,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 111982,
-      "sha256": "db2c398d3a46fa4ae68dd92d16cd311fca84702bdcb10705e0e7ca0efdb4741a"
+      "size": 112016,
+      "sha256": "67f50bf59913134d907b779037261fb307d5ee8af2a586494e7cb571b14251f4"
     },
     {
       "path": "public/src/core/api.js",
@@ -167,8 +178,8 @@
     },
     {
       "path": "public/src/invoice-pdf-v39.js",
-      "size": 14811,
-      "sha256": "8c30e8d8f04390f19d31ad9971f8d84da3f21e5d5ed78015c71e36758346ae75"
+      "size": 14951,
+      "sha256": "ce5e5532527471a9bdc4e4927cf0b45942032735ce16d17496b45cc6d485c0ae"
     },
     {
       "path": "public/src/invoice-v36.css",
@@ -177,8 +188,8 @@
     },
     {
       "path": "public/src/invoice-v36.js",
-      "size": 13261,
-      "sha256": "5803ea5631162cdacc814eff8d8d006b1e90867d3e7d7d38600bcb85f3d861e6"
+      "size": 13401,
+      "sha256": "7b35d4f58084fa514f696d2469ad64d3f05ddbab0c12759abeeb4f7894a86984"
     },
     {
       "path": "public/src/party-ledger-pdf-v40.js",
@@ -242,8 +253,8 @@
     },
     {
       "path": "worker/src/index.js",
-      "size": 107502,
-      "sha256": "8193e5d19610cfb6c7bcfd896b6a0ca1ba463ef03cdc2153dce838605a7e9cf3"
+      "size": 107448,
+      "sha256": "6f18acdf3a3deea3e0b3ff3e9ed488f3e8410197affabfe10432954016c911d9"
     },
     {
       "path": "worker/src/seed-data.js",

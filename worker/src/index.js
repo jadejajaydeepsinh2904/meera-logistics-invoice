@@ -1376,7 +1376,7 @@ export default {
                 lr_no,material,loading_date,sgst,cgst,diesel,munshi,subtotal,gst_amount,total,comments
               ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
                 invoiceId,clean(b.invoiceNo),invoiceType,b.invoiceDate,upper(b.partyName),b.partyAddress||'',
-                invoiceType==='NON_GST'?'':upper(b.partyGst),b.lrNo||'',upper(b.material),b.loadingDate||'',
+                upper(b.partyGst),b.lrNo||'',upper(b.material),b.loadingDate||'',
                 sgst,cgst,num(b.diesel),num(b.munshi),subtotal,gstAmount,total,b.comments||''
               );
             }catch(e){
@@ -1389,7 +1389,7 @@ export default {
               lr_no=?,material=?,loading_date=?,sgst=?,cgst=?,diesel=?,munshi=?,subtotal=?,
               gst_amount=?,total=?,comments=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
               clean(b.invoiceNo),invoiceType,b.invoiceDate,upper(b.partyName),b.partyAddress||'',
-              invoiceType==='NON_GST'?'':upper(b.partyGst),b.lrNo||'',upper(b.material),b.loadingDate||'',
+              upper(b.partyGst),b.lrNo||'',upper(b.material),b.loadingDate||'',
               sgst,cgst,num(b.diesel),num(b.munshi),subtotal,gstAmount,total,b.comments||'',invoiceId
             );
           }

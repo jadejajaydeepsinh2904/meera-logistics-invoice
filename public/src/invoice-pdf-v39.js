@@ -174,6 +174,7 @@ function createInvoiceContent(invoice,data){
   const taxable=Number(invoice.subtotal||freightTotal)+Number(invoice.diesel||0)+Number(invoice.munshi||0);
   const sgstAmount=nonGst?0:taxable*Number(invoice.sgst||0)/100;
   const cgstAmount=nonGst?0:taxable*Number(invoice.cgst||0)/100;
+  const partyGst=invoice.party_gst||(data.parties||[]).find(p=>String(p.party_name||'').trim().toUpperCase()===String(invoice.party_name||'').trim().toUpperCase())?.gst_no||'-';
 
   pdf.strokeColor(0.12,0.24,0.46);pdf.lineWidth(1.2);pdf.rect(8,8,PAGE_W-16,PAGE_H-16);
 
@@ -216,7 +217,7 @@ function createInvoiceContent(invoice,data){
     ['Name',invoice.party_name||'-'],
     ['Company',invoice.party_name||'-'],
     ['Address',invoice.party_address||'-'],
-    ['GST No.',nonGst?'Not Applicable':invoice.party_gst||'-']
+    ['GST No.',partyGst]
   ];
   billRows.forEach((row,index)=>{
     const y=billY+billRow*(3-index);

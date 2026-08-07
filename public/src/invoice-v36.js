@@ -60,6 +60,7 @@ function invoiceMarkup(invoice,data){
   const sgstAmount=nonGst?0:taxable*Number(invoice.sgst||0)/100;
   const cgstAmount=nonGst?0:taxable*Number(invoice.cgst||0)/100;
   const comments=esc(invoice.comments||'').replace(/\\n|\n/g,'<br>');
+  const partyGst=invoice.party_gst||(data.parties||[]).find(p=>String(p.party_name||'').trim().toUpperCase()===String(invoice.party_name||'').trim().toUpperCase())?.gst_no||'-';
 
   return `<article class="v36-invoice${rowClass}">
     <header class="v36-head">
@@ -91,7 +92,7 @@ function invoiceMarkup(invoice,data){
         <tr><th>Name</th><td>${esc(invoice.party_name||'-')}</td></tr>
         <tr><th>Company</th><td>${esc(invoice.party_name||'-')}</td></tr>
         <tr><th>Address</th><td>${esc(invoice.party_address||'-')}</td></tr>
-        <tr><th>GST No.</th><td>${nonGst?'Not Applicable':esc(invoice.party_gst||'-')}</td></tr>
+        <tr><th>GST No.</th><td>${esc(partyGst)}</td></tr>
       </tbody></table>
       <div></div>
     </section>

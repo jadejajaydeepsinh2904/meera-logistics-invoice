@@ -990,7 +990,7 @@ function tripForm(x={},afterSave=null){
     </label>
     ${field('Invoice Number','invoiceNo',linkedInvoice?.invoice_no||(initialType==='NON_GST'?d.nextNonGstInvoiceNo:d.nextInvoiceNo),'text','required')}
     ${field('Invoice Date','invoiceDate',linkedInvoice?.invoice_date||x.trip_date||today(),'date','required')}
-    <div class="trip-gst-field">${field('Party GST Number','partyGst',linkedInvoice?.party_gst||partyMaster.gst_no||'','text','readonly')}</div>
+    <div class="trip-party-gst-field">${field('Party GST Number','partyGst',linkedInvoice?.party_gst||partyMaster.gst_no||'','text','readonly')}</div>
     <div class="trip-gst-field">${field('SGST %','sgst',linkedInvoice?.sgst??Number(window.ML_SETTINGS?.defaultSgst??9),'number','step="0.01"')}</div>
     <div class="trip-gst-field">${field('CGST %','cgst',linkedInvoice?.cgst??Number(window.ML_SETTINGS?.defaultCgst??9),'number','step="0.01"')}</div>
     ${field('Diesel','diesel',linkedInvoice?.diesel||0,'number','step="0.01"')}
@@ -1029,7 +1029,8 @@ function tripForm(x={},afterSave=null){
       if(nonGst){
         host.querySelector('[name=sgst]').value=0;
         host.querySelector('[name=cgst]').value=0;
-        host.querySelector('[name=partyGst]').value='';
+        const p=getPartyDetails(partySelect.value);
+        host.querySelector('[name=partyGst]').value=p.gst_no||'';
         if(forceNumber && (!edit || !invoiceNoInput.value || /^ML/i.test(invoiceNoInput.value)))invoiceNoInput.value=d.nextNonGstInvoiceNo||'JAY 001';
       }else{
         const p=getPartyDetails(partySelect.value);
@@ -1046,7 +1047,7 @@ function tripForm(x={},afterSave=null){
       const p=getPartyDetails(partySelect.value);
       const gst=host.querySelector('[name=partyGst]');
       const address=host.querySelector('[name=partyAddress]');
-      if(tripTypeInput.value==='GST')gst.value=p.gst_no||'';
+      gst.value=p.gst_no||'';
       address.value=p.address||'';
       gst.readOnly=true;
       address.readOnly=true;
@@ -1118,7 +1119,7 @@ function tripForm(x={},afterSave=null){
             invoiceDate:body.invoiceDate,
             partyName:body.partyName,
             partyAddress:body.partyAddress||'',
-            partyGst:body.tripType==='NON_GST'?'':body.partyGst||'',
+            partyGst:body.partyGst||'',
             lrNo:body.lrNumber||'',
             material:body.material,
             loadingDate:body.tripDate,
@@ -1225,7 +1226,7 @@ function invoiceForm(x={},tripContext=null){
     <label class="field"><span>Invoice Number (Auto, Editable)</span><input name="invoiceNo" type="text" value="${esc(x.invoice_no||(initialType==='NON_GST'?d.nextNonGstInvoiceNo:d.nextInvoiceNo))}" required></label>
     ${field('Invoice Date','invoiceDate',x.invoice_date||today(),'date','required')}
     ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||tripContext?.party_name||'','party','required')}
-    <div class="gst-field">${field('Party GST','partyGst',x.party_gst||getPartyDetails(tripContext?.party_name||x.party_name).gst_no||'','text','readonly')}</div>
+    <div class="party-gst-field">${field('Party GST','partyGst',x.party_gst||getPartyDetails(tripContext?.party_name||x.party_name).gst_no||'','text','readonly')}</div>
     <label class="field span2"><span>Party Address</span><textarea name="partyAddress" readonly>${esc(x.party_address||getPartyDetails(tripContext?.party_name||x.party_name).address||'')}</textarea></label>
     ${masterSelectField('Material','material',d.materials.map(m=>m.material_name),x.material||tripContext?.material||'','material')}
     ${field('Loading Date','loadingDate',x.loading_date||today(),'date')}
@@ -1589,7 +1590,7 @@ function downloadInvoice(i){
 }
 function invoicePrintHtml(i){
   return `<div class="print-sheet"><div class="invoice-header"><div class="invoice-company"><h1>MEERA LOGISTICS</h1><div>Transport & Logistics Services</div><div>Jamnagar, Gujarat</div></div><div class="invoice-meta"><b>${invoiceTypeLabel(i)==='NON-GST'?'NON-GST INVOICE':'TAX INVOICE'}</b><div>${esc(i.invoice_no)}</div><div>${esc(i.invoice_date)}</div></div></div>
-  <div class="invoice-party"><div><b>Bill To</b><div>${esc(i.party_name)}</div><div>${esc(i.party_address||'')}</div><div>${invoiceTypeLabel(i)==='NON-GST'?'GST: Not Applicable':`GST: ${esc(i.party_gst||'-')}`}</div></div><div><b>Material:</b> ${esc(i.material||'-')}<br><b>Loading Date:</b> ${esc(i.loading_date||'-')}</div></div>
+  <div class="invoice-party"><div><b>Bill To</b><div>${esc(i.party_name)}</div><div>${esc(i.party_address||'')}</div><div>GST: ${esc(i.party_gst||state.data?.parties?.find(p=>norm(p.party_name)===norm(i.party_name))?.gst_no||'-')}</div></div><div><b>Material:</b> ${esc(i.material||'-')}<br><b>Loading Date:</b> ${esc(i.loading_date||'-')}</div></div>
   ${table(['Trip','LR No','Truck No','Description','Loading Wt.','Unloading Wt.','Difference','Billing Wt.','Rate','Amount'],(i.items||[]).map(x=>{
     const trip=state.data?.trips?.find(t=>String(t.id)===String(x.trip_id));
     return [esc(trip?.trip_no||'-'),esc(x.lr_number||'-'),esc(x.truck_no),esc(x.description),number3(x.loading_weight??x.weight),number3(x.unloading_weight??x.weight),number3(x.shortage||0),number3(x.weight),money(x.rate),money(x.amount)];
