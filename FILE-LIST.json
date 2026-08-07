@@ -1,27 +1,22 @@
 {
-  "version": "V59-SIGNUP-TRIAL-SUBSCRIPTION",
-  "source": "V58 Accounting Isolation Audit full project",
+  "version": "V61-D1-SUBSCRIPTION-RECOVERY",
+  "source": "V60 Super Admin full project",
   "schema_version": "53 unchanged",
   "checks": {
-    "signup_visible": "passed",
-    "signup_auto_login": "passed",
-    "backend_signup_session": "passed",
-    "trial_14_days": "passed",
-    "trial_banner": "passed",
-    "read_only_subscription": "passed",
-    "trip_limit": "passed",
-    "invoice_limit": "passed",
-    "feature_gate": "passed",
-    "subscription_request_table": "passed",
-    "subscription_request_api": "passed",
-    "plan_request_ui": "passed",
-    "no_fake_activation": "passed",
-    "reset_v59": "passed",
+    "dedicated_recovery": "passed",
+    "create_table": "passed",
+    "saas_context_recovery": "passed",
+    "register_recovery": "passed",
+    "subscription_route_recovery": "passed",
+    "super_admin_recovery": "passed",
+    "repair_status_endpoint": "passed",
     "schema_53_retained": "passed",
+    "reset_v61": "passed",
+    "sqlite_old_db_recovery": "passed",
     "javascript_syntax": "passed",
     "vercel_build": "passed"
   },
-  "total_files": 80,
+  "total_files": 86,
   "files": [
     {
       "path": ".vercelignore",
@@ -30,13 +25,13 @@
     },
     {
       "path": "README.md",
-      "size": 37655,
-      "sha256": "602ac5eb7d8fa2bea3a43dc29448eb1145a8dca0949ba16b16ff6a722092da17"
+      "size": 41487,
+      "sha256": "769a43c547785bba9ecf7cf4804a469bc8a1dc181de5c4fa83c10afa1c7ca130"
     },
     {
       "path": "START-HERE.txt",
-      "size": 35003,
-      "sha256": "02fe1bb6fca4fbb1d83b7fe9275523f8a659d5c1dd31354b1b020facb4d290da"
+      "size": 38835,
+      "sha256": "654b987ad3f0514c372a6d0845cbf1b67166b415d21ad240f4c707c5f700dfea"
     },
     {
       "path": "V44-TEST-REPORT.txt",
@@ -117,6 +112,16 @@
       "path": "V59-SIGNUP-TRIAL-SUBSCRIPTION-REPORT.txt",
       "size": 2098,
       "sha256": "eb64c5ade4cee2a05920cb6f12b9757050220488e4b165e7f6993ec166b231a3"
+    },
+    {
+      "path": "V60-SUPER-ADMIN-REPORT.txt",
+      "size": 2317,
+      "sha256": "69129fbf4ba7543f267a73abd87fa14b3fe3fd4287cca8a7e5ff17148d3835bd"
+    },
+    {
+      "path": "V61-D1-SUBSCRIPTION-RECOVERY-REPORT.txt",
+      "size": 1511,
+      "sha256": "a3a1f03df18ac2ef70df6cdf38a15877d3611425060bcfa9e0631b9c75131601"
     },
     {
       "path": "package.json",
@@ -241,7 +246,7 @@
     {
       "path": "public/index.html",
       "size": 1964,
-      "sha256": "401c147816c50d06e6ee0ae00ee7388ae1343ce30aef4d4e57852f2bbae8e2a3"
+      "sha256": "e2790c20226b249976a6e56ae3e776c0a53066d3dea011211b2b11991b23271b"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -250,18 +255,18 @@
     },
     {
       "path": "public/src/advanced-v44.css",
-      "size": 11323,
-      "sha256": "c740989aca41ade350e839bdb0bd68161336ac2696bae852bf7f33f4c0ae1008"
+      "size": 12789,
+      "sha256": "ce8e99b12b7bc7ff77c5d5cb3652392bc25c3c33e5f285f02bd68918000d2dc5"
     },
     {
       "path": "public/src/advanced-v44.js",
-      "size": 48980,
-      "sha256": "d8c41b7158f382a1f2efd00010e0cf0d7cd9f1acac5d15f092e3743e0b7f6ee4"
+      "size": 57020,
+      "sha256": "b26e878215a9413a0dac7f8186ae0837484c11803c21fc12f412dd90be8b85e1"
     },
     {
       "path": "public/src/app.js",
-      "size": 135833,
-      "sha256": "ec97f45f9e0481902cc0244105ed51e2c1901eca9e7ab583027955c1007e0029"
+      "size": 135886,
+      "sha256": "576d4bc9f7a07f891aa972cbb83c62ef65fa39a09317da96f7f542d7a681f384"
     },
     {
       "path": "public/src/core/api.js",
@@ -364,6 +369,16 @@
       "sha256": "6b27fe2ebff6c357d3c037027af7120a383ff44af381445dee42994bae395c86"
     },
     {
+      "path": "public/version-v60.txt",
+      "size": 54,
+      "sha256": "57a63d63925204109cb8ea96cc5302786ca90fad3eb383261a2aa9309e66e6a0"
+    },
+    {
+      "path": "public/version-v61.txt",
+      "size": 67,
+      "sha256": "e6e399ac60f8ebe2711976c8680a5ac2ce90b911e7573ef8ecfd10efc2db861f"
+    },
+    {
       "path": "vercel.json",
       "size": 655,
       "sha256": "1b53413a59fb95085053cba3a166882ff08dcfe5c48610556157f496d6907eb6"
@@ -404,14 +419,24 @@
       "sha256": "386bd9c194421d94b57c0cf7058fb91c86248e78d475b14bdf86354a97ed72f9"
     },
     {
+      "path": "worker/migrations/0009_super_admin_v60.sql",
+      "size": 271,
+      "sha256": "afdfc7c1a03bb0be071b686ea16532b7da61e376154ebfe27656c7c6786c4967"
+    },
+    {
+      "path": "worker/migrations/0010_subscription_requests_recovery_v61.sql",
+      "size": 531,
+      "sha256": "ba45185b353cc97ccdda9c3538608cc1b77d5dc2c26aa9439887da998c26eeb9"
+    },
+    {
       "path": "worker/package.json",
       "size": 266,
       "sha256": "eb8864702c69ac951a9a76b54e05bae2168e11de3c4274aaa0920b413725b1a9"
     },
     {
       "path": "worker/src/index.js",
-      "size": 179442,
-      "sha256": "a84d71b48546bc06bc1268bd6bb8bf80a318047358a68d304989a3b3e77a74a2"
+      "size": 189946,
+      "sha256": "17e9e1c8ce56c2205eb9cf03812825e591d7a0bd9c3c284f5d70abeee650398d"
     },
     {
       "path": "worker/src/seed-data.js",

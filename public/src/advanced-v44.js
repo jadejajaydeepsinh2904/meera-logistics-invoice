@@ -43,13 +43,14 @@ function openTools(){
     ${toolCard('☁️','Scheduled Backups','Daily Cloudflare backup snapshots','backups')}
     ${toolCard('🖼️','Truck Gallery','Multiple document images per truck','gallery')}
     ${toolCard('🏢','Company & Plan','Company profile, subscription and usage','saas')}
+    ${window.ML_PLATFORM_ADMIN?toolCard('🛡️','Super Admin','Companies, trials, plan requests and platform controls','superadmin'):''}
     ${toolCard('👥','Team & Access','Owner, Admin, Accountant, Operator and Viewer','team')}
     ${toolCard('⚙️','Settings','Company details, interface and backup defaults','settings')}
   </div><div class="a43-tip"><b>Command Palette:</b> keyboard par <kbd>Ctrl</kbd> + <kbd>K</kbd></div>`);
   host.querySelectorAll('[data-a43-tool]').forEach(b=>b.onclick=()=>openFeature(b.dataset.a43Tool));
 }
 async function openFeature(name){
-  const map={calendar:openCalendar,workflow:openWorkflow,approvals:openApprovals,recycle:openRecycle,health:openHealth,excel:openExcel,backups:openBackups,gallery:openGallery,saas:openSaasCenter,team:openTeamAccess,settings:openSettings};
+  const map={calendar:openCalendar,workflow:openWorkflow,approvals:openApprovals,recycle:openRecycle,health:openHealth,excel:openExcel,backups:openBackups,gallery:openGallery,saas:openSaasCenter,superadmin:openSuperAdminV60,team:openTeamAccess,settings:openSettings};
   return map[name]?.();
 }
 
@@ -166,6 +167,101 @@ async function openTeamAccess(){
       };
     });
   }catch(e){host.querySelector('main').innerHTML=`<div class="a43-error">${esc(e.message)}</div>`}
+}
+
+
+
+function v60CompanyStatus(c){
+  if(c.status!=='ACTIVE')return `<span class="v60-pill suspended">SUSPENDED</span>`;
+  if(c.subscription_expired)return `<span class="v60-pill expired">EXPIRED</span>`;
+  if(c.subscription_status==='TRIAL')return `<span class="v60-pill trial">TRIAL · ${c.days_remaining??0}d</span>`;
+  return `<span class="v60-pill active">${esc(c.subscription_status||'ACTIVE')}</span>`;
+}
+function v60AdminCompanyRows(data,query=''){
+  const q=String(query||'').trim().toLowerCase();
+  return (data.companies||[]).filter(c=>!q||[
+    c.company_name,c.company_code,c.owner_name,c.owner_username,c.mobile,c.email,c.plan_id,c.subscription_status,c.status
+  ].some(v=>String(v||'').toLowerCase().includes(q))).map(c=>`
+    <tr>
+      <td><b>${esc(c.company_name||'-')}</b><small>${esc(c.company_code||'')}</small></td>
+      <td>${esc(c.owner_name||'-')}<small>${esc(c.owner_username||'')} · ${esc(c.owner_mobile||c.mobile||'-')}</small></td>
+      <td><b>${esc(c.plan_id||'-')}</b><small>${esc(c.subscription_status||'-')}${c.source?` · ${esc(c.source)}`:''}</small></td>
+      <td>${v60CompanyStatus(c)}<small>${c.trial_ends_at?`Trial end ${esc(c.trial_ends_at)}`:c.current_period_end?`Period end ${esc(c.current_period_end)}`:''}</small></td>
+      <td><b>${Number(c.month_trips||0)} Trips · ${Number(c.month_invoices||0)} Bills</b><small>${Number(c.active_users||0)} active user(s)</small></td>
+      <td><div class="v60-admin-actions">
+        ${c.id!=='CMP-MEERA'?`<button type="button" data-v60-company-status="${esc(c.id)}" data-v60-next-status="${c.status==='ACTIVE'?'SUSPENDED':'ACTIVE'}">${c.status==='ACTIVE'?'Suspend':'Enable'}</button>`:'<button type="button" disabled>Primary</button>'}
+        ${c.subscription_status==='TRIAL'?`<button type="button" data-v60-extend="${esc(c.id)}" data-v60-days="7">+7 Days</button><button type="button" data-v60-extend="${esc(c.id)}" data-v60-days="14">+14 Days</button>`:''}
+      </div></td>
+    </tr>`).join('')||'<tr><td colspan="6">No company found.</td></tr>';
+}
+async function openSuperAdminV60(){
+  const host=loading('Super Admin');
+  try{
+    const data=await api('/super-admin'),s=data.summary||{};
+    host.querySelector('main').innerHTML=`
+      <div class="v60-admin-head">
+        <div><h2>Transport ERP · Super Admin</h2><small>Platform-level company, trial and subscription support controls.</small></div>
+        <button type="button" data-v60-refresh>Refresh</button>
+      </div>
+      <div class="v60-metrics">
+        <div><small>TOTAL COMPANIES</small><b>${s.totalCompanies||0}</b></div>
+        <div><small>ACTIVE</small><b>${s.activeCompanies||0}</b></div>
+        <div><small>LIVE TRIALS</small><b>${s.trials||0}</b></div>
+        <div><small>EXPIRED</small><b>${s.expired||0}</b></div>
+        <div><small>SUSPENDED</small><b>${s.suspended||0}</b></div>
+        <div><small>PLAN REQUESTS</small><b>${s.pendingRequests||0}</b></div>
+      </div>
+      <div class="v60-admin-section">
+        <div class="a44-settings-section"><b>Companies</b><small>Search, suspend/enable and extend Trial. Meera Logistics primary company is protected.</small></div>
+        <input class="v60-admin-search" data-v60-search placeholder="Search company, owner, mobile or plan…">
+        <div class="a43-table-wrap"><table class="v60-company-table"><thead><tr><th>Company</th><th>Owner</th><th>Plan</th><th>Status</th><th>This Month</th><th>Support Action</th></tr></thead><tbody data-v60-company-body>${v60AdminCompanyRows(data)}</tbody></table></div>
+      </div>
+      <div class="v60-admin-section">
+        <div class="a44-settings-section"><b>Subscription Requests</b><small>Review support requests. Paid plan is NOT activated here; Google Play purchase verification remains required.</small></div>
+        <div class="a43-table-wrap"><table><thead><tr><th>Company</th><th>Requested Plan</th><th>Cycle</th><th>Status</th><th>Date</th><th>Action</th></tr></thead><tbody>
+          ${(data.requests||[]).map(r=>`<tr>
+            <td><b>${esc(r.company_name||'-')}</b><small>${esc(r.company_code||'')} · ${esc(r.company_mobile||'-')}</small></td>
+            <td><b>${esc(r.requested_plan_id)}</b></td><td>${esc(r.billing_cycle)}</td><td>${esc(r.status)}</td><td>${esc(r.created_at||'')}</td>
+            <td>${r.status==='PENDING'?`<div class="v60-admin-actions"><button type="button" data-v60-review="${esc(r.id)}" data-v60-review-status="REVIEWED">Mark Reviewed</button><button type="button" data-v60-review="${esc(r.id)}" data-v60-review-status="REJECTED">Reject</button></div>`:'-'}</td>
+          </tr>`).join('')||'<tr><td colspan="6">No subscription requests.</td></tr>'}
+        </tbody></table></div>
+      </div>
+      <div class="v60-admin-section">
+        <div class="a44-settings-section"><b>Recent Platform Actions</b><small>Super Admin activity log</small></div>
+        ${(data.recentAudit||[]).slice(0,30).map(a=>`<div class="audit-item"><b>${esc(a.action)} · ${esc(a.company_id||'-')}</b><small>${esc(a.admin_username)} · ${esc(a.created_at||'')}</small></div>`).join('')||'<div class="notice">No platform actions yet.</div>'}
+      </div>
+      <div class="v49-note"><b>Billing safety:</b> V60 can review plan requests, suspend/enable companies and extend trials. It deliberately cannot grant a paid plan without verified Google Play Billing.</div>`;
+    const refresh=()=>{closeAdvanced();openSuperAdminV60()};
+    host.querySelector('[data-v60-refresh]').onclick=refresh;
+    const search=host.querySelector('[data-v60-search]'),body=host.querySelector('[data-v60-company-body]');
+    search.oninput=()=>{body.innerHTML=v60AdminCompanyRows(data,search.value);wireRows()};
+    const wireRows=()=>{
+      body.querySelectorAll('[data-v60-company-status]').forEach(btn=>btn.onclick=async()=>{
+        const companyId=btn.dataset.v60CompanyStatus,status=btn.dataset.v60NextStatus;
+        if(!confirm(`${status==='SUSPENDED'?'Suspend':'Enable'} this company?`))return;
+        btn.disabled=true;
+        try{await api('/super-admin/company-status',{method:'POST',body:JSON.stringify({companyId,status})});toast(`Company ${status.toLowerCase()}`);refresh()}
+        catch(err){alert(err.message);btn.disabled=false}
+      });
+      body.querySelectorAll('[data-v60-extend]').forEach(btn=>btn.onclick=async()=>{
+        const companyId=btn.dataset.v60Extend,days=Number(btn.dataset.v60Days||7);
+        if(!confirm(`Extend this Trial by ${days} days?`))return;
+        btn.disabled=true;
+        try{await api('/super-admin/extend-trial',{method:'POST',body:JSON.stringify({companyId,days})});toast(`Trial extended ${days} days`);refresh()}
+        catch(err){alert(err.message);btn.disabled=false}
+      });
+    };
+    wireRows();
+    host.querySelectorAll('[data-v60-review]').forEach(btn=>btn.onclick=async()=>{
+      const requestId=btn.dataset.v60Review,status=btn.dataset.v60ReviewStatus;
+      const notes=prompt(status==='REJECTED'?'Reason / support note':'Support note (optional)','')||'';
+      btn.disabled=true;
+      try{await api('/super-admin/request-review',{method:'POST',body:JSON.stringify({requestId,status,notes})});toast(`Request ${status.toLowerCase()}`);refresh()}
+      catch(err){alert(err.message);btn.disabled=false}
+    });
+  }catch(e){
+    host.querySelector('main').innerHTML=`<div class="a43-error">${esc(e.message)}</div>`;
+  }
 }
 
 
@@ -384,7 +480,12 @@ function decorate(){
   document.querySelectorAll('.sidebar [data-panel]').forEach(b=>{if(['partyPayments','truckEntries','supplierPayments','expenses'].includes(b.dataset.panel))b.remove()});
   const sidebar=document.querySelector('.sidebar');
   if(sidebar&&!sidebar.querySelector('[data-a44-settings-side]'))sidebar.insertAdjacentHTML('beforeend','<div class="nav-group-title a44-settings-title">System</div><div class="nav a44-settings-nav"><button type="button" data-v49-saas-side><span class="dot"></span>Company & Plan</button><button type="button" data-v49-team-side><span class="dot"></span>Team & Access</button><button type="button" data-a44-settings-side><span class="dot"></span>Settings</button></div>');
+  if(sidebar&&window.ML_PLATFORM_ADMIN&&!sidebar.querySelector('[data-v60-superadmin-side]')){
+    const systemNav=sidebar.querySelector('.a44-settings-nav');
+    systemNav?.insertAdjacentHTML('afterbegin','<button type="button" data-v60-superadmin-side><span class="dot"></span>Super Admin</button>');
+  }
   const sideSaas=document.querySelector('[data-v49-saas-side]');if(sideSaas&&!sideSaas.dataset.v49Bound){sideSaas.dataset.v49Bound='1';sideSaas.addEventListener('click',openSaasCenter)}
+  const sideSuper=document.querySelector('[data-v60-superadmin-side]');if(sideSuper&&!sideSuper.dataset.v60Bound){sideSuper.dataset.v60Bound='1';sideSuper.addEventListener('click',openSuperAdminV60)}
   const sideTeam=document.querySelector('[data-v49-team-side]');if(sideTeam&&!sideTeam.dataset.v49Bound){sideTeam.dataset.v49Bound='1';sideTeam.addEventListener('click',openTeamAccess)}
   const sideSettings=document.querySelector('[data-a44-settings-side]');if(sideSettings&&!sideSettings.dataset.a44Bound){sideSettings.dataset.a44Bound='1';sideSettings.addEventListener('click',openSettings)}
   const top=document.querySelector('.top-actions');

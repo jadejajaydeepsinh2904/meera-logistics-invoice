@@ -842,3 +842,100 @@ DEPLOY
 2. Cloudflare Worker redeploy FIRST.
 3. Vercel redeploy.
 4. Open /?reset=v59 once.
+
+
+V60 SUPER ADMIN PANEL
+
+COMPLETED
+
+1. Secure Platform Admin
+- New platform_admins table.
+- Existing primary Meera Logistics username "admin" is seeded as Platform Admin.
+- Super Admin access also requires company_id = CMP-MEERA.
+- Normal customer Owner/Admin users cannot call Super Admin APIs.
+- Platform Admin flag is returned in bootstrap and only then the Super Admin UI appears.
+
+2. Super Admin Dashboard
+- Total Companies
+- Active Companies
+- Live Trials
+- Expired Subscriptions
+- Suspended Companies
+- Pending Plan Requests
+- Search across company, owner, mobile and plan.
+- Company row shows owner, plan, subscription status, trial/period end, monthly Trips/Invoices and active users.
+
+3. Company Support Controls
+- Suspend company.
+- Enable suspended company.
+- Suspended company sessions are revoked immediately.
+- Suspended company cannot log in again until enabled.
+- Primary CMP-MEERA company cannot be suspended.
+- Trial can be extended by +7 or +14 days.
+- Trial extension works even if the trial already expired.
+
+4. Subscription Request Support
+- Pending Basic/Pro/Business requests are visible.
+- Platform Admin can Mark Reviewed or Reject with a support note.
+- Paid plan is NOT activated by these buttons.
+- Google Play purchase verification remains mandatory for actual paid activation.
+
+5. Platform Audit Log
+- Company status changes, Trial extensions and subscription-request reviews are recorded in platform_audit_logs.
+
+6. V59 Reliability Fix
+- V59 added subscription_requests inside ensureSaasFoundation, but existing installations can skip that CREATE because saas_ready_v53 short-circuits.
+- V60 fixes this with ensurePlatformV60(), which creates V59/V60 extension tables idempotently even on an already-ready database.
+
+7. Existing ERP Safety
+- V59 Signup/14-Day Trial/limits retained.
+- V58 Accounting/Data Isolation retained.
+- Existing Meera Logistics grandfathered Business access retained.
+- No operational data is deleted.
+- D1 schema_version remains 53.
+
+DEPLOY
+1. Upload complete V60 ZIP to GitHub main.
+2. Redeploy Cloudflare Worker FIRST.
+3. Login with the primary Meera Logistics "admin" account.
+4. Redeploy Vercel.
+5. Open /?reset=v60 once.
+6. Sidebar -> System -> Super Admin.
+
+NEXT
+V61 = Cloud file storage + notification/app-ready document system before Android packaging.
+
+
+V61 D1 SUBSCRIPTION REQUESTS RECOVERY
+
+FIXED ERROR
+D1_ERROR: no such table: subscription_requests
+
+ROOT CAUSE
+V59 added subscription_requests inside ensureSaasFoundation(), but an existing database already had
+saas_ready_v53=1. That persistent marker allowed ensureSaasFoundation() to return before creating the
+new V59 table. saasContext() then queried subscription_requests and D1 raised SQLITE_ERROR.
+
+V61 HARD FIX
+- Dedicated ensureSubscriptionRequestsV61() is independent of saas_ready_v53.
+- It runs CREATE TABLE IF NOT EXISTS + index safely and idempotently.
+- It is called before every possible subscription_requests read/write:
+  saasContext, Company Registration, SaaS Plans, Subscription Request and Super Admin.
+- V60 Super Admin's ensurePlatformV60 also calls it.
+- /api/subscription-recovery-v61 can confirm table existence after login.
+- Existing subscription request data is preserved.
+- No operational tables are rebuilt.
+- No manual SQL is required.
+- D1 schema_version remains 53.
+
+IMPORTANT DEPLOY ORDER
+1. Upload the complete V61 project.
+2. Redeploy CLOUDFLARE WORKER FIRST.
+3. Login/open the app once. V61 creates the missing table automatically.
+4. Redeploy Vercel.
+5. Open /?reset=v61 once.
+
+CURRENT GITHUB CHECK
+At the time this fix was prepared, GitHub main was still serving V59 Worker code, where saasContext
+queries subscription_requests directly after the old SaaS-ready short circuit. Deploying only Vercel
+cannot repair the D1 backend; the Cloudflare Worker must be redeployed.

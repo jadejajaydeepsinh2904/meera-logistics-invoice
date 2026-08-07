@@ -179,8 +179,120 @@ async function ensureSaasFoundation(env){
   return saasFoundationPromise;
 }
 
+
+
+let subscriptionRequestsV61Promise=null;
+async function ensureSubscriptionRequestsV61(env){
+  if(subscriptionRequestsV61Promise)return subscriptionRequestsV61Promise;
+  subscriptionRequestsV61Promise=(async()=>{
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS subscription_requests(
+      id TEXT PRIMARY KEY,
+      company_id TEXT NOT NULL,
+      requested_plan_id TEXT NOT NULL,
+      billing_cycle TEXT DEFAULT 'MONTHLY',
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      notes TEXT DEFAULT '',
+      requested_by TEXT DEFAULT '',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`).run();
+    await safe(env,`CREATE INDEX IF NOT EXISTS idx_subscription_request_company_v61
+      ON subscription_requests(company_id,status,created_at)`);
+    try{
+      await run(env,`INSERT OR REPLACE INTO app_meta(key,value,updated_at)
+        VALUES('subscription_requests_v61','1',CURRENT_TIMESTAMP)`);
+    }catch(_){}
+    return true;
+  })().catch(error=>{subscriptionRequestsV61Promise=null;throw error});
+  return subscriptionRequestsV61Promise;
+}
+
+let platformV60Promise=null;
+async function ensurePlatformV60(env){
+  if(platformV60Promise)return platformV60Promise;
+  platformV60Promise=(async()=>{
+    await ensureSubscriptionRequestsV61(env);
+    const creates=[
+      `CREATE TABLE IF NOT EXISTS subscription_requests(
+        id TEXT PRIMARY KEY,company_id TEXT NOT NULL,requested_plan_id TEXT NOT NULL,billing_cycle TEXT DEFAULT 'MONTHLY',
+        status TEXT NOT NULL DEFAULT 'PENDING',notes TEXT DEFAULT '',requested_by TEXT DEFAULT '',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS platform_admins(
+        username TEXT PRIMARY KEY,active INTEGER NOT NULL DEFAULT 1,created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS platform_audit_logs(
+        id TEXT PRIMARY KEY,admin_username TEXT NOT NULL,action TEXT NOT NULL,company_id TEXT DEFAULT '',
+        request_id TEXT DEFAULT '',payload TEXT DEFAULT '{}',created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`
+    ];
+    for(const sql of creates)await env.DB.prepare(sql).run();
+    await run(env,`INSERT OR IGNORE INTO platform_admins(username,active) VALUES('admin',1)`);
+    await safe(env,`CREATE INDEX IF NOT EXISTS idx_subscription_request_company_v60 ON subscription_requests(company_id,status,created_at)`);
+    await safe(env,`CREATE INDEX IF NOT EXISTS idx_platform_audit_v60 ON platform_audit_logs(created_at)`);
+    return true;
+  })().catch(error=>{platformV60Promise=null;throw error});
+  return platformV60Promise;
+}
+async function isPlatformAdminV60(env,user){
+  if(!user||companyIdOf(user)!==DEFAULT_COMPANY_ID)return false;
+  await ensurePlatformV60(env);
+  const row=await first(env,`SELECT username FROM platform_admins WHERE LOWER(username)=LOWER(?) AND active=1`,user.username||'');
+  return !!row;
+}
+async function platformAuditV60(env,user,action,companyId='',requestId='',payload={}){
+  await ensurePlatformV60(env);
+  await run(env,`INSERT INTO platform_audit_logs(id,admin_username,action,company_id,request_id,payload)
+    VALUES(?,?,?,?,?,?)`,uid('PAD'),user?.username||'',action,companyId||'',requestId||'',JSON.stringify(payload||{}));
+}
+function v60SubscriptionExpired(row){
+  const today=new Date().toISOString().slice(0,10);
+  if(String(row.subscription_status||'')==='EXPIRED')return true;
+  if(String(row.subscription_status||'')==='TRIAL'&&row.trial_ends_at&&String(row.trial_ends_at)<today)return true;
+  if(row.current_period_end&&['ACTIVE','GRACE','CANCELLED'].includes(String(row.subscription_status||''))&&String(row.current_period_end)<today){
+    if(!row.grace_ends_at||String(row.grace_ends_at)<today)return true;
+  }
+  return false;
+}
+async function platformDashboardV60(env){
+  await ensurePlatformV60(env);
+  const month=new Date().toISOString().slice(0,7);
+  const companies=await all(env,`
+    SELECT c.id,c.company_code,c.company_name,c.mobile,c.email,c.status,c.created_at,
+      cs.plan_id,cs.status subscription_status,cs.source,cs.trial_ends_at,cs.current_period_end,cs.grace_ends_at,
+      (SELECT username FROM users u WHERE u.company_id=c.id AND u.role='OWNER' ORDER BY u.id LIMIT 1) owner_username,
+      (SELECT full_name FROM users u WHERE u.company_id=c.id AND u.role='OWNER' ORDER BY u.id LIMIT 1) owner_name,
+      (SELECT mobile FROM users u WHERE u.company_id=c.id AND u.role='OWNER' ORDER BY u.id LIMIT 1) owner_mobile,
+      (SELECT COUNT(*) FROM users u WHERE u.company_id=c.id AND u.active=1) active_users,
+      (SELECT COUNT(*) FROM trips t WHERE t.company_id=c.id AND substr(COALESCE(t.trip_date,''),1,7)=?) month_trips,
+      (SELECT COUNT(*) FROM invoices i WHERE i.company_id=c.id AND substr(COALESCE(i.invoice_date,''),1,7)=?) month_invoices
+    FROM companies c
+    LEFT JOIN company_subscriptions cs ON cs.company_id=c.id
+    ORDER BY c.created_at DESC,c.company_name`,month,month);
+  for(const c of companies){
+    c.subscription_expired=v60SubscriptionExpired(c);
+    c.days_remaining=c.subscription_status==='TRIAL'?dateDaysRemainingV59(c.trial_ends_at):dateDaysRemainingV59(c.grace_ends_at||c.current_period_end);
+  }
+  const requests=await all(env,`
+    SELECT r.*,c.company_name,c.company_code,c.mobile company_mobile,c.email company_email
+    FROM subscription_requests r JOIN companies c ON c.id=r.company_id
+    ORDER BY CASE r.status WHEN 'PENDING' THEN 0 ELSE 1 END,r.created_at DESC LIMIT 100`);
+  const recentAudit=await all(env,`SELECT * FROM platform_audit_logs ORDER BY created_at DESC LIMIT 100`);
+  const summary={
+    totalCompanies:companies.length,
+    activeCompanies:companies.filter(c=>c.status==='ACTIVE').length,
+    trials:companies.filter(c=>c.subscription_status==='TRIAL'&&!c.subscription_expired).length,
+    expired:companies.filter(c=>c.subscription_expired).length,
+    suspended:companies.filter(c=>c.status!=='ACTIVE').length,
+    pendingRequests:requests.filter(r=>r.status==='PENDING').length
+  };
+  return {summary,companies,requests,recentAudit,checkedAt:new Date().toISOString()};
+}
+
 async function saasContext(env,user){
   await ensureSaasFoundation(env);
+  await ensurePlatformV60(env);
+  await ensureSubscriptionRequestsV61(env);
   const companyId=user?.company_id||DEFAULT_COMPANY_ID;
   const company=await first(env,`SELECT * FROM companies WHERE id=?`,companyId)
     ||await first(env,`SELECT * FROM companies WHERE id=?`,DEFAULT_COMPANY_ID);
@@ -1051,7 +1163,7 @@ async function ensureDatabase(env){
   initPromise=(async()=>{
     try{
       const ready=await first(env,`SELECT value FROM app_meta WHERE key='schema_version'`);
-      if(ready?.value==='53')return true;
+      if(ready?.value==='53'){await ensurePlatformV60(env);return true;}
     }catch(_){}
 
     try{
@@ -1061,6 +1173,7 @@ async function ensureDatabase(env){
         await ensureSaasFoundation(env);
         await healTenantColumns(env);
         await run(env,`INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','53',CURRENT_TIMESTAMP)`);
+        await ensurePlatformV60(env);
         return true;
       }
     }catch(error){
@@ -1267,7 +1380,9 @@ async function ensureDatabase(env){
 async function auth(req,env){
   const token=(req.headers.get('authorization')||'').replace(/^Bearer\s+/i,'');
   if(!token) return null;
-  const user=await first(env, `SELECT u.id,u.username,u.role,u.company_id,u.full_name,u.email,u.mobile FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires_at>datetime('now') AND u.active=1`, token);
+  const user=await first(env, `SELECT u.id,u.username,u.role,u.company_id,u.full_name,u.email,u.mobile
+    FROM sessions s JOIN users u ON u.id=s.user_id JOIN companies c ON c.id=u.company_id
+    WHERE s.token=? AND s.expires_at>datetime('now') AND u.active=1 AND c.status='ACTIVE'`, token);
   if(user)user.permissions=permissionsForRole(user.role);
   return user;
 }
@@ -1453,12 +1568,13 @@ async function bootstrap(env,user){
   };
 
   const saas=await subscriptionAccess(env,user);
+  const platformAdmin=await isPlatformAdminV60(env,user);
   const company=saas.company||{};
   const gstPrefix=company.invoice_prefix||'ML';
   const nonGstPrefix=company.non_gst_prefix||'JAY';
   return {
-    version:'V59-Signup-Trial-Subscription',
-    user:{...user,permissions:permissionsForRole(user.role)},saas,parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
+    version:'V61-D1-Subscription-Recovery',
+    user:{...user,permissions:permissionsForRole(user.role),platform_admin:platformAdmin},saas,parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
     pmBills,pmBillItems,truckEntries,supplierPayments,supplierAccounts,expenses,documents,audits,partyLedger,supplierLedger,issues,accountingAudit,
     nextInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='GST').map(x=>x.invoice_no),`${gstPrefix} - `),
     nextNonGstInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='NON_GST').map(x=>x.invoice_no),`${nonGstPrefix} `),
@@ -1859,9 +1975,10 @@ export default {
       const resource=parts[0]||'';
       const id=decodeURIComponent(parts[1]||'');
 
-      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'V54-Supplier-Truck-UX'}),{headers:{...HEADERS,'cache-control':'public,max-age=15'}});
+      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'V61-D1-Subscription-Recovery'}),{headers:{...HEADERS,'cache-control':'public,max-age=15'}});
       if(resource==='saas-plans'&&req.method==='GET'){
         await ensureDatabase(env);
+        await ensureSubscriptionRequestsV61(env);
         const plans=await all(env,`SELECT id,plan_name,monthly_price,yearly_price,max_users,max_trips_month,max_invoices_month,max_storage_mb,features_json,play_product_id_monthly,play_product_id_yearly FROM saas_plans WHERE active=1 ORDER BY sort_order`);
         return json(plans.map(p=>({...p,features:JSON.parse(p.features_json||'{}'),features_json:undefined})));
       }
@@ -1869,6 +1986,7 @@ export default {
 
       if(resource==='register-company'&&req.method==='POST'){
         await ensureDatabase(env);
+        await ensureSubscriptionRequestsV61(env);
         const tenantReady=await first(env,`SELECT value FROM app_meta WHERE key='tenant_unique_v52'`);
         if(tenantReady?.value!=='1')return json({error:'Multi-company setup is finishing automatically. Please retry shortly.'},503);
         const b=await requestBody(req);
@@ -1919,6 +2037,10 @@ export default {
         const b=await requestBody(req);
         const hash=await sha256(b.password||'');
         const user=await first(env,`SELECT id,username,role,company_id,full_name,email,mobile FROM users WHERE LOWER(username)=LOWER(?) AND password_hash=? AND active=1`,clean(b.username),hash);
+        if(user){
+          const company=await first(env,`SELECT status FROM companies WHERE id=?`,user.company_id||DEFAULT_COMPANY_ID);
+          if(company&&company.status!=='ACTIVE')return json({error:'This company account is suspended. Contact support.'},403);
+        }
         if(user)user.permissions=permissionsForRole(user.role);
         if(!user)return json({error:'Invalid username or password'},401);
         const token=crypto.randomUUID();
@@ -1935,6 +2057,51 @@ export default {
       const companyId=companyIdOf(user);
       if(id&&TENANT_RESOURCE_TABLE[resource]&&!['download','restore'].includes(id))await requireTenantRecord(env,user,resource,id);
 
+
+      if(resource==='super-admin'){
+        await ensureSubscriptionRequestsV61(env);
+        if(!await isPlatformAdminV60(env,user))return json({error:'Platform administrator access required'},403);
+        if(req.method==='GET')return json(await platformDashboardV60(env));
+        if(req.method==='POST'&&id==='company-status'){
+          const b=await requestBody(req),targetId=clean(b.companyId),status=upper(b.status);
+          if(!targetId||!['ACTIVE','SUSPENDED'].includes(status))return json({error:'Company and valid status required'},400);
+          if(targetId===DEFAULT_COMPANY_ID&&status!=='ACTIVE')return json({error:'Primary Meera Logistics company cannot be suspended'},400);
+          const company=await first(env,`SELECT id,company_name,status FROM companies WHERE id=?`,targetId);
+          if(!company)return json({error:'Company not found'},404);
+          await run(env,`UPDATE companies SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,status,targetId);
+          if(status!=='ACTIVE')await run(env,`DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE company_id=?)`,targetId);
+          await platformAuditV60(env,user,'COMPANY_STATUS',targetId,'',{from:company.status,to:status});
+          return json({ok:true,status});
+        }
+        if(req.method==='POST'&&id==='extend-trial'){
+          const b=await requestBody(req),targetId=clean(b.companyId),days=Math.max(1,Math.min(30,Number(b.days||7)));
+          const sub=await first(env,`SELECT * FROM company_subscriptions WHERE company_id=?`,targetId);
+          if(!sub)return json({error:'Subscription not found'},404);
+          if(sub.plan_id!=='TRIAL'&&sub.status!=='TRIAL')return json({error:'Trial extension is only available for Trial companies'},409);
+          const today=new Date();const oldEnd=sub.trial_ends_at?new Date(`${sub.trial_ends_at}T23:59:59Z`):today;
+          const base=oldEnd.getTime()>today.getTime()?oldEnd:today;
+          const next=new Date(base.getTime()+days*86400000).toISOString().slice(0,10);
+          await run(env,`UPDATE company_subscriptions SET plan_id='TRIAL',status='TRIAL',trial_ends_at=?,current_period_end=?,updated_at=CURRENT_TIMESTAMP WHERE company_id=?`,next,next,targetId);
+          await platformAuditV60(env,user,'EXTEND_TRIAL',targetId,'',{days,trialEndsAt:next});
+          return json({ok:true,trialEndsAt:next});
+        }
+        if(req.method==='POST'&&id==='request-review'){
+          const b=await requestBody(req),requestId=clean(b.requestId),status=upper(b.status);
+          if(!['REVIEWED','REJECTED'].includes(status))return json({error:'Use REVIEWED or REJECTED'},400);
+          const row=await first(env,`SELECT * FROM subscription_requests WHERE id=?`,requestId);
+          if(!row)return json({error:'Subscription request not found'},404);
+          await run(env,`UPDATE subscription_requests SET status=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,status,b.notes||'',requestId);
+          await platformAuditV60(env,user,'SUBSCRIPTION_REQUEST',row.company_id,requestId,{status,notes:b.notes||''});
+          return json({ok:true,status});
+        }
+      }
+
+      if(resource==='subscription-recovery-v61'&&req.method==='GET'){
+        await ensureSubscriptionRequestsV61(env);
+        const table=await first(env,`SELECT name FROM sqlite_master WHERE type='table' AND name='subscription_requests'`);
+        const count=await first(env,`SELECT COUNT(*) count FROM subscription_requests`);
+        return json({ok:!!table,table:'subscription_requests',rows:Number(count?.count||0),version:'V61-D1-Subscription-Recovery'});
+      }
 
       if(resource==='migration-status'&&req.method==='GET'){
         const stage=await first(env,`SELECT value FROM app_meta WHERE key='tenant_stage_v52'`);
@@ -1966,6 +2133,7 @@ export default {
 
       if(resource==='subscription'&&req.method==='GET')return json(await subscriptionAccess(env,user));
       if(resource==='subscription-request'){
+        await ensureSubscriptionRequestsV61(env);
         if(!['OWNER','ADMIN'].includes(upper(user.role)))return json({error:'Owner/Admin permission required'},403);
         if(req.method==='GET'){
           return json(await all(env,`SELECT * FROM subscription_requests WHERE company_id=? ORDER BY created_at DESC LIMIT 20`,companyId));
@@ -2042,7 +2210,7 @@ export default {
       }
 
       const writeRequest=!['GET','HEAD','OPTIONS'].includes(req.method);
-      if(writeRequest&&!['company-profile','team-users','subscription-request'].includes(resource)){
+      if(writeRequest&&!['company-profile','team-users','subscription-request','super-admin'].includes(resource)){
         try{await enforceSubscriptionWriteV59(env,user,resource,req.method)}
         catch(error){return json({error:String(error?.message||error)},Number(error?.status)||402)}
         if(!canWriteResource(user,resource))return json({error:'Your staff role does not allow this action.'},403);

@@ -1,0 +1,5 @@
+-- V60 reference
+-- Creates subscription_requests if V59 persistent SaaS marker skipped it.
+-- Creates platform_admins and platform_audit_logs.
+-- Seeds username 'admin' as the protected platform administrator for CMP-MEERA.
+-- No global schema_version bump; remains 53.

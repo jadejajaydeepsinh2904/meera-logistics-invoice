@@ -1,0 +1,33 @@
+V61 D1 SUBSCRIPTION REQUESTS RECOVERY
+
+FIXED ERROR
+D1_ERROR: no such table: subscription_requests
+
+ROOT CAUSE
+V59 added subscription_requests inside ensureSaasFoundation(), but an existing database already had
+saas_ready_v53=1. That persistent marker allowed ensureSaasFoundation() to return before creating the
+new V59 table. saasContext() then queried subscription_requests and D1 raised SQLITE_ERROR.
+
+V61 HARD FIX
+- Dedicated ensureSubscriptionRequestsV61() is independent of saas_ready_v53.
+- It runs CREATE TABLE IF NOT EXISTS + index safely and idempotently.
+- It is called before every possible subscription_requests read/write:
+  saasContext, Company Registration, SaaS Plans, Subscription Request and Super Admin.
+- V60 Super Admin's ensurePlatformV60 also calls it.
+- /api/subscription-recovery-v61 can confirm table existence after login.
+- Existing subscription request data is preserved.
+- No operational tables are rebuilt.
+- No manual SQL is required.
+- D1 schema_version remains 53.
+
+IMPORTANT DEPLOY ORDER
+1. Upload the complete V61 project.
+2. Redeploy CLOUDFLARE WORKER FIRST.
+3. Login/open the app once. V61 creates the missing table automatically.
+4. Redeploy Vercel.
+5. Open /?reset=v61 once.
+
+CURRENT GITHUB CHECK
+At the time this fix was prepared, GitHub main was still serving V59 Worker code, where saasContext
+queries subscription_requests directly after the old SaaS-ready short circuit. Deploying only Vercel
+cannot repair the D1 backend; the Cloudflare Worker must be redeployed.

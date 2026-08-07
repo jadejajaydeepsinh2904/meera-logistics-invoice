@@ -393,6 +393,7 @@ function subscriptionBannerV59(d){
 }
 function render(){
   const d=state.data;
+  window.ML_PLATFORM_ADMIN=!!d.user?.platform_admin;
   const titles={dashboard:'Dashboard',trips:'Trip History',invoices:'Invoice History',parties:'Party Khata',partyPayments:'Party Payments',suppliers:'Supplier Khata',truckEntries:'Truck / Supplier Entries',supplierPayments:'Supplier Payments',trucks:'Truck & Document',masters:'Master',forms:'Forms',expenses:'Office Expenses',reports:'Reports & Audit'};
   app.innerHTML=`<div class="erp">
     <aside class="sidebar" id="sidebar">
