@@ -9,3 +9,11 @@ database_id = "bdb1ef72-c3eb-465e-ae2d-853d63f3dea3"
 
 [triggers]
 crons = ["0 20 * * *"]
+
+# V62 optional Cloudflare R2 document storage.
+# Current Worker works without this block using D1 fallback.
+# After creating your R2 bucket, uncomment and set the real bucket_name:
+#
+# [[r2_buckets]]
+# binding = "DOCS"
+# bucket_name = "transport-erp-documents"

@@ -939,3 +939,65 @@ CURRENT GITHUB CHECK
 At the time this fix was prepared, GitHub main was still serving V59 Worker code, where saasContext
 queries subscription_requests directly after the old SaaS-ready short circuit. Deploying only Vercel
 cannot repair the D1 backend; the Cloudflare Worker must be redeployed.
+
+
+V62 CLOUD DOCUMENTS + NOTIFICATIONS + APP-READY FILE SYSTEM
+
+COMPLETED
+
+1. Cloud-ready Documents
+- Added storage_key, storage_mode and file_size metadata lazily/idempotently.
+- Existing D1 documents remain supported.
+- If Cloudflare R2 binding named DOCS exists, new documents are stored in R2.
+- If R2 is not configured, ERP automatically uses the safe existing D1 fallback.
+- No public R2 bucket is required.
+- Private file content is served through authenticated /document-content/:id.
+- Document metadata APIs no longer need to return heavy base64 file content.
+
+2. Better Upload System
+- Add Truck Document now sends real multipart/form-data instead of JSON base64.
+- Multi-file Truck Gallery supports Images and PDFs.
+- R2 mode allows files up to 10 MB.
+- D1 fallback keeps the safe ~2 MB limit and gives a clear R2 setup message for larger files.
+- Delete removes R2 object when direct document delete is used.
+- Recycle Bin can retain the storage key while the record is recoverable.
+
+3. Notification Center
+- New top 🔔 Alerts button.
+- Smart Tools -> Notifications.
+- Alerts include:
+  Party Outstanding
+  Supplier Pending
+  Truck Document Expiry / Expired
+  Pending Approvals
+  Trial / Subscription expiry
+- Alerts are company scoped.
+- Important alert badge shows in the top bar.
+
+4. Browser/App Alerts
+- "Enable Browser Alerts" requests notification permission.
+- Important alerts can show a daily local browser/PWA notification.
+- New service worker V62 supports notification click and future Web Push events.
+- This is app-ready notification infrastructure; server push/VAPID will be connected in the Android/push phase.
+
+5. Storage Status
+- Truck Gallery and Notifications show R2 Cloud Storage Active or D1 Fallback Active.
+- /api/document-storage-status returns mode, document count and stored byte total.
+
+6. Commercial App Preparation
+- PWA manifest renamed generically to Transport ERP.
+- V60 Super Admin retained.
+- V61 subscription_requests recovery retained.
+- V59 Signup/Trial/Subscription retained.
+- V58 Accounting isolation retained.
+
+IMPORTANT
+R2 is OPTIONAL. Do not add a fake bucket binding. Current project deploys without R2.
+To activate real cloud file storage, follow worker/R2-SETUP-V62.txt after creating the bucket.
+
+DEPLOY
+1. Upload complete V62 ZIP.
+2. Cloudflare Worker FIRST.
+3. Vercel redeploy.
+4. Open /?reset=v62 once.
+5. Smart Tools -> Notifications / Truck Gallery.

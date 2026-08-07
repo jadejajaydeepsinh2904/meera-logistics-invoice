@@ -1,4 +1,4 @@
-import {api} from './core/api.js';
+import {api,apiBlob} from './core/api.js';
 
 const A43={overlay:null,data:null,bootstrap:null,month:new Date().toISOString().slice(0,7)};
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
@@ -35,6 +35,7 @@ function toolCard(icon,title,text,action){return `<button class="a43-tool-card" 
 function openTools(){
   const host=modal('Smart Tools',`<div class="a43-tools-grid">
     ${toolCard('📅','Calendar','Trips, bookings, invoices and expiry dates','calendar')}
+    ${toolCard('🔔','Notifications','Outstanding, supplier pending, expiry, approvals and trial alerts','notifications')}
     ${toolCard('🚚','Booking Workflow','Booking → Approval → Dispatch → Trip','workflow')}
     ${toolCard('✅','Approvals','Pending booking approvals','approvals')}
     ${toolCard('♻️','Recycle Bin','Restore deleted records safely','recycle')}
@@ -50,7 +51,7 @@ function openTools(){
   host.querySelectorAll('[data-a43-tool]').forEach(b=>b.onclick=()=>openFeature(b.dataset.a43Tool));
 }
 async function openFeature(name){
-  const map={calendar:openCalendar,workflow:openWorkflow,approvals:openApprovals,recycle:openRecycle,health:openHealth,excel:openExcel,backups:openBackups,gallery:openGallery,saas:openSaasCenter,superadmin:openSuperAdminV60,team:openTeamAccess,settings:openSettings};
+  const map={calendar:openCalendar,notifications:openNotificationsV62,workflow:openWorkflow,approvals:openApprovals,recycle:openRecycle,health:openHealth,excel:openExcel,backups:openBackups,gallery:openGallery,saas:openSaasCenter,superadmin:openSuperAdminV60,team:openTeamAccess,settings:openSettings};
   return map[name]?.();
 }
 
@@ -448,22 +449,140 @@ async function openBackups(){
 function readCompressed(file,max=1400,quality=.76){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=reject;reader.onload=()=>{const img=new Image();img.onerror=reject;img.onload=()=>{let w=img.width,h=img.height;if(Math.max(w,h)>max){const r=max/Math.max(w,h);w=Math.round(w*r);h=Math.round(h*r)}const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);resolve(c.toDataURL('image/jpeg',quality))};img.src=reader.result};reader.readAsDataURL(file)})}
 async function openGallery(){
   const host=loading('Truck Documents Gallery');
-  try{const [data,b]=await Promise.all([loadAdvanced(true),loadBootstrap(true)]);const docs=data.documents||[];host.querySelector('.a43-head-actions').insertAdjacentHTML('afterbegin','<button class="primary" data-gallery-upload>+ Upload Images</button>');host.querySelector('main').innerHTML=`<div class="a43-gallery-filter"><select data-gallery-truck><option value="">All Trucks</option>${b.trucks.map(t=>`<option>${esc(t.truck_no)}</option>`).join('')}</select><input placeholder="Search document…" data-gallery-search></div><div class="a43-gallery">${docs.length?docs.map(d=>`<article data-truck="${esc(d.truck_no)}" data-text="${esc((d.file_name+' '+d.kind).toLowerCase())}"><div class="a43-doc-icon">🖼️</div><b>${esc(d.truck_no)}</b><span>${esc(d.kind)}</span><small>${esc(d.file_name||'Image')}${d.expiry_date?' · Exp '+fmtDate(d.expiry_date):''}</small><footer><button data-doc-view="${d.id}">View</button><button class="danger" data-doc-delete="${d.id}">Delete</button></footer></article>`).join(''):'<div class="a43-empty">No truck documents.</div>'}</div>`;
-    const filter=()=>{const truck=host.querySelector('[data-gallery-truck]').value,q=host.querySelector('[data-gallery-search]').value.toLowerCase();host.querySelectorAll('.a43-gallery article').forEach(x=>x.hidden=!!((truck&&x.dataset.truck!==truck)||(q&&!x.dataset.text.includes(q))))};host.querySelector('[data-gallery-truck]').onchange=filter;host.querySelector('[data-gallery-search]').oninput=filter;
+  try{
+    const [data,b,storage]=await Promise.all([loadAdvanced(true),loadBootstrap(true),api('/document-storage-status')]);
+    const docs=data.documents||[];
+    host.querySelector('.a43-head-actions').insertAdjacentHTML('afterbegin','<button class="primary" data-gallery-upload>+ Upload Documents</button>');
+    host.querySelector('main').innerHTML=`
+      <div class="v62-storage-status ${storage.r2Configured?'cloud':'fallback'}"><b>${storage.r2Configured?'☁️ Cloudflare R2 Active':'💾 D1 Fallback Active'}</b><span>${esc(storage.message||'')} · ${storage.documents||0} docs · ${Number(storage.bytes||0).toLocaleString('en-IN')} bytes</span></div>
+      <div class="a43-gallery-filter"><select data-gallery-truck><option value="">All Trucks</option>${b.trucks.map(t=>`<option>${esc(t.truck_no)}</option>`).join('')}</select><input placeholder="Search document…" data-gallery-search></div>
+      <div class="a43-gallery">${docs.length?docs.map(d=>`<article data-truck="${esc(d.truck_no)}" data-text="${esc((d.file_name+' '+d.kind).toLowerCase())}">
+        <div class="a43-doc-icon">${d.file_type==='application/pdf'?'📄':'🖼️'}</div><b>${esc(d.truck_no)}</b><span>${esc(d.kind)}</span>
+        <small>${esc(d.file_name||'Document')}${d.expiry_date?' · Exp '+fmtDate(d.expiry_date):''}</small>
+        <small>${esc(d.storage_mode||'D1')} · ${Number(d.file_size||0).toLocaleString('en-IN')} bytes</small>
+        <footer><button data-doc-view="${d.id}">View</button><button class="danger" data-doc-delete="${d.id}">Delete</button></footer>
+      </article>`).join(''):'<div class="a43-empty">No truck documents.</div>'}</div>`;
+    const filter=()=>{const truck=host.querySelector('[data-gallery-truck]').value,q=host.querySelector('[data-gallery-search]').value.toLowerCase();host.querySelectorAll('.a43-gallery article').forEach(x=>x.hidden=!!((truck&&x.dataset.truck!==truck)||(q&&!x.dataset.text.includes(q))))};
+    host.querySelector('[data-gallery-truck]').onchange=filter;host.querySelector('[data-gallery-search]').oninput=filter;
     host.querySelector('[data-gallery-upload]').onclick=()=>galleryUploadForm(b.trucks);
-    host.querySelectorAll('[data-doc-view]').forEach(x=>x.onclick=async()=>{const d=await api('/documents/'+x.dataset.docView);modal(`${d.truck_no} · ${d.kind}`,d.file_data?`<img class="a43-full-image" src="${d.file_data}"><p>${esc(d.notes||'')}</p>`:'<div class="a43-empty">Image data not found.</div>')});
+    host.querySelectorAll('[data-doc-view]').forEach(x=>x.onclick=async()=>{
+      try{
+        const d=await api('/documents/'+x.dataset.docView),blob=await apiBlob('/document-content/'+x.dataset.docView),url=URL.createObjectURL(blob);
+        const content=d.file_type==='application/pdf'?`<iframe class="v62-doc-frame" src="${url}"></iframe>`:`<img class="a43-full-image" src="${url}">`;
+        const m=modal(`${d.truck_no} · ${d.kind}`,`${content}<p>${esc(d.notes||'')}</p><small>${esc(d.storage_mode||'D1')} · ${Number(d.file_size||blob.size||0).toLocaleString('en-IN')} bytes</small>`);
+        setTimeout(()=>{if(!document.body.contains(m))URL.revokeObjectURL(url)},600000);
+      }catch(err){alert(err.message)}
+    });
     host.querySelectorAll('[data-doc-delete]').forEach(x=>x.onclick=()=>moveToRecycle('document',x.dataset.docDelete,openGallery));
   }catch(e){host.querySelector('main').innerHTML=`<div class="a43-error">${esc(e.message)}</div>`}
 }
 function galleryUploadForm(trucks){
-  const host=modal('Upload Multiple Truck Images',`<form class="a43-form" id="galleryUpload"><label><span>Truck</span><select name="truckNo" data-master-type="truck" required><option value="">Select Truck</option>${trucks.map(t=>`<option>${esc(t.truck_no)}</option>`).join('')}<option value="__ADD_NEW__">＋ New Truck Add</option></select></label><label><span>Document Type</span><select name="kind"><option>RC</option><option>PAN</option><option>CHEQUE</option><option>BUILTY</option><option>POD</option><option>INSURANCE</option><option>FITNESS</option><option>PERMIT</option><option>OTHER</option></select></label><label><span>Expiry Date</span><input type="date" name="expiryDate"></label><label class="wide"><span>Images (multiple)</span><input type="file" name="files" accept="image/*" multiple required></label><label class="wide"><span>Notes</span><textarea name="notes"></textarea></label><div class="a43-form-actions"><button type="button" data-a43-close-form>Cancel</button><button class="primary">Upload All</button></div></form>`);window.ML_WIRE_MASTER_SELECTS?.(host);host.querySelector('[data-a43-close-form]').onclick=closeAdvanced;host.querySelector('form').onsubmit=async e=>{e.preventDefault();const btn=e.submitter,fd=new FormData(e.target),files=[...e.target.files.files];btn.disabled=true;btn.textContent=`Uploading 0/${files.length}`;try{let n=0;for(const file of files){const data=await readCompressed(file);await api('/documents',{method:'POST',body:JSON.stringify({truckNo:fd.get('truckNo'),kind:fd.get('kind'),fileName:file.name,fileType:'image/jpeg',fileData:data,expiryDate:fd.get('expiryDate'),notes:fd.get('notes')})});n++;btn.textContent=`Uploading ${n}/${files.length}`}toast(`${n} images uploaded`);A43.data=null;A43.bootstrap=null;openGallery()}catch(err){alert(err.message)}finally{btn.disabled=false}};
+  const host=modal('Upload Multiple Truck Documents',`<form class="a43-form" id="galleryUpload">
+    <label><span>Truck</span><select name="truckNo" data-master-type="truck" required><option value="">Select Truck</option>${trucks.map(t=>`<option>${esc(t.truck_no)}</option>`).join('')}<option value="__ADD_NEW__">＋ New Truck Add</option></select></label>
+    <label><span>Document Type</span><select name="kind"><option>RC</option><option>PAN</option><option>CHEQUE</option><option>BUILTY</option><option>POD</option><option>INSURANCE</option><option>FITNESS</option><option>PERMIT</option><option>OTHER</option></select></label>
+    <label><span>Expiry Date</span><input type="date" name="expiryDate"></label>
+    <label class="wide"><span>Images / PDFs (multiple)</span><input type="file" name="files" accept="image/*,.pdf" multiple required></label>
+    <label class="wide"><span>Notes</span><textarea name="notes"></textarea></label>
+    <div class="v49-note wide"><b>Cloud-ready:</b> R2 binding active hoy to files directly cloud storage ma jai. D1 fallback ma large files automatically reject thase.</div>
+    <div class="a43-form-actions"><button type="button" data-a43-close-form>Cancel</button><button class="primary">Upload All</button></div>
+  </form>`);
+  window.ML_WIRE_MASTER_SELECTS?.(host);
+  host.querySelector('[data-a43-close-form]').onclick=closeAdvanced;
+  host.querySelector('form').onsubmit=async e=>{
+    e.preventDefault();const btn=e.submitter,form=e.target,files=[...form.files.files];btn.disabled=true;
+    try{
+      let n=0;
+      for(const file of files){
+        btn.textContent=`Uploading ${n}/${files.length}`;
+        const fd=new FormData();
+        fd.append('truckNo',form.truckNo.value);fd.append('kind',form.kind.value);fd.append('expiryDate',form.expiryDate.value||'');
+        fd.append('notes',form.notes.value||'');fd.append('fileName',file.name);fd.append('fileType',file.type||'application/octet-stream');fd.append('file',file,file.name);
+        await api('/documents',{method:'POST',body:fd});n++;
+      }
+      btn.textContent=`Uploaded ${n}/${files.length}`;toast(`${n} documents uploaded`);A43.data=null;A43.bootstrap=null;openGallery();
+    }catch(err){alert(err.message)}finally{btn.disabled=false}
+  };
+}
+
+function v62NotificationIcon(item){
+  if(item.kind==='DOCUMENT_EXPIRY')return '📄';
+  if(item.kind==='PARTY_OUTSTANDING')return '💰';
+  if(item.kind==='SUPPLIER_PENDING')return '🚚';
+  if(item.kind==='APPROVAL_PENDING')return '✅';
+  if(item.kind==='SUBSCRIPTION')return '⏳';
+  return '🔔';
+}
+function v62OpenNotification(item){
+  closeAdvanced();
+  if(item.action==='gallery')return openGallery();
+  if(item.action==='approvals')return openApprovals();
+  if(item.action==='saas')return openSaasCenter();
+  const panel=document.querySelector(`[data-panel="${item.action}"]`);
+  if(panel)panel.click();
+}
+async function enableBrowserAlertsV62(){
+  if(!('Notification'in window))return alert('Browser notification support available nathi.');
+  const permission=await Notification.requestPermission();
+  if(permission==='granted')toast('Browser alerts enabled');
+  else alert('Notification permission allow thayu nathi.');
+}
+async function showUrgentBrowserAlertV62(feed){
+  if(!('Notification'in window)||Notification.permission!=='granted'||!feed?.urgent)return;
+  const key=`ml_v62_alert_${new Date().toISOString().slice(0,10)}`;
+  if(localStorage.getItem(key))return;
+  localStorage.setItem(key,'1');
+  const title=`Transport ERP · ${feed.urgent} important alert(s)`;
+  const body=(feed.items||[]).filter(x=>x.severity!=='info').slice(0,2).map(x=>x.title+' — '+x.text).join('\n');
+  try{
+    const reg=await navigator.serviceWorker?.ready;
+    if(reg)await reg.showNotification(title,{body,tag:'transport-v62-daily',data:{url:'/'}});
+    else new Notification(title,{body});
+  }catch{}
+}
+async function openNotificationsV62(){
+  const host=loading('Notifications & App Alerts');
+  try{
+    const feed=await api('/notifications');
+    const rows=feed.items||[];
+    host.querySelector('.a43-head-actions').insertAdjacentHTML('afterbegin','<button data-v62-enable-alerts>Enable Browser Alerts</button>');
+    host.querySelector('main').innerHTML=`
+      <div class="v62-notification-summary">
+        <div><small>ALL ALERTS</small><b>${feed.count||0}</b></div><div><small>IMPORTANT</small><b>${feed.urgent||0}</b></div>
+        <div><small>FILE STORAGE</small><b>${esc(feed.storage?.mode||'D1')}</b></div>
+      </div>
+      <div class="v62-storage-status ${feed.storage?.r2Configured?'cloud':'fallback'}">
+        <b>${feed.storage?.r2Configured?'☁️ R2 Cloud Storage Ready':'💾 D1 File Fallback'}</b>
+        <span>${feed.storage?.r2Configured?'Documents are stored outside D1 in Cloudflare R2.':'ERP works normally; add DOCS R2 binding before commercial scale.'}</span>
+      </div>
+      <div class="v62-notification-list">${rows.length?rows.map((x,i)=>`
+        <button type="button" class="v62-notification ${esc(x.severity||'info')}" data-v62-notification="${i}">
+          <span class="v62-notification-icon">${v62NotificationIcon(x)}</span>
+          <span><b>${esc(x.title)}</b><small>${esc(x.text)}</small></span><em>Open ›</em>
+        </button>`).join(''):'<div class="a43-empty">No current alerts.</div>'}</div>`;
+    host.querySelector('[data-v62-enable-alerts]').onclick=enableBrowserAlertsV62;
+    host.querySelectorAll('[data-v62-notification]').forEach(btn=>btn.onclick=()=>v62OpenNotification(rows[Number(btn.dataset.v62Notification)]));
+    showUrgentBrowserAlertV62(feed);
+  }catch(e){host.querySelector('main').innerHTML=`<div class="a43-error">${esc(e.message)}</div>`}
+}
+let v62NotificationCache={at:0,count:0,urgent:0};
+async function refreshNotificationBadgeV62(force=false){
+  if(!document.querySelector('.erp'))return;
+  if(!force&&Date.now()-v62NotificationCache.at<60000)return v62NotificationCache;
+  try{
+    const feed=await api('/notifications');
+    v62NotificationCache={at:Date.now(),count:Number(feed.count||0),urgent:Number(feed.urgent||0)};
+    const b=document.querySelector('[data-v62-notifications-top]');
+    if(b)b.innerHTML=`🔔 Alerts${feed.urgent?` <span class="v62-badge">${feed.urgent}</span>`:''}`;
+    showUrgentBrowserAlertV62(feed);
+  }catch{}
+  return v62NotificationCache;
 }
 
 // COMMAND PALETTE
 async function openCommandPalette(){
   const host=modal('Command Palette',`<div class="a43-command"><input autofocus placeholder="Type command, invoice, trip, party, truck…" data-cmd-input><div data-cmd-results></div></div>`);
   const input=host.querySelector('[data-cmd-input]'),results=host.querySelector('[data-cmd-results]');let b=null;
-  const actions=[['Company & Plan','saas'],['Team & Access','team'],['Calendar','calendar'],['New Booking','new-booking'],['Booking Workflow','workflow'],['Approvals','approvals'],['Recycle Bin','recycle'],['System Health','health'],['Excel Center','excel'],['Scheduled Backups','backups'],['Truck Gallery','gallery'],['Settings','settings'],['New Trip','new-trip'],['New Invoice','new-invoice']];
+  const actions=[['Company & Plan','saas'],['Team & Access','team'],['Notifications','notifications'],['Calendar','calendar'],['New Booking','new-booking'],['Booking Workflow','workflow'],['Approvals','approvals'],['Recycle Bin','recycle'],['System Health','health'],['Excel Center','excel'],['Scheduled Backups','backups'],['Truck Gallery','gallery'],['Settings','settings'],['New Trip','new-trip'],['New Invoice','new-invoice']];
   const render=async()=>{const q=input.value.trim().toUpperCase();if(!b)b=await loadBootstrap();const rows=actions.filter(x=>!q||x[0].toUpperCase().includes(q)).map(x=>({label:x[0],kind:'COMMAND',action:x[1]}));if(q){for(const i of b.invoices.filter(x=>String(x.invoice_no).toUpperCase().includes(q)||String(x.party_name).toUpperCase().includes(q)).slice(0,5))rows.push({label:`${i.invoice_no} · ${i.party_name}`,kind:'INVOICE',id:i.id});for(const t of b.trips.filter(x=>String(x.trip_no).toUpperCase().includes(q)||String(x.truck_no).toUpperCase().includes(q)).slice(0,5))rows.push({label:`${t.trip_no} · ${t.truck_no}`,kind:'TRIP',id:t.id});for(const p of b.parties.filter(x=>String(x.party_name).toUpperCase().includes(q)).slice(0,5))rows.push({label:p.party_name,kind:'PARTY'});for(const t of b.trucks.filter(x=>String(x.truck_no).toUpperCase().includes(q)||String(x.owner_name).toUpperCase().includes(q)).slice(0,5))rows.push({label:`${t.truck_no} · ${t.owner_name}`,kind:'TRUCK'})}results.innerHTML=rows.slice(0,20).map((r,i)=>`<button data-cmd-i="${i}"><span>${esc(r.kind)}</span><b>${esc(r.label)}</b></button>`).join('')||'<p>No result</p>';results.querySelectorAll('button').forEach((el,i)=>el.onclick=()=>runCommand(rows[i]))};
   input.oninput=render;render();setTimeout(()=>input.focus(),50);
 }
@@ -490,8 +609,10 @@ function decorate(){
   const sideSettings=document.querySelector('[data-a44-settings-side]');if(sideSettings&&!sideSettings.dataset.a44Bound){sideSettings.dataset.a44Bound='1';sideSettings.addEventListener('click',openSettings)}
   const top=document.querySelector('.top-actions');
   if(top&&!top.querySelector('[data-a44-settings-top]'))top.insertAdjacentHTML('afterbegin','<button class="btn light" data-a44-settings-top>Settings</button>');
+  if(top&&!top.querySelector('[data-v62-notifications-top]'))top.insertAdjacentHTML('afterbegin','<button class="btn light v62-alert-button" data-v62-notifications-top>🔔 Alerts</button>');
   if(top&&!top.querySelector('[data-a43-tools]'))top.insertAdjacentHTML('afterbegin','<button class="btn primary" data-a43-tools>Smart Tools</button>');
   const topSettings=document.querySelector('[data-a44-settings-top]');if(topSettings&&!topSettings.dataset.a44Bound){topSettings.dataset.a44Bound='1';topSettings.addEventListener('click',openSettings)}
+  const topAlerts=document.querySelector('[data-v62-notifications-top]');if(topAlerts&&!topAlerts.dataset.v62Bound){topAlerts.dataset.v62Bound='1';topAlerts.addEventListener('click',openNotificationsV62);setTimeout(()=>refreshNotificationBadgeV62(),600)}
   const toolsBtn=document.querySelector('[data-a43-tools]');if(toolsBtn&&!toolsBtn.dataset.a43Bound){toolsBtn.dataset.a43Bound='1';toolsBtn.addEventListener('click',openTools)}
   const quick=document.querySelector('.quick-actions');
   if(quick&&!quick.querySelector('[data-a43-dashboard]'))quick.insertAdjacentHTML('beforeend','<button type="button" class="quick" data-a43-dashboard><b>📅 Smart Operations</b><small>Calendar, booking, approval, backup & health</small></button>');
@@ -503,6 +624,6 @@ function decorate(){
 }
 new MutationObserver(()=>requestAnimationFrame(decorate)).observe(document.documentElement,{childList:true,subtree:true});applySettings(cachedSettings());decorate();hydrateSettings();
 window.addEventListener('online',()=>{decorate();navigator.serviceWorker?.controller?.postMessage({type:'SYNC_QUEUE'});toast('Online — offline changes syncing')});window.addEventListener('offline',decorate);
-if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw-v45.js?v=45').catch(()=>{});
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw-v62.js?v=62').catch(()=>{});
 
 document.addEventListener('ml-open-saas-v59',()=>openSaasCenter());

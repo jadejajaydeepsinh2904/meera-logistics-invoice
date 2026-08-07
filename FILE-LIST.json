@@ -1,22 +1,30 @@
 {
-  "version": "V61-D1-SUBSCRIPTION-RECOVERY",
-  "source": "V60 Super Admin full project",
-  "schema_version": "53 unchanged",
+  "version": "V62-CLOUD-DOCS-NOTIFICATIONS",
+  "source": "V61 D1 Subscription Recovery full project",
+  "schema_version": "53 unchanged + lazy document metadata columns",
   "checks": {
-    "dedicated_recovery": "passed",
-    "create_table": "passed",
-    "saas_context_recovery": "passed",
-    "register_recovery": "passed",
-    "subscription_route_recovery": "passed",
-    "super_admin_recovery": "passed",
-    "repair_status_endpoint": "passed",
-    "schema_53_retained": "passed",
-    "reset_v61": "passed",
-    "sqlite_old_db_recovery": "passed",
+    "storage_columns": "passed",
+    "r2_optional": "passed",
+    "multipart_upload": "passed",
+    "authenticated_binary_route": "passed",
+    "api_blob": "passed",
+    "app_multipart": "passed",
+    "gallery_multipart": "passed",
+    "notification_feed": "passed",
+    "notification_types": "passed",
+    "top_alert_button": "passed",
+    "browser_alerts": "passed",
+    "service_worker_v62": "passed",
+    "push_ready": "passed",
+    "r2_setup_file": "passed",
+    "reset_v62": "passed",
+    "v61_recovery_retained": "passed",
+    "super_admin_retained": "passed",
+    "legacy_document_sqlite_recovery": "passed",
     "javascript_syntax": "passed",
     "vercel_build": "passed"
   },
-  "total_files": 86,
+  "total_files": 91,
   "files": [
     {
       "path": ".vercelignore",
@@ -25,13 +33,13 @@
     },
     {
       "path": "README.md",
-      "size": 41487,
-      "sha256": "769a43c547785bba9ecf7cf4804a469bc8a1dc181de5c4fa83c10afa1c7ca130"
+      "size": 43904,
+      "sha256": "f922120374d99096f7c08447d74f6b09720f45db596cafee0db904012fc2e860"
     },
     {
       "path": "START-HERE.txt",
-      "size": 38835,
-      "sha256": "654b987ad3f0514c372a6d0845cbf1b67166b415d21ad240f4c707c5f700dfea"
+      "size": 41252,
+      "sha256": "722599fe32526071825f0d9fa13ec12ce868fbbb4e59065ed75f5c7adac0a5bb"
     },
     {
       "path": "V44-TEST-REPORT.txt",
@@ -122,6 +130,11 @@
       "path": "V61-D1-SUBSCRIPTION-RECOVERY-REPORT.txt",
       "size": 1511,
       "sha256": "a3a1f03df18ac2ef70df6cdf38a15877d3611425060bcfa9e0631b9c75131601"
+    },
+    {
+      "path": "V62-CLOUD-DOCS-NOTIFICATIONS-REPORT.txt",
+      "size": 2415,
+      "sha256": "6142a2b4c51b6c5cac69f3b78c87062313484a6ed20cd4e9b84aa6724d705d88"
     },
     {
       "path": "package.json",
@@ -246,32 +259,32 @@
     {
       "path": "public/index.html",
       "size": 1964,
-      "sha256": "e2790c20226b249976a6e56ae3e776c0a53066d3dea011211b2b11991b23271b"
+      "sha256": "8961768b60501d96da37bcf8f52e7a51a5746b31211720716d868c93609329c0"
     },
     {
       "path": "public/manifest.webmanifest",
-      "size": 525,
-      "sha256": "a2220c9b3905a08496b7b578b6194306bd22c5d0e6728a4c6416d5e9365a4ade"
+      "size": 644,
+      "sha256": "896bb92d34e8a6fb81b788e73f42180bbe88dd39f2af49e327eb0e9677460942"
     },
     {
       "path": "public/src/advanced-v44.css",
-      "size": 12789,
-      "sha256": "ce8e99b12b7bc7ff77c5d5cb3652392bc25c3c33e5f285f02bd68918000d2dc5"
+      "size": 14612,
+      "sha256": "d0348bcaf212b0130981181c52155ac239ddd539309a497bfeb92d0b4617402a"
     },
     {
       "path": "public/src/advanced-v44.js",
-      "size": 57020,
-      "sha256": "b26e878215a9413a0dac7f8186ae0837484c11803c21fc12f412dd90be8b85e1"
+      "size": 63143,
+      "sha256": "1ffec5d83fe9e2a6f2f85d58e97a1bbbb2c0c0e70bc3c98d3fc810c209efe83a"
     },
     {
       "path": "public/src/app.js",
-      "size": 135886,
-      "sha256": "576d4bc9f7a07f891aa972cbb83c62ef65fa39a09317da96f7f542d7a681f384"
+      "size": 136765,
+      "sha256": "6a58c411509eac5c7fe270ae45669fac720a3e4400679acee1686c02b9026e76"
     },
     {
       "path": "public/src/core/api.js",
-      "size": 1173,
-      "sha256": "966c3093e7e964c80d0c07f7c5d909118ec438130b52096ea0268e0f41d6c63a"
+      "size": 1912,
+      "sha256": "75c49259eee33d7df06bc89fef8c2b23b83613cf45d2521e3a0e2abc5a12031f"
     },
     {
       "path": "public/src/invoice-pdf-v39.js",
@@ -334,6 +347,11 @@
       "sha256": "7bee83e1b300b27613aea59248442b9e54d05581ac4c1d10a07b41beb23c8fa9"
     },
     {
+      "path": "public/sw-v62.js",
+      "size": 4916,
+      "sha256": "bbf735db7db05b5e70dd53fbd7fd989a26b733035db7b6109ac31ba231bb84b1"
+    },
+    {
       "path": "public/version-v53.txt",
       "size": 60,
       "sha256": "31a47762c7d756f85471381c7fd7fe7c2ab2d31bec542261bd4fd8cd42d09cfc"
@@ -379,9 +397,19 @@
       "sha256": "e6e399ac60f8ebe2711976c8680a5ac2ce90b911e7573ef8ecfd10efc2db861f"
     },
     {
+      "path": "public/version-v62.txt",
+      "size": 51,
+      "sha256": "b913d8cce10caea79637235f970c1eed0b9d017bd353ac7dcaefe9d4f36c8cab"
+    },
+    {
       "path": "vercel.json",
       "size": 655,
       "sha256": "1b53413a59fb95085053cba3a166882ff08dcfe5c48610556157f496d6907eb6"
+    },
+    {
+      "path": "worker/R2-SETUP-V62.txt",
+      "size": 710,
+      "sha256": "009a8e8939c8747d83b0021ad11720eb0e4e5244f9d71cd3910a5139c380894c"
     },
     {
       "path": "worker/migrations/0001_init.sql",
@@ -429,14 +457,19 @@
       "sha256": "ba45185b353cc97ccdda9c3538608cc1b77d5dc2c26aa9439887da998c26eeb9"
     },
     {
+      "path": "worker/migrations/0011_cloud_docs_v62.sql",
+      "size": 275,
+      "sha256": "259a7c28dabfc455d2282aef3fb76da046cc8fbe735d31041fe6912e587d4f53"
+    },
+    {
       "path": "worker/package.json",
       "size": 266,
       "sha256": "eb8864702c69ac951a9a76b54e05bae2168e11de3c4274aaa0920b413725b1a9"
     },
     {
       "path": "worker/src/index.js",
-      "size": 189946,
-      "sha256": "17e9e1c8ce56c2205eb9cf03812825e591d7a0bd9c3c284f5d70abeee650398d"
+      "size": 201578,
+      "sha256": "b27bfbef89ccf6ff8b925b0f4dd9e30ed49cae0fc4bb0366871618db47998a2a"
     },
     {
       "path": "worker/src/seed-data.js",
@@ -445,8 +478,8 @@
     },
     {
       "path": "worker/wrangler.toml",
-      "size": 248,
-      "sha256": "2db6244c2d5d844d50a0e12578b6f82b71ebe555ab8c63e7a9aec18ad63fe3a3"
+      "size": 510,
+      "sha256": "81e84961da5baf5a4126a0edede5e17f862e7b22b80809ddb860ebd97fa42f64"
     }
   ]
 }

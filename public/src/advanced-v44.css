@@ -44,3 +44,19 @@
 .v60-pill.expired{background:#fff0ee;color:#9a3227}.v60-pill.suspended{background:#f1f2f4;color:#4d5560}
 @media(max-width:900px){.v60-metrics{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:560px){.v60-admin-head{align-items:flex-start;flex-direction:column}.v60-admin-head button{width:100%}.v60-metrics{grid-template-columns:repeat(2,1fr)}}
+
+/* V62 Cloud Docs + Notifications */
+.v62-storage-status{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 13px;border-radius:12px;margin-bottom:12px}
+.v62-storage-status.cloud{background:#eef9f2;border:1px solid #bfe4ca}.v62-storage-status.fallback{background:#fff8df;border:1px solid #e9dca2}
+.v62-storage-status span{font-size:10px;color:var(--muted)}
+.v62-doc-frame{width:100%;height:70vh;border:0}
+.v62-notification-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.v62-notification-summary>div{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff;display:grid;gap:4px}
+.v62-notification-summary small{font-size:9px;color:var(--muted);font-weight:800}.v62-notification-summary b{font-size:18px}
+.v62-notification-list{display:grid;gap:8px}
+.v62-notification{width:100%;display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;text-align:left;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer}
+.v62-notification.critical{border-color:#e7b8b0;background:#fff5f3}.v62-notification.warning{border-color:#e8daa4;background:#fffbec}
+.v62-notification-icon{font-size:20px}.v62-notification>span:nth-child(2){display:grid;gap:3px}.v62-notification small{font-size:10px;color:var(--muted)}
+.v62-notification em{font-size:10px;font-style:normal;color:var(--muted)}
+.v62-badge{display:inline-flex;min-width:18px;height:18px;align-items:center;justify-content:center;border-radius:999px;padding:0 5px;background:#b62f28;color:#fff;font-size:9px;font-weight:800}
+@media(max-width:680px){.v62-storage-status{align-items:flex-start;flex-direction:column}.v62-notification-summary{grid-template-columns:1fr 1fr}.v62-notification-summary>div:last-child{grid-column:1/-1}}

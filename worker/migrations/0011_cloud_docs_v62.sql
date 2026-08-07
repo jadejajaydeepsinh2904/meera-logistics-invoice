@@ -1,0 +1,4 @@
+-- V62 reference only; Worker applies lazily/idempotently.
+-- ALTER TABLE truck_documents ADD COLUMN storage_key TEXT DEFAULT '';
+-- ALTER TABLE truck_documents ADD COLUMN storage_mode TEXT DEFAULT 'D1';
+-- ALTER TABLE truck_documents ADD COLUMN file_size INTEGER DEFAULT 0;

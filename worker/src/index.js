@@ -1573,7 +1573,7 @@ async function bootstrap(env,user){
   const gstPrefix=company.invoice_prefix||'ML';
   const nonGstPrefix=company.non_gst_prefix||'JAY';
   return {
-    version:'V61-D1-Subscription-Recovery',
+    version:'V62-Cloud-Docs-Notifications',
     user:{...user,permissions:permissionsForRole(user.role),platform_admin:platformAdmin},saas,parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
     pmBills,pmBillItems,truckEntries,supplierPayments,supplierAccounts,expenses,documents,audits,partyLedger,supplierLedger,issues,accountingAudit,
     nextInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='GST').map(x=>x.invoice_no),`${gstPrefix} - `),
@@ -1810,6 +1810,168 @@ const TRASH_MAP={
   document:{table:'truck_documents',label:'file_name'},
   booking:{table:'workflow_bookings',label:'booking_no'}
 };
+
+let documentStorageV62Promise=null;
+async function ensureDocumentStorageV62(env){
+  if(documentStorageV62Promise)return documentStorageV62Promise;
+  documentStorageV62Promise=(async()=>{
+    const row=await first(env,`SELECT sql FROM sqlite_master WHERE type='table' AND name='truck_documents'`);
+    const sql=String(row?.sql||'');
+    if(!sql)return true;
+    const columns=[
+      ['storage_key',`ALTER TABLE truck_documents ADD COLUMN storage_key TEXT DEFAULT ''`],
+      ['storage_mode',`ALTER TABLE truck_documents ADD COLUMN storage_mode TEXT DEFAULT 'D1'`],
+      ['file_size',`ALTER TABLE truck_documents ADD COLUMN file_size INTEGER DEFAULT 0`]
+    ];
+    const missing=columns.filter(([name])=>!new RegExp(`\\b${name}\\b`,'i').test(sql));
+    if(missing.length)await env.DB.batch(missing.map(([,ddl])=>env.DB.prepare(ddl)));
+    await run(env,`UPDATE truck_documents SET storage_mode='D1' WHERE storage_mode IS NULL OR TRIM(storage_mode)=''`);
+    await safe(env,`CREATE INDEX IF NOT EXISTS idx_truck_documents_storage_v62 ON truck_documents(company_id,storage_mode,created_at)`);
+    return true;
+  })().catch(error=>{documentStorageV62Promise=null;throw error});
+  return documentStorageV62Promise;
+}
+function documentStorageModeV62(env){
+  return env?.DOCS&&typeof env.DOCS.put==='function'&&typeof env.DOCS.get==='function'?'R2':'D1';
+}
+function safeObjectNameV62(value='file'){
+  return String(value||'file').replace(/[^A-Za-z0-9._-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,120)||'file';
+}
+function decodeDataUrlV62(dataUrl=''){
+  const value=String(dataUrl||'');
+  const match=value.match(/^data:([^;,]+)?(;base64)?,([\s\S]*)$/);
+  if(!match)return {type:'application/octet-stream',bytes:new TextEncoder().encode(value)};
+  const type=match[1]||'application/octet-stream';
+  if(match[2]){
+    const binary=atob(match[3]||'');
+    const bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    return {type,bytes};
+  }
+  return {type,bytes:new TextEncoder().encode(decodeURIComponent(match[3]||''))};
+}
+function bytesToDataUrlV62(bytes,type='application/octet-stream'){
+  const arr=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);
+  let binary='';
+  const chunk=0x8000;
+  for(let i=0;i<arr.length;i+=chunk)binary+=String.fromCharCode(...arr.subarray(i,i+chunk));
+  return `data:${type||'application/octet-stream'};base64,${btoa(binary)}`;
+}
+async function saveDocumentBlobV62(env,companyId,documentId,fileName,fileType,source){
+  const mode=documentStorageModeV62(env);
+  let bytes,type=fileType||'application/octet-stream';
+  if(source&&typeof source.arrayBuffer==='function'){
+    type=source.type||type;
+    bytes=new Uint8Array(await source.arrayBuffer());
+  }else{
+    const decoded=decodeDataUrlV62(source||'');
+    type=type||decoded.type;bytes=decoded.bytes;
+  }
+  const size=bytes?.byteLength||0;
+  const max=mode==='R2'?10*1024*1024:2200000;
+  if(size>max){
+    const error=new Error(mode==='R2'?'File is too large. Maximum 10 MB.':'File is too large for D1 fallback. Configure R2 DOCS or upload a compressed file under about 2 MB.');
+    error.status=413;throw error;
+  }
+  if(mode==='R2'){
+    const key=`${companyId}/${documentId}/${Date.now()}-${safeObjectNameV62(fileName)}`;
+    await env.DOCS.put(key,bytes,{httpMetadata:{contentType:type||'application/octet-stream'}});
+    return {storageMode:'R2',storageKey:key,fileData:'',fileSize:size,fileType:type};
+  }
+  return {storageMode:'D1',storageKey:'',fileData:bytesToDataUrlV62(bytes,type),fileSize:size,fileType:type};
+}
+async function documentBinaryResponseV62(env,user,id){
+  await ensureDocumentStorageV62(env);
+  const companyId=companyIdOf(user);
+  const d=await first(env,`SELECT * FROM truck_documents WHERE id=? AND company_id=?`,id,companyId);
+  if(!d)return json({error:'File not found'},404);
+  const type=d.file_type||'application/octet-stream';
+  const headers={...HEADERS,'content-type':type,'cache-control':'private,max-age=120','content-disposition':`inline; filename="${safeObjectNameV62(d.file_name||'document')}"`};
+  if(String(d.storage_mode||'D1').toUpperCase()==='R2'&&d.storage_key&&env?.DOCS){
+    const obj=await env.DOCS.get(d.storage_key);
+    if(!obj)return json({error:'Cloud document object not found'},404);
+    return new Response(obj.body,{status:200,headers});
+  }
+  const decoded=decodeDataUrlV62(d.file_data||'');
+  return new Response(decoded.bytes,{status:200,headers:{...headers,'content-type':d.file_type||decoded.type}});
+}
+async function notificationFeedV62(env,user){
+  const companyId=companyIdOf(user);
+  await ensureAdvancedTables(env);
+  await ensureDocumentStorageV62(env);
+  const access=await subscriptionAccess(env,user);
+  const items=[];
+
+  const parties=await all(env,`
+    SELECT p.party_name,
+      COALESCE((SELECT SUM(total) FROM invoices i WHERE i.company_id=p.company_id AND i.party_name=p.party_name),0) billed,
+      COALESCE((SELECT SUM(amount) FROM party_payments r WHERE r.company_id=p.company_id AND r.party_name=p.party_name),0) received
+    FROM party_accounts p WHERE p.company_id=?`,companyId);
+  for(const p of parties){
+    const pending=round2(num(p.billed)-num(p.received));
+    if(pending>0.01)items.push({
+      id:`PARTY:${p.party_name}`,kind:'PARTY_OUTSTANDING',severity:'warning',title:p.party_name,
+      text:`Party outstanding ${pending.toLocaleString('en-IN',{minimumFractionDigits:2})}`,amount:pending,action:'parties'
+    });
+  }
+
+  const supplierNames=await all(env,`
+    SELECT owner_name FROM supplier_accounts WHERE company_id=?
+    UNION SELECT owner_name FROM truck_payments WHERE company_id=?
+    UNION SELECT owner_name FROM supplier_payments WHERE company_id=?
+    UNION SELECT supplier_name owner_name FROM pm_bills WHERE company_id=?`,companyId,companyId,companyId,companyId);
+  for(const r of supplierNames){
+    const name=upper(r.owner_name||'');if(!name)continue;
+    const freight=num((await first(env,`SELECT SUM(payable) total FROM truck_payments WHERE company_id=? AND owner_name=?`,companyId,name))?.total);
+    const pm=num((await first(env,`SELECT SUM(supplier_total) total FROM pm_bills WHERE company_id=? AND supplier_name=?`,companyId,name))?.total);
+    const paid=num((await first(env,`SELECT SUM(amount) total FROM supplier_payments WHERE company_id=? AND owner_name=?`,companyId,name))?.total);
+    const pending=round2(freight+pm-paid);
+    if(pending>0.01)items.push({
+      id:`SUPPLIER:${name}`,kind:'SUPPLIER_PENDING',severity:'info',title:name,
+      text:`Supplier payment pending ${pending.toLocaleString('en-IN',{minimumFractionDigits:2})}`,amount:pending,action:'suppliers'
+    });
+  }
+
+  const docs=await all(env,`SELECT id,truck_no,kind,file_name,expiry_date FROM truck_documents
+    WHERE company_id=? AND COALESCE(expiry_date,'')<>'' AND expiry_date<=date('now','+30 day') ORDER BY expiry_date LIMIT 50`,companyId);
+  const today=new Date().toISOString().slice(0,10);
+  for(const d of docs){
+    const expired=String(d.expiry_date)<today;
+    items.push({
+      id:`DOC:${d.id}`,kind:'DOCUMENT_EXPIRY',severity:expired?'critical':'warning',
+      title:`${d.truck_no} · ${d.kind}`,text:`${expired?'Expired':'Expiry'} ${d.expiry_date} · ${d.file_name||'Document'}`,
+      dueDate:d.expiry_date,action:'gallery',entityId:d.id
+    });
+  }
+
+  const approvals=await all(env,`SELECT id,entity_type,entity_id,action,requested_by,created_at FROM approval_requests
+    WHERE company_id=? AND status='PENDING' ORDER BY created_at LIMIT 30`,companyId);
+  for(const a of approvals)items.push({
+    id:`APPROVAL:${a.id}`,kind:'APPROVAL_PENDING',severity:'warning',title:'Approval Pending',
+    text:`${a.entity_type} · ${a.action} · requested by ${a.requested_by||'-'}`,action:'approvals',entityId:a.id
+  });
+
+  if(access.subscription?.status==='TRIAL'&&Number(access.daysRemaining)<=7){
+    items.push({
+      id:'SUBSCRIPTION:TRIAL',kind:'SUBSCRIPTION',severity:Number(access.daysRemaining)<=2?'critical':'warning',
+      title:'Free Trial',text:`${access.daysRemaining??0} day(s) remaining`,action:'saas'
+    });
+  }else if(access.readOnly){
+    items.push({id:'SUBSCRIPTION:EXPIRED',kind:'SUBSCRIPTION',severity:'critical',title:'Subscription Expired',text:access.accessMessage||'Read Only Mode',action:'saas'});
+  }
+
+  const rank={critical:0,warning:1,info:2};
+  items.sort((a,b)=>(rank[a.severity]??9)-(rank[b.severity]??9)||String(a.dueDate||'9999').localeCompare(String(b.dueDate||'9999'))||num(b.amount)-num(a.amount));
+  return {
+    count:items.length,
+    urgent:items.filter(x=>x.severity==='critical'||x.severity==='warning').length,
+    items:items.slice(0,100),
+    storage:{mode:documentStorageModeV62(env),r2Configured:documentStorageModeV62(env)==='R2'},
+    checkedAt:new Date().toISOString()
+  };
+}
+
+
 async function trashEntity(env,user,entityType,entityId){
   const companyId=companyIdOf(user);
   await ensureAdvancedTables(env);
@@ -1936,6 +2098,7 @@ const V59_RESOURCE_FEATURE={
   'excel-import':'excel',
   'monthly-exports':'excel',
   'documents':'documents',
+  'document-content':'documents',
   'backups':'reports'
 };
 async function enforceSubscriptionWriteV59(env,user,resource,method){
@@ -1975,7 +2138,7 @@ export default {
       const resource=parts[0]||'';
       const id=decodeURIComponent(parts[1]||'');
 
-      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'V61-D1-Subscription-Recovery'}),{headers:{...HEADERS,'cache-control':'public,max-age=15'}});
+      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'V62-Cloud-Docs-Notifications'}),{headers:{...HEADERS,'cache-control':'public,max-age=15'}});
       if(resource==='saas-plans'&&req.method==='GET'){
         await ensureDatabase(env);
         await ensureSubscriptionRequestsV61(env);
@@ -2100,7 +2263,7 @@ export default {
         await ensureSubscriptionRequestsV61(env);
         const table=await first(env,`SELECT name FROM sqlite_master WHERE type='table' AND name='subscription_requests'`);
         const count=await first(env,`SELECT COUNT(*) count FROM subscription_requests`);
-        return json({ok:!!table,table:'subscription_requests',rows:Number(count?.count||0),version:'V61-D1-Subscription-Recovery'});
+        return json({ok:!!table,table:'subscription_requests',rows:Number(count?.count||0),version:'V62-Cloud-Docs-Notifications'});
       }
 
       if(resource==='migration-status'&&req.method==='GET'){
@@ -2230,6 +2393,7 @@ export default {
       }
 
       if(resource==='advanced-data'&&req.method==='GET'){
+        await ensureDocumentStorageV62(env);
         const [bookings,approvals,recycle,backups,monthly]=await Promise.all([
           all(env,`SELECT * FROM workflow_bookings WHERE company_id=? ORDER BY booking_date DESC,created_at DESC`,companyId),
           all(env,`SELECT * FROM approval_requests WHERE company_id=? ORDER BY CASE status WHEN 'PENDING' THEN 0 ELSE 1 END,created_at DESC`,companyId),
@@ -2240,7 +2404,7 @@ export default {
         const [trips,invoices,documents]=await Promise.all([
           all(env,`SELECT id,trip_no,trip_date,party_name,truck_no,loading_point,unloading_point,status FROM trips WHERE company_id=? ORDER BY trip_date DESC`,companyId),
           all(env,`SELECT id,invoice_no,invoice_date,party_name,total FROM invoices WHERE company_id=? ORDER BY invoice_date DESC`,companyId),
-          all(env,`SELECT id,truck_no,kind,file_name,expiry_date,notes,created_at FROM truck_documents WHERE company_id=? ORDER BY created_at DESC`,companyId)
+          all(env,`SELECT id,truck_no,kind,file_name,file_type,expiry_date,notes,storage_mode,file_size,created_at FROM truck_documents WHERE company_id=? ORDER BY created_at DESC`,companyId)
         ]);
         return json({bookings,approvals,recycle,backups,monthly,trips,invoices,documents});
       }
@@ -2827,18 +2991,66 @@ export default {
       }
 
       // DOCUMENTS
+      if(resource==='notifications'&&req.method==='GET')return json(await notificationFeedV62(env,user));
+
+      if(resource==='document-storage-status'&&req.method==='GET'){
+        await ensureDocumentStorageV62(env);
+        const mode=documentStorageModeV62(env);
+        const stats=await first(env,`SELECT COUNT(*) count,COALESCE(SUM(file_size),0) bytes FROM truck_documents WHERE company_id=?`,companyId);
+        return json({mode,r2Configured:mode==='R2',documents:Number(stats?.count||0),bytes:Number(stats?.bytes||0),
+          message:mode==='R2'?'Cloudflare R2 DOCS binding active.':'Safe D1 fallback active. Add Cloudflare R2 binding DOCS for scalable file storage.'});
+      }
+
+      if(resource==='document-content'&&req.method==='GET'&&id)return documentBinaryResponseV62(env,user,id);
+
       if(resource==='documents'){
+        await ensureDocumentStorageV62(env);
         if(req.method==='POST'){
-          const b=await requestBody(req);
-          if(String(b.fileData||'').length>2200000)return json({error:'Image is too large. Use a smaller/compressed image.'},413);
-          const newId=uid('DOC');await run(env,`INSERT INTO truck_documents(id,company_id,truck_no,kind,file_name,file_type,file_data,expiry_date,notes) VALUES(?,?,?,?,?,?,?,?,?)`,newId,companyId,upper(b.truckNo),upper(b.kind),b.fileName||'',b.fileType||'',b.fileData||'',b.expiryDate||'',b.notes||'');await audit(env,user,'CREATE','document',newId,{...b,fileData:'[hidden]'});return json({ok:true,id:newId});
+          const contentType=req.headers.get('content-type')||'';
+          let b={},file=null;
+          if(contentType.includes('multipart/form-data')){
+            const fd=await req.formData();
+            b={
+              truckNo:fd.get('truckNo')||'',kind:fd.get('kind')||'',expiryDate:fd.get('expiryDate')||'',
+              notes:fd.get('notes')||'',fileName:fd.get('fileName')||'',fileType:fd.get('fileType')||''
+            };
+            const candidate=fd.get('file');
+            if(candidate&&typeof candidate.arrayBuffer==='function')file=candidate;
+          }else{
+            b=await requestBody(req);
+          }
+          if(!upper(b.truckNo)||!upper(b.kind))return json({error:'Truck Number and Document Type required'},400);
+          if(!file&&!b.fileData)return json({error:'Document file required'},400);
+          const newId=uid('DOC');
+          const fileName=(file?.name||b.fileName||'document').toString();
+          const fileType=(file?.type||b.fileType||'application/octet-stream').toString();
+          const saved=await saveDocumentBlobV62(env,companyId,newId,fileName,fileType,file||b.fileData);
+          await run(env,`INSERT INTO truck_documents(
+            id,company_id,truck_no,kind,file_name,file_type,file_data,expiry_date,notes,storage_key,storage_mode,file_size
+          ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,
+            newId,companyId,upper(b.truckNo),upper(b.kind),fileName,saved.fileType,saved.fileData,b.expiryDate||'',b.notes||'',
+            saved.storageKey,saved.storageMode,saved.fileSize);
+          await audit(env,user,'CREATE','document',newId,{
+            truckNo:upper(b.truckNo),kind:upper(b.kind),fileName,fileType:saved.fileType,fileSize:saved.fileSize,storageMode:saved.storageMode
+          });
+          return json({ok:true,id:newId,storageMode:saved.storageMode,fileSize:saved.fileSize});
         }
         if(req.method==='GET'&&id){
-          const d=await first(env,`SELECT * FROM truck_documents WHERE id=? AND company_id=?`,id,companyId);
+          const d=await first(env,`SELECT id,company_id,truck_no,kind,file_name,file_type,expiry_date,notes,storage_mode,file_size,created_at
+            FROM truck_documents WHERE id=? AND company_id=?`,id,companyId);
           if(!d)return json({error:'File not found'},404);
-          return json(d);
+          return json({...d,contentPath:`/document-content/${encodeURIComponent(d.id)}`});
         }
-        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM truck_documents WHERE id=? AND company_id=?`,id,companyId);await audit(env,user,'DELETE','document',id,{});return json({ok:true})}
+        if(req.method==='DELETE'&&id){
+          const d=await first(env,`SELECT id,storage_key,storage_mode FROM truck_documents WHERE id=? AND company_id=?`,id,companyId);
+          if(!d)return json({error:'File not found'},404);
+          if(String(d.storage_mode||'').toUpperCase()==='R2'&&d.storage_key&&env?.DOCS){
+            try{await env.DOCS.delete(d.storage_key)}catch(_){}
+          }
+          await run(env,`DELETE FROM truck_documents WHERE id=? AND company_id=?`,id,companyId);
+          await audit(env,user,'DELETE','document',id,{storageMode:d.storage_mode||'D1'});
+          return json({ok:true})
+        }
       }
 
       return json({error:'Not found'},404);

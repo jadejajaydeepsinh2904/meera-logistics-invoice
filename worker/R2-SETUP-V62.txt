@@ -1,0 +1,18 @@
+V62 OPTIONAL CLOUDFLARE R2 SETUP
+
+The project deploys and works WITHOUT R2 using the existing D1 fallback.
+
+For commercial-scale document storage:
+1. Cloudflare Dashboard -> R2 -> Create bucket, for example: transport-erp-documents
+2. In worker/wrangler.toml uncomment:
+   [[r2_buckets]]
+   binding = "DOCS"
+   bucket_name = "transport-erp-documents"
+3. Redeploy the Cloudflare Worker.
+4. Open Smart Tools -> Truck Gallery or Notifications.
+5. Storage status should show: Cloudflare R2 Active.
+
+Files stored in R2 are private and are served only through the authenticated
+/document-content/:id Worker endpoint. D1 stores metadata only for new R2 files.
+
+Existing legacy D1 documents continue to open normally.

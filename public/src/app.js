@@ -1,5 +1,5 @@
 
-import {api,token,setToken,clearToken} from './core/api.js';
+import {api,apiBlob,token,setToken,clearToken} from './core/api.js';
 
 const app=document.getElementById('app');
 let state={panel:'dashboard',data:null,search:'',loading:false,activeTrip:null};
@@ -1863,19 +1863,35 @@ function documentForm(truckNo=''){
     ${field('Expiry Date','expiryDate','','date')}
     ${textarea('Notes','notes','','span2')}
     <label class="field span2"><span>Image / PDF</span><input id="documentFile" type="file" accept="image/*,.pdf" required></label>
+    <div class="span2 notice">V62 cloud-ready upload: R2 configured hoy to file cloud ma save thase; nahi to current D1 fallback safely use thase.</div>
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">Upload Document</button></div></form>`,{onMount:host=>{
       wireMasterSelects(host);
       host.querySelector('[data-close-form]').onclick=()=>host.remove();
-      host.querySelector('#documentForm').onsubmit=async e=>{e.preventDefault();const file=host.querySelector('#documentFile').files[0],body=formDataObject(e.target);if(!file)return;
-        body.fileName=file.name;body.fileType=file.type;
-        if(file.type.startsWith('image/'))body.fileData=await compressImage(file);else body.fileData=await fileToDataUrl(file);
-        if(await mutate('/documents','POST',body,e.submitter))host.remove();
+      host.querySelector('#documentForm').onsubmit=async e=>{
+        e.preventDefault();const btn=e.submitter,file=host.querySelector('#documentFile').files[0];if(!file)return;
+        const form=e.target,fd=new FormData();
+        fd.append('truckNo',form.truckNo.value);fd.append('kind',form.kind.value);fd.append('expiryDate',form.expiryDate.value||'');
+        fd.append('notes',form.notes.value||'');fd.append('fileName',file.name);fd.append('fileType',file.type||'application/octet-stream');fd.append('file',file,file.name);
+        try{
+          setBusy(btn,true,'Uploading...');
+          await api('/documents',{method:'POST',body:fd});
+          host.remove();await loadData();
+        }catch(err){alert(err.message)}finally{setBusy(btn,false)}
       };
     }});
 }
 async function viewDocument(id){
-  try{const d=await api('/documents/'+id);modal(`${d.truck_no} · ${d.kind}`,`<div style="text-align:center">${d.file_type==='application/pdf'?`<iframe src="${esc(d.file_data)}" style="width:100%;height:70vh;border:0"></iframe>`:`<img src="${esc(d.file_data)}" alt="${esc(d.file_name)}" style="max-width:100%;max-height:70vh;border-radius:10px">`}<p>${esc(d.file_name)}</p></div>`)}
-  catch(e){alert(e.message)}
+  try{
+    const d=await api('/documents/'+id);
+    const blob=await apiBlob('/document-content/'+id);
+    const url=URL.createObjectURL(blob);
+    const body=d.file_type==='application/pdf'
+      ?`<iframe src="${url}" style="width:100%;height:70vh;border:0"></iframe>`
+      :`<img src="${url}" alt="${esc(d.file_name)}" style="max-width:100%;max-height:70vh;border-radius:10px">`;
+    const host=modal(`${d.truck_no} · ${d.kind}`,`<div style="text-align:center">${body}<p>${esc(d.file_name)}</p><small>${esc(d.storage_mode||'D1')} · ${Number(d.file_size||blob.size||0).toLocaleString('en-IN')} bytes</small></div>`);
+    host.addEventListener('remove',()=>URL.revokeObjectURL(url),{once:true});
+    setTimeout(()=>{if(!document.body.contains(host))URL.revokeObjectURL(url)},600000);
+  }catch(e){alert(e.message)}
 }
 
 function safeFileName(value){return String(value||'LEDGER').replace(/[\\/:*?"<>|]+/g,' ').trim()}
