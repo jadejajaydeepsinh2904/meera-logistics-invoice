@@ -1,21 +1,23 @@
 {
-  "version": "V51-D1-COMPANY-ID-RECOVERY",
-  "source": "V50 Multi-Company + Exact Invoice PDF View",
-  "schema_version": "51",
+  "version": "V52-FAST-D1-MIGRATION",
+  "source": "V51 D1 Company ID Recovery full project",
+  "schema_version": "52",
   "checks": {
-    "schema_v51": "passed",
-    "users_company_id_fast_check": "passed",
-    "explicit_user_heal": "passed",
-    "all_tenant_heal": "passed",
-    "login_heals_before_query": "passed",
-    "saas_heals_before_counts": "passed",
-    "v50_invoice_pdf_view_retained": "passed",
-    "v50_multi_company_retained": "passed",
+    "schema_v52": "passed",
+    "fast_schema_detection": "passed",
+    "batch_missing_columns": "passed",
+    "no_heal_each_auth_request": "passed",
+    "wait_until_staged_migration": "passed",
+    "transactional_table_stage": "passed",
+    "registration_guard": "passed",
+    "migration_status": "passed",
+    "invoice_exact_pdf_retained": "passed",
+    "multi_company_retained": "passed",
     "javascript_syntax": "passed",
     "vercel_build": "passed",
-    "partial_v49_to_v51_sqlite_recovery": "passed"
+    "staged_company_unique_sqlite_test": "passed"
   },
-  "total_files": 59,
+  "total_files": 62,
   "files": [
     {
       "path": ".vercelignore",
@@ -24,13 +26,13 @@
     },
     {
       "path": "README.md",
-      "size": 26076,
-      "sha256": "b1aad1792266d7b53cc7b850dcc7d33ec1397dce8d8e8f3e892e156d811a3a96"
+      "size": 27695,
+      "sha256": "8c7dcc12a5038f164c7f44c3e175aa4ccb2944049edd967e72996195c633049b"
     },
     {
       "path": "START-HERE.txt",
-      "size": 23424,
-      "sha256": "1d2ad97a8cc86fde9e09e743937cc6dd5e4dfbcbc7310d450b6f1cfc57bfbb21"
+      "size": 25043,
+      "sha256": "1d1f0b3c911d0ad4e6ec507139e722bdcc3d05c038820554e1a378e589239f40"
     },
     {
       "path": "V44-TEST-REPORT.txt",
@@ -71,6 +73,11 @@
       "path": "V51-D1-COMPANY-ID-RECOVERY-REPORT.txt",
       "size": 1157,
       "sha256": "49c620d8d996cf472385205b65f2f1d4812ae85c844818e94b00cc81bb77cf23"
+    },
+    {
+      "path": "V52-FAST-D1-MIGRATION-REPORT.txt",
+      "size": 1617,
+      "sha256": "f50ee6c7ef7c3c8b773af05b2d2dd00494adad0b45503f5fb1f60b2106346275"
     },
     {
       "path": "package.json",
@@ -133,6 +140,11 @@
       "sha256": "e84509dd9c2ac28de97b3bf11b705760cc1d79676b452884b15c504546e45772"
     },
     {
+      "path": "public/cache-reset-v52.html",
+      "size": 525,
+      "sha256": "51790991d6da1da790ede304d4a9bc4f97b828f8aa0d25c1baa97d2cf6047b79"
+    },
+    {
       "path": "public/data/invoices.json",
       "size": 19834,
       "sha256": "cdcc10cfb1ed33a3c914b3d71f26ad907a3ad81a0a9cd2300a50394b6255147b"
@@ -180,7 +192,7 @@
     {
       "path": "public/index.html",
       "size": 1047,
-      "sha256": "f1c8433348ccb819b1df38c9322fdb49acefc0d073e12535659116b15545ceed"
+      "sha256": "8bc9b54bca64ba17ead8381ed1a37b964fdfabbd4b49a8a0ce618e62a888844c"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -293,14 +305,19 @@
       "sha256": "231136e5e3b5f84d6a85941389e1f94beeb6fa9fc045ca8a416ebb25d2f0667e"
     },
     {
+      "path": "worker/migrations/0006_fast_migration_v52.sql",
+      "size": 217,
+      "sha256": "46696e6fac7627d4e45c8ab364183b14af31fae606ff149a884b570984b97e69"
+    },
+    {
       "path": "worker/package.json",
       "size": 266,
       "sha256": "eb8864702c69ac951a9a76b54e05bae2168e11de3c4274aaa0920b413725b1a9"
     },
     {
       "path": "worker/src/index.js",
-      "size": 143019,
-      "sha256": "b55712c76ffcf286e7a28750c425ef438545326330a7520dc45c3f156fa2b1a9"
+      "size": 155291,
+      "sha256": "348db8deb5ec6753fb09c79ceb0e76a25d40afd7f5256789e242ecc0e59c0c6c"
     },
     {
       "path": "worker/src/seed-data.js",

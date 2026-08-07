@@ -1,0 +1,4 @@
+-- V52 reference
+-- Request path: detect missing company_id via sqlite_master and add only missing columns in D1 batch.
+-- Heavy tenant-unique rebuilds are staged after responses via waitUntil.
+-- schema_version = 52

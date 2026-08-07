@@ -512,3 +512,40 @@ DEPLOY ORDER
 3. Open/login once so D1 auto-recovers to schema_version 51.
 4. Then redeploy Vercel.
 5. Open /cache-reset-v51.html once.
+
+
+V52 FAST D1 MIGRATION / TIMEOUT FIX
+
+FIXED
+- "Server response is taking too long. Please retry."
+- V51 was still performing schema healing and potentially heavy tenant rebuild work inside normal login/API requests.
+- V52 removes repeated ALTER TABLE work from every request.
+- Missing company_id columns are detected with ONE sqlite_master query.
+- Only genuinely missing columns are added, using D1 batch.
+- Schema version becomes 52 immediately after the fast compatibility layer is ready.
+
+NON-BLOCKING MULTI-COMPANY UPGRADE
+- Company-scoped UNIQUE table rebuilds are now staged.
+- Only up to 2 small table stages run after a response via Worker waitUntil.
+- Each table rebuild uses a transactional D1 batch.
+- Login and Meera Logistics daily work do not wait for all rebuild stages.
+- New outside-company registration remains temporarily blocked until tenant_unique_v52 is complete.
+- Routine requests automatically advance the migration; no manual SQL is required.
+- /migration-status shows stage, total and ready status after login.
+
+RETAINED
+- V50 multi-company company_id data isolation.
+- 14-day trial/company registration after migration is ready.
+- V50 exact Invoice View = same generated PDF as Download.
+- V49 subscription/team foundation.
+- V48 Non-GST Party GST.
+- V47 Party MLP.
+- V46 Vercel fix.
+
+DEPLOY ORDER
+1. Upload full V52 ZIP.
+2. Redeploy Cloudflare Worker FIRST.
+3. Login. The fast compatibility migration runs without the old blocking rebuild.
+4. Use the app normally for a few requests; staged tenant upgrade completes automatically.
+5. Redeploy Vercel.
+6. Open /cache-reset-v52.html once.
