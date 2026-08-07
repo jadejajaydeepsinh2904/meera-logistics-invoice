@@ -1,0 +1,28 @@
+V51 D1 COMPANY_ID RECOVERY
+
+FIXED ERROR
+D1_ERROR: no such column: company_id
+
+Root cause:
+V50 introduced multi-company company_id columns. If the Worker/D1 upgrade was interrupted or a partially
+migrated database was used, a company-scoped query could run while users/trips/invoices/advanced tables
+had not all received company_id yet.
+
+V51 recovery:
+- Forces schema_version 50 -> 51 so the migration runs again.
+- Always checks users.company_id on the healthy fast path.
+- Adds an explicit ensureUserTenantColumns() recovery.
+- Adds healTenantColumns() for every operational/advanced tenant table.
+- Login runs database recovery BEFORE selecting company_id.
+- saasContext heals tenant columns BEFORE counting users/trips/invoices.
+- Authenticated requests and company registration also self-heal.
+- Existing Meera Logistics records are retained.
+- Existing V50 multi-company features are retained.
+- Exact PDF Invoice View from V50 is retained.
+
+DEPLOY ORDER
+1. Upload full V51 project to GitHub.
+2. Redeploy Cloudflare Worker FIRST.
+3. Open/login once so D1 auto-recovers to schema_version 51.
+4. Then redeploy Vercel.
+5. Open /cache-reset-v51.html once.

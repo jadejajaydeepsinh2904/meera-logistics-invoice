@@ -61,6 +61,26 @@ function canWriteResource(user,resource){
   if(['OWNER','ADMIN'].includes(upper(user?.role)))return true;
   return hasPermission(user,resourceWritePermission(resource));
 }
+
+async function ensureUserTenantColumns(env){
+  // users is special because it is not in TENANT_TABLES.
+  // Run this before any company-scoped user query.
+  const statements=[
+    `ALTER TABLE users ADD COLUMN company_id TEXT DEFAULT '${DEFAULT_COMPANY_ID}'`,
+    `ALTER TABLE users ADD COLUMN full_name TEXT DEFAULT ''`,
+    `ALTER TABLE users ADD COLUMN email TEXT DEFAULT ''`,
+    `ALTER TABLE users ADD COLUMN mobile TEXT DEFAULT ''`,
+    `ALTER TABLE users ADD COLUMN updated_at TEXT DEFAULT ''`
+  ];
+  for(const sql of statements)await safe(env,sql);
+  await run(env,`UPDATE users SET company_id=? WHERE company_id IS NULL OR TRIM(company_id)=''`,DEFAULT_COMPANY_ID);
+}
+async function healTenantColumns(env){
+  await ensureUserTenantColumns(env);
+  await ensureAdvancedTables(env);
+  for(const table of TENANT_TABLES)await addTenantColumn(env,table);
+}
+
 async function ensureSaasFoundation(env){
   const creates=[
     `CREATE TABLE IF NOT EXISTS companies(
@@ -86,13 +106,7 @@ async function ensureSaasFoundation(env){
     )`
   ];
   for(const sql of creates)await env.DB.prepare(sql).run();
-  for(const sql of [
-    `ALTER TABLE users ADD COLUMN company_id TEXT DEFAULT '${DEFAULT_COMPANY_ID}'`,
-    `ALTER TABLE users ADD COLUMN full_name TEXT DEFAULT ''`,
-    `ALTER TABLE users ADD COLUMN email TEXT DEFAULT ''`,
-    `ALTER TABLE users ADD COLUMN mobile TEXT DEFAULT ''`,
-    `ALTER TABLE users ADD COLUMN updated_at TEXT DEFAULT ''`
-  ])await safe(env,sql);
+  await ensureUserTenantColumns(env);
 
   await run(env,`INSERT OR IGNORE INTO companies(
     id,company_code,company_name,legal_name,gst_no,pan_no,mobile,email,address,invoice_prefix,non_gst_prefix,trip_prefix,supplier_prefix,status
@@ -119,6 +133,7 @@ async function ensureSaasFoundation(env){
 }
 async function saasContext(env,user){
   await ensureSaasFoundation(env);
+  await healTenantColumns(env);
   const companyId=user?.company_id||DEFAULT_COMPANY_ID;
   const company=await first(env,`SELECT * FROM companies WHERE id=?`,companyId)
     ||await first(env,`SELECT * FROM companies WHERE id=?`,DEFAULT_COMPANY_ID);
@@ -576,9 +591,15 @@ async function ensureDatabase(env){
     // statements on every Worker cold start.
     try{
       const ready=await first(env,`SELECT value FROM app_meta WHERE key='schema_version'`);
-      if(ready?.value==='50'){
+      if(ready?.value==='51'){
+        // A V51 database is considered healthy only when tenant columns exist
+        // across auth + core + advanced tables. If any check fails, the full
+        // idempotent recovery migration below runs again.
+        await first(env,`SELECT id,company_id,role FROM users LIMIT 1`);
         await first(env,`SELECT trip_no,invoice_id,invoice_item_id,company_id FROM trips LIMIT 1`);
+        await first(env,`SELECT invoice_no,company_id FROM invoices LIMIT 1`);
         await first(env,`SELECT ledger_no,company_id FROM supplier_accounts LIMIT 1`);
+        await first(env,`SELECT setting_key,company_id FROM app_settings LIMIT 1`);
         await first(env,`SELECT id FROM companies LIMIT 1`);
         return;
       }
@@ -768,14 +789,16 @@ async function ensureDatabase(env){
     }
     await backfillPartyMaster(env);
     await ensureSaasFoundation(env);
+    await healTenantColumns(env);
     await ensureTenantIsolation(env);
+    await healTenantColumns(env);
     await ensureSupplierAccounts(env,DEFAULT_COMPANY_ID);
     await repairTripSeriesAndInvoiceLinks(env);
     await safe(env,`DROP INDEX IF EXISTS idx_trip_no`);
     await run(env,`CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_company_no
       ON trips(company_id,trip_no)
       WHERE trip_no IS NOT NULL AND TRIM(trip_no)<>''`);
-    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','50',CURRENT_TIMESTAMP)`);
+    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','51',CURRENT_TIMESTAMP)`);
   })().catch(e=>{ initPromise=null; throw e; });
   return initPromise;
 }
@@ -942,7 +965,7 @@ async function bootstrap(env,user){
   const gstPrefix=company.invoice_prefix||'ML';
   const nonGstPrefix=company.non_gst_prefix||'JAY';
   return {
-    version:'V50-Multi-Company',
+    version:'V51-D1-Recovery',
     user:{...user,permissions:permissionsForRole(user.role)},saas,parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
     pmBills,pmBillItems,truckEntries,supplierPayments,supplierAccounts,expenses,documents,audits,partyLedger,supplierLedger,issues,
     nextInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='GST').map(x=>x.invoice_no),`${gstPrefix} - `),
@@ -1305,7 +1328,7 @@ export default {
       const resource=parts[0]||'';
       const id=decodeURIComponent(parts[1]||'');
 
-      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'V50-Multi-Company'}),{headers:{...HEADERS,'cache-control':'public,max-age=60'}});
+      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'V51-D1-Recovery'}),{headers:{...HEADERS,'cache-control':'public,max-age=60'}});
       if(resource==='saas-plans'&&req.method==='GET'){
         await ensureDatabase(env);
         const plans=await all(env,`SELECT id,plan_name,monthly_price,yearly_price,max_users,max_trips_month,max_invoices_month,max_storage_mb,features_json,play_product_id_monthly,play_product_id_yearly FROM saas_plans WHERE active=1 ORDER BY sort_order`);
@@ -1315,6 +1338,7 @@ export default {
 
       if(resource==='register-company'&&req.method==='POST'){
         await ensureDatabase(env);
+        await healTenantColumns(env);
         const b=await requestBody(req);
         const companyName=upper(b.companyName),username=clean(b.username),password=String(b.password||'');
         if(!companyName||!username||password.length<6)return json({error:'Company, username and minimum 6 character password required'},400);
@@ -1339,12 +1363,8 @@ export default {
       // Login fast path: query the existing users table first. Only run the full
       // schema initializer if this is a brand-new database.
       if(resource==='login'&&req.method==='POST'){
-        let usersReady=true;
-        try{
-          await first(env,`SELECT id,company_id FROM users LIMIT 1`);
-          await first(env,`SELECT id FROM companies LIMIT 1`);
-        }catch(_){usersReady=false}
-        if(!usersReady)await ensureDatabase(env);
+        await ensureDatabase(env);
+        await healTenantColumns(env);
         const b=await requestBody(req);
         const hash=await sha256(b.password||'');
         const user=await first(env,`SELECT id,username,role,company_id,full_name,email,mobile FROM users WHERE LOWER(username)=LOWER(?) AND password_hash=? AND active=1`,clean(b.username),hash);
@@ -1357,6 +1377,7 @@ export default {
       }
 
       await ensureDatabase(env);
+      await healTenantColumns(env);
       const user=await auth(req,env);
       if(!user)return json({error:'Unauthorized'},401);
 

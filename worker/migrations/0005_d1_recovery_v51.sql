@@ -1,0 +1,7 @@
+-- V51 D1 interrupted-migration recovery reference.
+-- Worker performs recovery automatically.
+-- Purpose:
+-- 1. Guarantee users.company_id exists before SaaS usage queries.
+-- 2. Guarantee company_id exists on all V50 tenant tables.
+-- 3. Re-run the idempotent tenant rebuild when schema_version is not 51.
+-- 4. Heal a database that was partially migrated by V50.
