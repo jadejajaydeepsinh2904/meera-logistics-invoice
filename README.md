@@ -789,3 +789,56 @@ DEPLOY
 3. Vercel redeploy.
 4. Open /?reset=v58 once.
 5. Open Reports & Audit -> Run Full Accounting Audit.
+
+
+V59 SIGNUP + 14-DAY TRIAL + SUBSCRIPTION ENFORCEMENT
+
+COMPLETED
+
+1. Commercial Company Signup
+- Login screen now has a visible "Create Transport Company · 14 Day Trial" button.
+- Signup collects Company, Owner, Mobile, Email, GST/PAN, Address, Username and Password.
+- New company gets an isolated company workspace and OWNER account.
+- 14-day Trial is created automatically.
+- Signup returns a secure session and logs the new Owner in immediately.
+- No card/payment is required for the trial.
+
+2. Trial UX
+- Main app shows trial days remaining and monthly usage.
+- Warning state appears near expiry.
+- Expired trial/subscription becomes Read Only.
+- Existing company data remains visible after expiry.
+- Company profile and subscription request remain accessible.
+
+3. Real Subscription Enforcement Foundation
+- Monthly Trip limit is enforced on new Trips.
+- Monthly Invoice limit is enforced on new Invoices.
+- Team user limit remains enforced.
+- Plan feature entitlements gate Reports/Audit, Approvals, Excel and Documents.
+- Trial includes the full core workflow with limited usage so customers can properly evaluate the app.
+
+4. Plan Center
+- Company & Plan now shows days remaining, usage vs limits, features and storage.
+- Basic / Pro / Business can submit a MONTHLY or YEARLY plan request.
+- Plan requests are stored in subscription_requests.
+- A request does NOT fake-activate paid access.
+- Google Play Billing purchase verification remains the secure activation step for the Android phase.
+
+5. Billing Safety
+- No fake paid subscription activation.
+- Existing Meera Logistics GRAND­FATHERED Business access remains unchanged.
+- Existing accounting/data isolation from V58 retained.
+
+DATABASE
+- No global schema_version bump; remains 53.
+- New SaaS table subscription_requests is created idempotently by ensureSaasFoundation.
+- Existing data is not deleted.
+
+NEXT
+V60 = Super Admin Panel for companies, trials, subscription requests, plan status and support controls.
+
+DEPLOY
+1. Upload complete V59 ZIP.
+2. Cloudflare Worker redeploy FIRST.
+3. Vercel redeploy.
+4. Open /?reset=v59 once.

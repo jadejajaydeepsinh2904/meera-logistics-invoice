@@ -292,12 +292,30 @@ async function mutate(path,method,body,button){
   finally{setBusy(button,false)}
 }
 function loginView(message=''){
-  app.innerHTML=`<div class="login-shell"><div class="login-art"><h1>Transport<br>made simple.</h1><p>Transport ERP — Trips, invoices, party khata, supplier khata, payments, documents અને profit એક જ જગ્યાએ.</p></div><div class="login-side"><form class="login-card" id="loginForm"><div class="login-logo">ML</div><h2>Welcome back</h2><p>Sign in to Meera Logistics ERP</p>${message?`<div class="error-box">${esc(message)}</div>`:''}<label class="field"><span>Username</span><input name="username" autocomplete="username" value="admin" required></label><label class="field" style="margin-top:12px"><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label><button class="btn primary full" style="margin-top:18px">Login</button></form></div></div>`;
+  app.innerHTML=`<div class="login-shell">
+    <div class="login-art"><h1>Transport<br>made simple.</h1><p>Trips, invoices, party khata, supplier khata, payments, documents અને profit — ek secure Transport ERP ma.</p>
+      <div class="v59-login-points"><span>✓ 14-day Free Trial</span><span>✓ Your company data stays isolated</span><span>✓ No card required for trial</span></div>
+    </div>
+    <div class="login-side">
+      <form class="login-card" id="loginForm">
+        <div class="login-logo">ML</div><h2>Welcome back</h2><p>Sign in to Transport ERP</p>
+        ${message?`<div class="error-box">${esc(message)}</div>`:''}
+        <label class="field"><span>Username</span><input name="username" autocomplete="username" required></label>
+        <label class="field" style="margin-top:12px"><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label>
+        <button class="btn primary full" style="margin-top:18px">Login</button>
+        <div class="v59-login-divider"><span>OR</span></div>
+        <button class="btn soft full" type="button" data-v59-create-company>Create Transport Company · 14 Day Trial</button>
+      </form>
+    </div>
+  </div>`;
   document.getElementById('loginForm').onsubmit=async e=>{
-    e.preventDefault();const btn=e.submitter;setBusy(btn,true,'Logging in...');
+    e.preventDefault();const btn=e.submitter;
+    if(btn?.type==='button')return;
+    setBusy(btn,true,'Logging in...');
     try{const res=await api('/login',{method:'POST',body:JSON.stringify(formDataObject(e.target))});setToken(res.token);await loadData({background:true})}
     catch(err){loginView(err.message)}
   };
+  document.querySelector('[data-v59-create-company]').onclick=openCompanyRegistration;
 }
 async function loadData({background=false}={}){
   state.loading=true;
@@ -324,34 +342,55 @@ async function loadData({background=false}={}){
 function navButton(id,label){return `<button class="${state.panel===id?'active':''}" data-panel="${id}"><span class="dot"></span>${label}</button>`}
 
 function openCompanyRegistration(){
-  document.querySelector('.v50-register-bg')?.remove();
-  const host=document.createElement('div');host.className='modal-bg v50-register-bg';
-  host.innerHTML=`<div class="modal"><header><b>Create Transport Company</b><button type="button" data-v50-close>✕</button></header><form id="v50RegisterForm" class="form-grid">
-    ${field('Company Name','companyName','')}
-    ${field('Owner Name','fullName','')}
-    ${field('Mobile','mobile','')}
-    ${field('Email','email','','email')}
-    ${field('GST Number (optional)','gstNo','')}
-    ${field('PAN Number (optional)','panNo','')}
-    ${field('Address','address','')}
-    ${field('Login Username','username','')}
-    ${field('Password','password','','password','minlength="6" required')}
-    <div class="wide"><small>14-day Trial will be created. Every company gets isolated Parties, Trucks, Trips, Invoices, Suppliers, Payments, Documents and Reports.</small></div>
-    <div class="form-actions wide"><button class="primary">Create Company</button></div>
-  </form></div>`;
+  document.querySelector('.v59-register-bg')?.remove();
+  const host=document.createElement('div');host.className='modal-bg v59-register-bg';
+  host.innerHTML=`<div class="modal v59-register-modal">
+    <header><div><b>Create Transport Company</b><small>14-day free trial · No card required</small></div><button type="button" data-v59-close>✕</button></header>
+    <form id="v59RegisterForm" class="form-grid">
+      <div class="v59-register-section span2"><b>1 · Company Details</b><small>Your company gets its own isolated workspace.</small></div>
+      ${field('Company Name','companyName','','text','required')}
+      ${field('Owner Name','fullName','','text','required')}
+      ${field('Mobile','mobile','','tel','required')}
+      ${field('Email','email','','email')}
+      ${field('GST Number (optional)','gstNo','')}
+      ${field('PAN Number (optional)','panNo','')}
+      ${textarea('Company Address','address','','span2')}
+      <div class="v59-register-section span2"><b>2 · Secure Login</b><small>This becomes the OWNER account.</small></div>
+      ${field('Login Username','username','','text','required autocomplete="username"')}
+      ${field('Password','password','','password','minlength="6" required autocomplete="new-password"')}
+      <label class="span2 v59-consent"><input type="checkbox" required> <span>I understand the trial is limited by plan usage and becomes read-only after expiry until subscription is renewed.</span></label>
+      <div class="span2 v59-trial-summary"><b>Free Trial includes</b><span>1 User · 50 Trips/month · 25 Invoices/month · Ledgers · Reports · Documents · Excel</span></div>
+      <div class="form-actions span2"><button type="button" class="btn light" data-v59-close2>Cancel</button><button class="btn primary">Create & Start Trial</button></div>
+    </form>
+  </div>`;
   document.body.appendChild(host);
-  host.querySelector('[data-v50-close]').onclick=()=>host.remove();
-  host.querySelector('#v50RegisterForm').onsubmit=async e=>{
-    e.preventDefault();const button=e.submitter;button.disabled=true;button.textContent='Creating...';
+  host.querySelector('[data-v59-close]').onclick=()=>host.remove();
+  host.querySelector('[data-v59-close2]').onclick=()=>host.remove();
+  host.querySelector('#v59RegisterForm').onsubmit=async e=>{
+    e.preventDefault();const button=e.submitter;setBusy(button,true,'Creating company...');
     try{
       const result=await api('/register-company',{method:'POST',auth:false,body:JSON.stringify(Object.fromEntries(new FormData(e.target).entries()))});
-      alert(`Company created. Trial valid until ${result.trialEndsAt}. Now login with your new username.`);
+      setToken(result.token);
       host.remove();
+      clearCache();
+      await loadData({background:true});
+      alert(`Welcome! Your 14-day trial is active until ${result.trialEndsAt}.`);
     }catch(error){alert(error.message||'Unable to create company')}
-    finally{button.disabled=false;button.textContent='Create Company'}
+    finally{setBusy(button,false,'Create & Start Trial')}
   };
 }
 
+function subscriptionBannerV59(d){
+  const s=d.saas||{},sub=s.subscription||{},u=s.usage||{},days=s.daysRemaining;
+  if(sub.status==='GRANDFATHERED')return '';
+  const expired=!!s.readOnly;
+  const trial=sub.status==='TRIAL';
+  const warning=trial&&Number(days)<=3;
+  const cls=expired?'expired':warning?'warning':'trial';
+  const main=expired?'Subscription expired — Read Only Mode':trial?`${days??0} day(s) left in Free Trial`:`${sub.plan_name||sub.plan_id||'Plan'} · ${sub.status||''}`;
+  const usage=`${u.trips||0}/${sub.max_trips_month||0} Trips · ${u.invoices||0}/${sub.max_invoices_month||0} Invoices · ${u.users||0}/${sub.max_users||0} Users`;
+  return `<div class="v59-sub-banner ${cls}"><div><b>${esc(main)}</b><span>${esc(usage)}</span></div><button type="button" class="btn ${expired?'primary':'soft'}" data-v59-open-plan>View Plan</button></div>`;
+}
 function render(){
   const d=state.data;
   const titles={dashboard:'Dashboard',trips:'Trip History',invoices:'Invoice History',parties:'Party Khata',partyPayments:'Party Payments',suppliers:'Supplier Khata',truckEntries:'Truck / Supplier Entries',supplierPayments:'Supplier Payments',trucks:'Truck & Document',masters:'Master',forms:'Forms',expenses:'Office Expenses',reports:'Reports & Audit'};
@@ -363,6 +402,7 @@ function render(){
       <div class="nav-group-title">Office</div><div class="nav">${navButton('trucks','Truck & Document')}${navButton('masters','Master')}${navButton('forms','Forms')}${navButton('reports','Reports & Audit')}</div>
     </aside>
     <main class="main">
+      ${subscriptionBannerV59(d)}
       <div class="topbar no-print"><div style="display:flex;gap:9px;align-items:center"><button class="btn light mobile-menu" id="menuBtn">☰</button><div class="top-title"><h1>${titles[state.panel]}</h1><p>Live online data · ${esc(d.saas?.company?.company_name||'MEERA LOGISTICS')} · ${esc(d.user.username)} (${esc(d.saas?.role||d.user.role||'')}) · ${esc(d.saas?.subscription?.plan_name||'')}</p></div></div>
       <div class="top-actions"><button class="btn light" id="refreshBtn">Refresh</button><button class="btn soft" id="backupBtn">Backup</button><button class="btn light" id="logoutBtn">Logout</button></div></div>
       ${panelHtml()}
@@ -396,6 +436,12 @@ function wireCommon(){
   };
   document.getElementById('menuBtn').onclick=()=>document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('refreshBtn').onclick=()=>loadData();
+  const planBtn=document.querySelector('[data-v59-open-plan]');
+  if(planBtn)planBtn.onclick=()=>{
+    const side=document.querySelector('[data-v49-saas-side]');
+    if(side)side.click();
+    else document.dispatchEvent(new CustomEvent('ml-open-saas-v59'));
+  };
   const globalSearch=document.getElementById('globalSearch');
   if(globalSearch)globalSearch.onkeydown=e=>{
     if(e.key!=='Enter')return;

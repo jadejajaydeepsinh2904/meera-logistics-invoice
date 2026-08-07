@@ -140,6 +140,11 @@ async function ensureSaasFoundation(env){
       current_period_start TEXT DEFAULT '',current_period_end TEXT DEFAULT '',grace_ends_at TEXT DEFAULT '',
       play_purchase_token TEXT DEFAULT '',play_order_id TEXT DEFAULT '',auto_renewing INTEGER DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS subscription_requests(
+      id TEXT PRIMARY KEY,company_id TEXT NOT NULL,requested_plan_id TEXT NOT NULL,billing_cycle TEXT DEFAULT 'MONTHLY',
+      status TEXT NOT NULL DEFAULT 'PENDING',notes TEXT DEFAULT '',requested_by TEXT DEFAULT '',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )`
   ];
   for(const sql of creates)await env.DB.prepare(sql).run();
@@ -153,7 +158,7 @@ async function ensureSaasFoundation(env){
     'ML','JAY','TR','PML','ACTIVE');
 
   const plans=[
-    ['TRIAL','Free Trial',1,50,25,100,{calendar:true,trip:true,invoice:true,ledger:true},0],
+    ['TRIAL','Free Trial',1,50,25,250,{calendar:true,trip:true,invoice:true,ledger:true,reports:true,approvals:true,excel:true,offline:true,documents:true},0],
     ['BASIC','Basic',2,300,150,500,{calendar:true,trip:true,invoice:true,ledger:true,reports:true,excel:true,offline:true},10],
     ['PRO','Pro',5,1500,750,2048,{calendar:true,trip:true,invoice:true,ledger:true,reports:true,approvals:true,excel:true,offline:true,documents:true},20],
     ['BUSINESS','Business',15,999999,999999,10240,{calendar:true,trip:true,invoice:true,ledger:true,reports:true,approvals:true,excel:true,offline:true,documents:true,team:true,prioritySupport:true},30]
@@ -189,15 +194,54 @@ async function saasContext(env,user){
   const trips=Number((await first(env,`SELECT COUNT(*) count FROM trips WHERE company_id=? AND substr(COALESCE(trip_date,''),1,7)=?`,company?.id||DEFAULT_COMPANY_ID,month))?.count||0);
   const invoices=Number((await first(env,`SELECT COUNT(*) count FROM invoices WHERE company_id=? AND substr(COALESCE(invoice_date,''),1,7)=?`,company?.id||DEFAULT_COMPANY_ID,month))?.count||0);
   const features=JSON.parse(subscription?.features_json||'{}');
-  return {company,subscription:{...subscription,features_json:undefined,features},usage:{month,users,trips,invoices},
+  const pendingRequest=await first(env,`SELECT id,requested_plan_id,billing_cycle,status,created_at FROM subscription_requests WHERE company_id=? AND status='PENDING' ORDER BY created_at DESC LIMIT 1`,company?.id||DEFAULT_COMPANY_ID);
+  return {company,subscription:{...subscription,features_json:undefined,features},usage:{month,users,trips,invoices},pendingRequest,
     role:upper(user?.role||'VIEWER'),permissions:permissionsForRole(user?.role)};
+}
+function dateDaysRemainingV59(dateValue){
+  if(!dateValue)return null;
+  const target=new Date(`${String(dateValue).slice(0,10)}T23:59:59Z`).getTime();
+  const now=Date.now();
+  return Math.max(0,Math.ceil((target-now)/86400000));
+}
+function subscriptionFeatureAllowedV59(context,feature){
+  if(!feature)return true;
+  const features=context?.subscription?.features||{};
+  return !!features[feature];
 }
 async function subscriptionAccess(env,user){
   const context=await saasContext(env,user),s=context.subscription||{},today=new Date().toISOString().slice(0,10);
-  const expired=s.status==='EXPIRED'
-    ||(s.status==='TRIAL'&&s.trial_ends_at&&s.trial_ends_at<today)
-    ||(s.current_period_end&&['ACTIVE','GRACE','CANCELLED'].includes(s.status)&&s.current_period_end<today&&(!s.grace_ends_at||s.grace_ends_at<today));
-  return {...context,readOnly:expired};
+  const trialExpired=s.status==='TRIAL'&&s.trial_ends_at&&s.trial_ends_at<today;
+  const periodExpired=s.current_period_end&&['ACTIVE','GRACE','CANCELLED'].includes(s.status)
+    &&s.current_period_end<today&&(!s.grace_ends_at||s.grace_ends_at<today);
+  const expired=s.status==='EXPIRED'||trialExpired||periodExpired;
+  const endDate=s.status==='TRIAL'?s.trial_ends_at:(s.grace_ends_at||s.current_period_end||'');
+  const daysRemaining=dateDaysRemainingV59(endDate);
+  const limits={
+    users:Number(s.max_users||1),
+    trips:Number(s.max_trips_month||0),
+    invoices:Number(s.max_invoices_month||0),
+    storageMb:Number(s.max_storage_mb||0)
+  };
+  const usage=context.usage||{};
+  const usagePercent={
+    users:limits.users?Math.min(100,Math.round(Number(usage.users||0)*100/limits.users)):0,
+    trips:limits.trips?Math.min(100,Math.round(Number(usage.trips||0)*100/limits.trips)):0,
+    invoices:limits.invoices?Math.min(100,Math.round(Number(usage.invoices||0)*100/limits.invoices)):0
+  };
+  return {
+    ...context,
+    readOnly:expired,
+    trialExpired,
+    daysRemaining,
+    limits,
+    usagePercent,
+    accessMessage:expired
+      ? 'Subscription expired. Existing data is available in read-only mode.'
+      : (s.status==='TRIAL'
+        ? `${daysRemaining??0} trial day(s) remaining`
+        : `${s.plan_name||s.plan_id||'Plan'} active`)
+  };
 }
 
 
@@ -745,6 +789,7 @@ function partyPaymentAllocationV58(invoices=[],invoiceItems=[],payments=[]){
 
 async function accountingAuditV58(env,user){
   const companyId=companyIdOf(user);
+      const subscriptionState=await subscriptionAccess(env,user);
   await ensureAccountingV58(env);
   const [parties,invoices,items,payments,trips,trucks,truckEntries,supplierPayments,supplierAccounts,pmBills,expenses]=await Promise.all([
     all(env,`SELECT * FROM party_accounts WHERE company_id=?`,companyId),
@@ -1412,7 +1457,7 @@ async function bootstrap(env,user){
   const gstPrefix=company.invoice_prefix||'ML';
   const nonGstPrefix=company.non_gst_prefix||'JAY';
   return {
-    version:'V58-Accounting-Isolation-Audit',
+    version:'V59-Signup-Trial-Subscription',
     user:{...user,permissions:permissionsForRole(user.role)},saas,parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
     pmBills,pmBillItems,truckEntries,supplierPayments,supplierAccounts,expenses,documents,audits,partyLedger,supplierLedger,issues,accountingAudit,
     nextInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='GST').map(x=>x.invoice_no),`${gstPrefix} - `),
@@ -1766,6 +1811,45 @@ async function runScheduledTasks(env,scheduledTime=Date.now()){
   }
 }
 
+
+const V59_RESOURCE_FEATURE={
+  'system-health':'reports',
+  'accounting-audit':'reports',
+  'approvals':'approvals',
+  'excel-export':'excel',
+  'excel-import':'excel',
+  'monthly-exports':'excel',
+  'documents':'documents',
+  'backups':'reports'
+};
+async function enforceSubscriptionWriteV59(env,user,resource,method){
+  const access=await subscriptionAccess(env,user);
+  if(access.readOnly){
+    const error=new Error(access.accessMessage||'Subscription expired');
+    error.status=402;throw error;
+  }
+  const feature=V59_RESOURCE_FEATURE[resource]||'';
+  if(feature&&!subscriptionFeatureAllowedV59(access,feature)){
+    const error=new Error(`Your ${access.subscription?.plan_name||'plan'} does not include ${feature}. Upgrade required.`);
+    error.status=402;throw error;
+  }
+  if(method==='POST'&&resource==='trips'){
+    const max=Number(access.limits?.trips||0),used=Number(access.usage?.trips||0);
+    if(max&&used>=max){
+      const error=new Error(`Monthly Trip limit reached (${used}/${max}). Upgrade your plan to continue.`);
+      error.status=402;throw error;
+    }
+  }
+  if(method==='POST'&&resource==='invoices'){
+    const max=Number(access.limits?.invoices||0),used=Number(access.usage?.invoices||0);
+    if(max&&used>=max){
+      const error=new Error(`Monthly Invoice limit reached (${used}/${max}). Upgrade your plan to continue.`);
+      error.status=402;throw error;
+    }
+  }
+  return access;
+}
+
 export default {
   async fetch(req,env,ctx){
     if(req.method==='OPTIONS')return json({ok:true});
@@ -1789,23 +1873,42 @@ export default {
         if(tenantReady?.value!=='1')return json({error:'Multi-company setup is finishing automatically. Please retry shortly.'},503);
         const b=await requestBody(req);
         const companyName=upper(b.companyName),username=clean(b.username),password=String(b.password||'');
-        if(!companyName||!username||password.length<6)return json({error:'Company, username and minimum 6 character password required'},400);
+        const mobile=clean(b.mobile),email=clean(b.email),fullName=upper(b.fullName||companyName);
+        if(!companyName||!fullName||!mobile||!username||password.length<6)
+          return json({error:'Company, Owner Name, Mobile, Username and minimum 6 character Password required'},400);
         const codeBase=companyName.replace(/[^A-Z0-9]/g,'').slice(0,8)||'COMPANY';
         let code=codeBase,attempt=1;
         while(await first(env,`SELECT id FROM companies WHERE company_code=?`,code))code=`${codeBase}${++attempt}`;
-        if(await first(env,`SELECT id FROM users WHERE LOWER(username)=LOWER(?)`,username))return json({error:'Username already exists'},409);
+        if(await first(env,`SELECT id FROM users WHERE LOWER(username)=LOWER(?)`,username))
+          return json({error:'Username already exists'},409);
+
         const companyId=uid('CMP'),subId=uid('SUB');
         const trialStart=new Date(),trialEnd=new Date(trialStart.getTime()+14*86400000);
-        await run(env,`INSERT INTO companies(id,company_code,company_name,legal_name,gst_no,pan_no,mobile,email,address,status) VALUES(?,?,?,?,?,?,?,?,?,'ACTIVE')`,
-          companyId,code,companyName,companyName,upper(b.gstNo),upper(b.panNo),clean(b.mobile),clean(b.email),b.address||'');
-        await run(env,`INSERT INTO company_subscriptions(id,company_id,plan_id,status,source,trial_started_at,trial_ends_at,current_period_start,current_period_end) VALUES(?,?,?,?,?,?,?,?,?)`,
-          subId,companyId,'TRIAL','TRIAL','SELF_SIGNUP',trialStart.toISOString().slice(0,10),trialEnd.toISOString().slice(0,10),trialStart.toISOString().slice(0,10),trialEnd.toISOString().slice(0,10));
-        await run(env,`INSERT INTO users(username,password_hash,role,active,company_id,full_name,email,mobile,updated_at) VALUES(?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
-          username,await sha256(password),'OWNER',1,companyId,upper(b.fullName||companyName),clean(b.email),clean(b.mobile));
-        const initialSettings={...DEFAULT_APP_SETTINGS,companyName,address:b.address||'',phone:clean(b.mobile),email:clean(b.email),gstNo:upper(b.gstNo),pan:upper(b.panNo),authorizedPartner:upper(b.fullName||'')};
-        await run(env,`INSERT INTO app_settings(company_id,setting_key,setting_value,updated_by,updated_at) VALUES(?,'APP',?,?,CURRENT_TIMESTAMP)`,
-          companyId,JSON.stringify(initialSettings),username);
-        return json({ok:true,companyId,companyCode:code,trialEndsAt:trialEnd.toISOString().slice(0,10)});
+        await run(env,`INSERT INTO companies(id,company_code,company_name,legal_name,gst_no,pan_no,mobile,email,address,status)
+          VALUES(?,?,?,?,?,?,?,?,?,'ACTIVE')`,
+          companyId,code,companyName,companyName,upper(b.gstNo),upper(b.panNo),mobile,email,b.address||'');
+        await run(env,`INSERT INTO company_subscriptions(
+          id,company_id,plan_id,status,source,trial_started_at,trial_ends_at,current_period_start,current_period_end
+        ) VALUES(?,?,?,?,?,?,?,?,?)`,
+          subId,companyId,'TRIAL','TRIAL','SELF_SIGNUP',
+          trialStart.toISOString().slice(0,10),trialEnd.toISOString().slice(0,10),
+          trialStart.toISOString().slice(0,10),trialEnd.toISOString().slice(0,10));
+        await run(env,`INSERT INTO users(username,password_hash,role,active,company_id,full_name,email,mobile,updated_at)
+          VALUES(?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+          username,await sha256(password),'OWNER',1,companyId,fullName,email,mobile);
+        const owner=await first(env,`SELECT id,username,role,company_id,full_name,email,mobile FROM users WHERE LOWER(username)=LOWER(?)`,username);
+        owner.permissions=permissionsForRole(owner.role);
+        const initialSettings={...DEFAULT_APP_SETTINGS,companyName,address:b.address||'',phone:mobile,email,gstNo:upper(b.gstNo),pan:upper(b.panNo),authorizedPartner:fullName};
+        await run(env,`INSERT INTO app_settings(company_id,setting_key,setting_value,updated_by,updated_at)
+          VALUES(?,'APP',?,?,CURRENT_TIMESTAMP)`,companyId,JSON.stringify(initialSettings),username);
+
+        const token=crypto.randomUUID()+crypto.randomUUID();
+        await run(env,`INSERT INTO sessions(token,user_id,expires_at) VALUES(?,?,datetime('now','+30 day'))`,token,owner.id);
+        return json({
+          ok:true,token,user:owner,companyId,companyCode:code,
+          trialEndsAt:trialEnd.toISOString().slice(0,10),
+          message:'Company created. 14-day trial activated.'
+        });
       }
 
       // Login fast path: query the existing users table first. Only run the full
@@ -1839,6 +1942,12 @@ export default {
         return json({schemaVersion:'53',stage:Number(stage?.value||0),total:V52_TENANT_REBUILDS.length,ready:ready?.value==='1'});
       }
 
+      if(req.method==='GET'&&V59_RESOURCE_FEATURE[resource]){
+        const feature=V59_RESOURCE_FEATURE[resource];
+        if(!subscriptionFeatureAllowedV59(subscriptionState,feature))
+          return json({error:`Your ${subscriptionState.subscription?.plan_name||'plan'} does not include ${feature}. Upgrade required.`},402);
+      }
+
       if(resource==='saas-context'&&req.method==='GET')return json(await subscriptionAccess(env,user));
 
       if(resource==='company-profile'){
@@ -1856,6 +1965,26 @@ export default {
       }
 
       if(resource==='subscription'&&req.method==='GET')return json(await subscriptionAccess(env,user));
+      if(resource==='subscription-request'){
+        if(!['OWNER','ADMIN'].includes(upper(user.role)))return json({error:'Owner/Admin permission required'},403);
+        if(req.method==='GET'){
+          return json(await all(env,`SELECT * FROM subscription_requests WHERE company_id=? ORDER BY created_at DESC LIMIT 20`,companyId));
+        }
+        if(req.method==='POST'){
+          const b=await requestBody(req),planId=upper(b.planId),cycle=upper(b.billingCycle||'MONTHLY');
+          if(!['BASIC','PRO','BUSINESS'].includes(planId))return json({error:'Select Basic, Pro or Business plan'},400);
+          if(!['MONTHLY','YEARLY'].includes(cycle))return json({error:'Invalid billing cycle'},400);
+          const plan=await first(env,`SELECT id FROM saas_plans WHERE id=? AND active=1`,planId);
+          if(!plan)return json({error:'Plan not available'},404);
+          const existing=await first(env,`SELECT id FROM subscription_requests WHERE company_id=? AND status='PENDING' LIMIT 1`,companyId);
+          if(existing)return json({error:'A plan request is already pending'},409);
+          const requestId=uid('SRQ');
+          await run(env,`INSERT INTO subscription_requests(id,company_id,requested_plan_id,billing_cycle,status,notes,requested_by)
+            VALUES(?,?,?,?, 'PENDING',?,?)`,requestId,companyId,planId,cycle,b.notes||'',user.username||'');
+          await audit(env,user,'CREATE','subscription_request',requestId,{planId,cycle});
+          return json({ok:true,id:requestId,status:'PENDING'});
+        }
+      }
 
       if(resource==='team-users'){
         const companyId=user.company_id||DEFAULT_COMPANY_ID;
@@ -1913,9 +2042,9 @@ export default {
       }
 
       const writeRequest=!['GET','HEAD','OPTIONS'].includes(req.method);
-      if(writeRequest&&!['company-profile','team-users'].includes(resource)){
-        const access=await subscriptionAccess(env,user);
-        if(access.readOnly)return json({error:'Subscription expired. Account is read-only until renewal.'},402);
+      if(writeRequest&&!['company-profile','team-users','subscription-request'].includes(resource)){
+        try{await enforceSubscriptionWriteV59(env,user,resource,req.method)}
+        catch(error){return json({error:String(error?.message||error)},Number(error?.status)||402)}
         if(!canWriteResource(user,resource))return json({error:'Your staff role does not allow this action.'},403);
       }
 

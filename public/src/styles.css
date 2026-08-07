@@ -443,3 +443,23 @@ select option[value="__ADD_NEW__"]{font-weight:800;color:#2457d2}
   .v58-accounting-strip .btn{width:100%}
   .v58-audit-status{align-items:flex-start;flex-direction:column}
 }
+
+/* V59 signup + subscription */
+.v59-login-points{display:flex;flex-direction:column;gap:8px;margin-top:24px;font-size:13px}
+.v59-login-divider{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--muted);font-size:10px}
+.v59-login-divider:before,.v59-login-divider:after{content:"";height:1px;background:var(--line);flex:1}
+.v59-register-modal{width:min(820px,96vw)}
+.v59-register-modal header>div{display:grid;gap:3px}.v59-register-modal header small{font-size:10px;color:var(--muted)}
+.v59-register-section{padding:10px 12px;border-radius:10px;background:#f6f9fd;display:grid;gap:3px}
+.v59-register-section small{font-size:10px;color:var(--muted)}
+.v59-consent{display:flex;gap:8px;align-items:flex-start;font-size:10px;color:var(--muted)}
+.v59-trial-summary{padding:12px;border:1px solid #bfe3cf;background:#f2fbf6;border-radius:12px;display:grid;gap:4px}
+.v59-trial-summary span{font-size:10px;color:var(--muted)}
+.v59-sub-banner{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 18px;border-bottom:1px solid var(--line)}
+.v59-sub-banner>div{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.v59-sub-banner span{font-size:10px}
+.v59-sub-banner.trial{background:#eef7ff}.v59-sub-banner.warning{background:#fff8df}.v59-sub-banner.expired{background:#fff0ee}
+.v59-plan-alert{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:12px;margin-bottom:14px}
+.v59-plan-alert span{font-size:11px}.v59-plan-alert.trial{background:#eef7ff;border:1px solid #c5ddf8}
+.v59-plan-alert.expired{background:#fff0ee;border:1px solid #f0c5be}.v59-plan-alert.pending{background:#fff8df;border:1px solid #eadc9f}
+.v59-plan-price{font-size:16px;font-weight:800}
+@media(max-width:680px){.v59-sub-banner{align-items:flex-start;flex-direction:column}.v59-sub-banner .btn{width:100%}}

@@ -1,27 +1,27 @@
 {
-  "version": "V58-ACCOUNTING-ISOLATION-AUDIT",
-  "source": "V57 Khata UX Cleanup full project",
-  "schema_version": "53 unchanged + lazy party_payments.invoice_id",
+  "version": "V59-SIGNUP-TRIAL-SUBSCRIPTION",
+  "source": "V58 Accounting Isolation Audit full project",
+  "schema_version": "53 unchanged",
   "checks": {
-    "lazy_invoice_id": "passed",
-    "allocation_helper": "passed",
-    "bootstrap_received_amount": "passed",
-    "party_payment_invoice_backend": "passed",
-    "party_invoice_mismatch_guard": "passed",
-    "accounting_audit_endpoint": "passed",
-    "cross_company_audit": "passed",
-    "supplier_total_includes_pm": "passed",
-    "frontend_exact_received": "passed",
-    "frontend_party_invoice_selector": "passed",
-    "frontend_audit_button": "passed",
-    "reset_v58": "passed",
+    "signup_visible": "passed",
+    "signup_auto_login": "passed",
+    "backend_signup_session": "passed",
+    "trial_14_days": "passed",
+    "trial_banner": "passed",
+    "read_only_subscription": "passed",
+    "trip_limit": "passed",
+    "invoice_limit": "passed",
+    "feature_gate": "passed",
+    "subscription_request_table": "passed",
+    "subscription_request_api": "passed",
+    "plan_request_ui": "passed",
+    "no_fake_activation": "passed",
+    "reset_v59": "passed",
     "schema_53_retained": "passed",
-    "legacy_fifo_allocation_simulation": "passed",
-    "cross_company_link_sqlite_test": "passed",
     "javascript_syntax": "passed",
     "vercel_build": "passed"
   },
-  "total_files": 78,
+  "total_files": 80,
   "files": [
     {
       "path": ".vercelignore",
@@ -30,13 +30,13 @@
     },
     {
       "path": "README.md",
-      "size": 35555,
-      "sha256": "23a6a7d1da0c88eeb545f9e775807234a2c0ba9d5a3da6a540cef565d9fa996c"
+      "size": 37655,
+      "sha256": "602ac5eb7d8fa2bea3a43dc29448eb1145a8dca0949ba16b16ff6a722092da17"
     },
     {
       "path": "START-HERE.txt",
-      "size": 32903,
-      "sha256": "ea5c4ac0077576a902c88347924d66dcd9b362f44eedc7181bf3bad6c9719c1f"
+      "size": 35003,
+      "sha256": "02fe1bb6fca4fbb1d83b7fe9275523f8a659d5c1dd31354b1b020facb4d290da"
     },
     {
       "path": "V44-TEST-REPORT.txt",
@@ -112,6 +112,11 @@
       "path": "V58-ACCOUNTING-ISOLATION-AUDIT-REPORT.txt",
       "size": 2302,
       "sha256": "31d2d7cc92a29b1b0a6c985b86036c033583806dd32dde4e1769c9192b2d5e0d"
+    },
+    {
+      "path": "V59-SIGNUP-TRIAL-SUBSCRIPTION-REPORT.txt",
+      "size": 2098,
+      "sha256": "eb64c5ade4cee2a05920cb6f12b9757050220488e4b165e7f6993ec166b231a3"
     },
     {
       "path": "package.json",
@@ -236,7 +241,7 @@
     {
       "path": "public/index.html",
       "size": 1964,
-      "sha256": "a3fecbf768472a3c85359044cc5209cb71089d533389e0f8ef0dd7c75f918160"
+      "sha256": "401c147816c50d06e6ee0ae00ee7388ae1343ce30aef4d4e57852f2bbae8e2a3"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -245,18 +250,18 @@
     },
     {
       "path": "public/src/advanced-v44.css",
-      "size": 10890,
-      "sha256": "cfbd847eaadefd21c2899b3819311bf772968ed5291db0e30cdaddb9d9c4a34e"
+      "size": 11323,
+      "sha256": "c740989aca41ade350e839bdb0bd68161336ac2696bae852bf7f33f4c0ae1008"
     },
     {
       "path": "public/src/advanced-v44.js",
-      "size": 47023,
-      "sha256": "880a7fcb0935fea1b2bf174a265980d50d3c4cd2644513a59552f1c33a18943c"
+      "size": 48980,
+      "sha256": "d8c41b7158f382a1f2efd00010e0cf0d7cd9f1acac5d15f092e3743e0b7f6ee4"
     },
     {
       "path": "public/src/app.js",
-      "size": 133219,
-      "sha256": "87fe6278d5c58420c3873499f631e36685b2563cc4299d21f25c05f27227aee6"
+      "size": 135833,
+      "sha256": "ec97f45f9e0481902cc0244105ed51e2c1901eca9e7ab583027955c1007e0029"
     },
     {
       "path": "public/src/core/api.js",
@@ -295,8 +300,8 @@
     },
     {
       "path": "public/src/styles.css",
-      "size": 36499,
-      "sha256": "2a3fe60e32e0222f9cd23b3712f54cec3892055f9f621b3286c16975a43359ca"
+      "size": 38346,
+      "sha256": "64fb2fd424a81e5cfe7859c30598db92c13010e7420b25daa68c47f11a777388"
     },
     {
       "path": "public/src/supplier-ledger-pdf-v41.js",
@@ -354,6 +359,11 @@
       "sha256": "b80f762cdf9d0e5bac843a9573db29ac3db459b120a81d0f5d570fe8c15a2b19"
     },
     {
+      "path": "public/version-v59.txt",
+      "size": 68,
+      "sha256": "6b27fe2ebff6c357d3c037027af7120a383ff44af381445dee42994bae395c86"
+    },
+    {
       "path": "vercel.json",
       "size": 655,
       "sha256": "1b53413a59fb95085053cba3a166882ff08dcfe5c48610556157f496d6907eb6"
@@ -400,8 +410,8 @@
     },
     {
       "path": "worker/src/index.js",
-      "size": 173254,
-      "sha256": "2e471ff984b2e69dd6d5d374568a13d9d50001e2001a594f36706577b9e64954"
+      "size": 179442,
+      "sha256": "a84d71b48546bc06bc1268bd6bb8bf80a318047358a68d304989a3b3e77a74a2"
     },
     {
       "path": "worker/src/seed-data.js",

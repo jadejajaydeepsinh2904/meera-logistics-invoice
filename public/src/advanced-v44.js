@@ -59,20 +59,28 @@ function planFeatureList(features={}){
   const labels={calendar:'Calendar',trip:'Trips',invoice:'Invoices',ledger:'Ledgers',reports:'Reports',approvals:'Approval',excel:'Excel',offline:'Offline/PWA',documents:'Documents',team:'Team',prioritySupport:'Priority Support'};
   return Object.entries(features).filter(([,v])=>v).map(([k])=>`<span class="v49-chip">${esc(labels[k]||k)}</span>`).join('');
 }
+function v59PlanPrice(p,cycle='MONTHLY'){
+  const n=Number(cycle==='YEARLY'?p.yearly_price:p.monthly_price||0);
+  return n>0?`₹${n.toLocaleString('en-IN')}${cycle==='YEARLY'?'/year':'/month'}`:'Price via Play Billing';
+}
 async function openSaasCenter(){
   const host=loading('Company & Subscription');
   try{
-    const [ctx,plans]=await Promise.all([api('/saas-context'),api('/saas-plans')]);
-    const c=ctx.company||{},s=ctx.subscription||{},u=ctx.usage||{};
+    const [ctx,plans,requests]=await Promise.all([api('/saas-context'),api('/saas-plans'),api('/subscription-request').catch(()=>[])]);
+    const c=ctx.company||{},s=ctx.subscription||{},u=ctx.usage||{},pending=ctx.pendingRequest||requests?.find?.(x=>x.status==='PENDING');
+    const days=ctx.daysRemaining;
     host.querySelector('main').innerHTML=`
       <div class="v49-summary-grid">
         <div class="v49-summary"><small>COMPANY</small><b>${esc(c.company_name||'-')}</b><span>${esc(c.company_code||'')}</span></div>
-        <div class="v49-summary"><small>CURRENT PLAN</small><b>${esc(s.plan_name||s.plan_id||'-')}</b><span>${esc(s.status||'-')}</span></div>
+        <div class="v49-summary"><small>CURRENT PLAN</small><b>${esc(s.plan_name||s.plan_id||'-')}</b><span>${esc(s.status||'-')}${s.status==='TRIAL'&&days!==null?` · ${days} days left`:''}</span></div>
         <div class="v49-summary"><small>YOUR ROLE</small><b>${esc(ctx.role||'-')}</b><span>${(ctx.permissions||[]).includes('*')?'Full access':'Limited access'}</span></div>
-        <div class="v49-summary"><small>THIS MONTH</small><b>${u.trips||0} Trips · ${u.invoices||0} Bills</b><span>${u.users||0}/${s.max_users||1} users</span></div>
+        <div class="v49-summary"><small>THIS MONTH</small><b>${u.trips||0}/${s.max_trips_month||0} Trips · ${u.invoices||0}/${s.max_invoices_month||0} Bills</b><span>${u.users||0}/${s.max_users||1} users</span></div>
       </div>
+      ${ctx.readOnly?`<div class="v59-plan-alert expired"><b>Read Only Mode</b><span>${esc(ctx.accessMessage||'Subscription expired.')}</span></div>`:
+        s.status==='TRIAL'?`<div class="v59-plan-alert trial"><b>14-Day Trial</b><span>${esc(ctx.accessMessage||'')} · Your existing data stays safe after trial expiry.</span></div>`:''}
+      ${pending?`<div class="v59-plan-alert pending"><b>Plan request pending</b><span>${esc(pending.requested_plan_id)} · ${esc(pending.billing_cycle)} · requested ${esc(pending.created_at||'')}</span></div>`:''}
       <form id="v49CompanyForm" class="a43-form a44-settings-form">
-        <div class="a44-settings-section wide"><b>Company Profile</b><small>Each transporter has a fully isolated company workspace</small></div>
+        <div class="a44-settings-section wide"><b>Company Profile</b><small>This company workspace is isolated from every other transporter.</small></div>
         ${settingField('Company Name','companyName',c.company_name||'')}
         ${settingField('Legal Name','legalName',c.legal_name||'')}
         ${settingField('GST Number','gstNo',c.gst_no||'')}
@@ -86,15 +94,18 @@ async function openSaasCenter(){
         ${settingField('Supplier Prefix','supplierPrefix',c.supplier_prefix||'PML')}
         <div class="a43-form-actions wide"><button class="primary">Save Company</button></div>
       </form>
-      <div class="a44-settings-section"><b>Subscription Plans</b><small>Google Play billing product IDs will be connected in the Android billing phase.</small></div>
+      <div class="a44-settings-section"><b>Subscription Plans</b><small>Usage limits are enforced now. Paid purchase activation will connect to Google Play Billing in the Android billing phase.</small></div>
       <div class="v49-plan-grid">${plans.map(p=>`
         <div class="v49-plan ${p.id===s.plan_id?'current':''}">
           <small>${esc(p.id)}</small><h3>${esc(p.plan_name)}</h3>
-          <p>${p.max_users} users · ${p.max_trips_month>=999999?'Unlimited':p.max_trips_month} trips/month · ${p.max_invoices_month>=999999?'Unlimited':p.max_invoices_month} invoices/month</p>
+          <div class="v59-plan-price">${v59PlanPrice(p)}</div>
+          <p>${p.max_users} users · ${p.max_trips_month>=999999?'Unlimited':p.max_trips_month} trips/month · ${p.max_invoices_month>=999999?'Unlimited':p.max_invoices_month} invoices/month · ${p.max_storage_mb} MB storage</p>
           <div class="v49-chips">${planFeatureList(p.features||{})}</div>
-          <button type="button" ${p.id===s.plan_id?'disabled':''}>${p.id===s.plan_id?'Current Plan':'Play Billing setup pending'}</button>
+          ${p.id===s.plan_id?`<button type="button" disabled>Current Plan</button>`:
+            p.id==='TRIAL'?`<button type="button" disabled>Trial only</button>`:
+            `<button type="button" data-v59-request-plan="${p.id}" ${pending?'disabled':''}>${pending?'Request Pending':'Request '+esc(p.plan_name)}</button>`}
         </div>`).join('')}</div>
-      <div class="v49-note"><b>Billing safety:</b> V49 fake payment/upgrade activate કરતું નથી. Real Google Play Product IDs અને purchase-token verification આવ્યા પછી જ paid upgrade live થશે.</div>`;
+      <div class="v49-note"><b>Billing status:</b> Plan limits, expiry and read-only mode are live. Plan request does not activate paid access by itself; secure Google Play purchase verification will activate it later.</div>`;
     host.querySelector('#v49CompanyForm').onsubmit=async e=>{
       e.preventDefault();
       try{
@@ -102,6 +113,15 @@ async function openSaasCenter(){
         toast('Company profile saved');closeAdvanced();openSaasCenter();
       }catch(err){alert(err.message)}
     };
+    host.querySelectorAll('[data-v59-request-plan]').forEach(btn=>btn.onclick=async()=>{
+      const planId=btn.dataset.v59RequestPlan;
+      const cycle=confirm(`Request ${planId} YEARLY plan?\nPress Cancel for MONTHLY.`)?'YEARLY':'MONTHLY';
+      btn.disabled=true;
+      try{
+        await api('/subscription-request',{method:'POST',body:JSON.stringify({planId,billingCycle:cycle})});
+        toast('Plan request submitted');closeAdvanced();openSaasCenter();
+      }catch(err){alert(err.message);btn.disabled=false}
+    });
   }catch(e){host.querySelector('main').innerHTML=`<div class="a43-error">${esc(e.message)}</div>`}
 }
 async function openTeamAccess(){
@@ -383,3 +403,5 @@ function decorate(){
 new MutationObserver(()=>requestAnimationFrame(decorate)).observe(document.documentElement,{childList:true,subtree:true});applySettings(cachedSettings());decorate();hydrateSettings();
 window.addEventListener('online',()=>{decorate();navigator.serviceWorker?.controller?.postMessage({type:'SYNC_QUEUE'});toast('Online — offline changes syncing')});window.addEventListener('offline',decorate);
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw-v45.js?v=45').catch(()=>{});
+
+document.addEventListener('ml-open-saas-v59',()=>openSaasCenter());

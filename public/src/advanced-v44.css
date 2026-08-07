@@ -22,3 +22,9 @@
 .v49-note{padding:13px 15px;border:1px solid #dfe6ef;border-radius:12px;background:#f8fafc;margin:10px 0 16px;font-size:12px;line-height:1.5}
 @media(max-width:900px){.v49-summary-grid,.v49-plan-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.v49-summary-grid,.v49-plan-grid{grid-template-columns:1fr}}
+
+/* V59 plan center */
+.v59-plan-alert{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:12px;margin:0 0 14px}
+.v59-plan-alert span{font-size:11px}.v59-plan-alert.trial{background:#eef7ff;border:1px solid #c5ddf8}
+.v59-plan-alert.expired{background:#fff0ee;border:1px solid #f0c5be}.v59-plan-alert.pending{background:#fff8df;border:1px solid #eadc9f}
+.v59-plan-price{font-size:16px;font-weight:800}
