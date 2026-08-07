@@ -160,6 +160,8 @@ async function quickAddMaster(type,target,parentHost){
     </form>`,{small:true,onMount:h=>{
       wireNewValueSelects(h);wireMasterSelects(h);
       const truckSelect=h.querySelector('[name=truckNo]'),ownerSelect=h.querySelector('[name=ownerName]'),save=h.querySelector('[data-save-truck]');
+      const preferredSupplier=norm(parentHost?.dataset?.preferredSupplier||'');
+      if(preferredSupplier)addOptionAndSelect(ownerSelect,preferredSupplier);
       const loadExisting=()=>{
         const t=d.trucks.find(x=>norm(x.truck_no)===norm(truckSelect.value));
         activeTruckId=t?.id||'';
@@ -1591,21 +1593,76 @@ function truckEntryForm(x={}){
 }
 function supplierPaymentForm(x={},tripContext=null){
   x=x||{};
-  const d=state.data,edit=!!x.id,host=modal(edit?'Edit Supplier Payment':'Pay Supplier',`<form class="form-grid" id="supplierPayForm">
-    ${supplierSelectField('Owner / Supplier','ownerName',x.owner_name||tripContext?.owner_name||'','required')}
+  const d=state.data,edit=!!x.id;
+  const initialOwner=norm(x.owner_name||tripContext?.owner_name||'');
+  const initialTruck=norm(x.truck_no||tripContext?.truck_no||'');
+  const initialTrucks=initialOwner?supplierTruckNumbers(d,initialOwner):[];
+  if(initialTruck&&!initialTrucks.includes(initialTruck))initialTrucks.push(initialTruck);
+  const host=modal(edit?'Edit Supplier Payment':'Pay Supplier',`<form class="form-grid" id="supplierPayForm">
+    ${supplierSelectField('Owner / Supplier','ownerName',initialOwner,'required')}
     ${field('Trip ID','tripId',x.trip_id||tripContext?.id||'','text','readonly')}
-    ${masterSelectField('Truck Number','truckNo',d.trucks.map(t=>t.truck_no),x.truck_no||tripContext?.truck_no||'','truck')}
+    ${masterSelectField('Truck Number','truckNo',initialTrucks,initialTruck,'truck')}
     ${field('Payment Date','paymentDate',x.payment_date||today(),'date','required')}
     ${field('Amount','amount',x.amount||tripContext?.suggestedAmount||0,'number','step="0.01" min="0.01" required')}
     ${selectField('Mode','paymentMode',['CASH','BANK','UPI','CHEQUE'],x.payment_mode||'BANK')}
     ${field('Reference','reference',x.reference||'')}
     ${textarea('Notes','notes',x.notes||'','span2')}
+    <div class="span2 notice" data-supplier-truck-note></div>
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn green">Save Payment</button></div></form>`,{small:true,onMount:host=>{
       wireMasterSelects(host);
       const truckSelect=host.querySelector('[name=truckNo]'),ownerSelect=host.querySelector('[name=ownerName]');
-      truckSelect.addEventListener('change',()=>{const t=d.trucks.find(x=>norm(x.truck_no)===norm(truckSelect.value));if(t?.owner_name)addOptionAndSelect(ownerSelect,t.owner_name)});
+      const note=host.querySelector('[data-supplier-truck-note]');
+
+      const refreshSupplierTrucks=(preferred='')=>{
+        const owner=norm(ownerSelect.value);
+        host.dataset.preferredSupplier=owner;
+        const linked=owner?supplierTruckNumbers(d,owner):[];
+        const keep=norm(preferred||truckSelect.value);
+        if(keep&&owner){
+          const master=d.trucks.find(t=>norm(t.truck_no)===keep);
+          const paymentMatch=(d.supplierPayments||[]).some(p=>norm(p.owner_name)===owner&&norm(p.truck_no)===keep);
+          const entryMatch=(d.truckEntries||[]).some(e=>norm(e.owner_name)===owner&&norm(e.truck_no)===keep);
+          if((master&&norm(master.owner_name)===owner)||paymentMatch||entryMatch){
+            if(!linked.includes(keep))linked.push(keep);
+          }
+        }
+        linked.sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+
+        truckSelect.innerHTML=`<option value="">${owner?'Select '+owner+' Truck':'Select Supplier First'}</option>
+          ${linked.map(no=>`<option value="${esc(no)}">${esc(no)}</option>`).join('')}
+          <option value="__ADD_NEW__">＋ New Truck Add</option>`;
+
+        if(keep&&linked.includes(keep))truckSelect.value=keep;
+        else truckSelect.value='';
+
+        if(!owner)note.textContent='Pehla Supplier select karo. Pachhi aa Supplier na j Truck Number dropdown ma aavshe.';
+        else if(!linked.length)note.textContent=`${owner} sathe haju koi truck linked nathi. "＋ New Truck Add" thi navo truck add kari shako.`;
+        else note.textContent=`${owner} na ${linked.length} linked truck j aa dropdown ma batave chhe.`;
+      };
+
+      ownerSelect.addEventListener('change',()=>refreshSupplierTrucks(''));
+      truckSelect.addEventListener('change',()=>{
+        if(truckSelect.value==='__ADD_NEW__')return;
+        const truck=norm(truckSelect.value);
+        if(!truck)return;
+        const owner=norm(ownerSelect.value);
+        const valid=supplierTruckNumbers(d,owner).includes(truck)
+          ||(d.trucks||[]).some(t=>norm(t.truck_no)===truck&&norm(t.owner_name)===owner);
+        if(owner&&!valid){
+          alert(`Aa truck ${owner} sathe linked nathi.`);
+          refreshSupplierTrucks('');
+        }
+      });
+
+      refreshSupplierTrucks(initialTruck);
       host.querySelector('[data-close-form]').onclick=()=>host.remove();
-      host.querySelector('#supplierPayForm').onsubmit=async e=>{e.preventDefault();if(await mutate('/supplier-payments'+(edit?'/'+x.id:''),edit?'PUT':'POST',formDataObject(e.target),e.submitter))host.remove()};
+      host.querySelector('#supplierPayForm').onsubmit=async e=>{
+        e.preventDefault();
+        const body=formDataObject(e.target);
+        if(!body.ownerName||body.ownerName==='__ADD_NEW__')return alert('Supplier select karo.');
+        if(body.truckNo&&body.truckNo==='__ADD_NEW__')return alert('Valid Truck Number select karo.');
+        if(await mutate('/supplier-payments'+(edit?'/'+x.id:''),edit?'PUT':'POST',body,e.submitter))host.remove()
+      };
     }});
 }
 function truckForm(x={}){

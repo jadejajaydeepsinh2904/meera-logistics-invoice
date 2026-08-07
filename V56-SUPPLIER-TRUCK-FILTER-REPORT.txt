@@ -1,0 +1,22 @@
+V56 SUPPLIER-WISE TRUCK FILTER
+
+Requested Pay Supplier behavior:
+- Supplier selected hoy to Truck Number dropdown ma khali e supplier na j linked trucks aavshe.
+- Global Pay Supplier open karo to pehla Supplier select karvo padse; badha trucks ek sathe nahi aave.
+- Supplier badlo etle Truck dropdown turant e supplier pramane refresh thase.
+- Supplier Khata na individual Pay Supplier button thi supplier preselected hoy, etle ena trucks direct aavshe.
+- Existing/Edit payment ma current supplier/truck safely preserve thase.
+- "＋ New Truck Add" option retained.
+- Pay Supplier mathi New Truck Add karo to current selected supplier Owner Name ma preselected thase.
+- Wrong supplier/truck combination submit thata pehla prevent thase.
+
+No backend/D1 change.
+Schema remains V53.
+V55 clean Supplier Khata retained.
+All V54 dropdown/New Supplier/Edit Supplier/Trip Supplier features retained.
+Invoice View exact PDF fix retained.
+
+Deploy:
+1. Upload full V56 ZIP to GitHub main.
+2. Vercel redeploy is enough for this frontend change.
+3. Open /?reset=v56 once.

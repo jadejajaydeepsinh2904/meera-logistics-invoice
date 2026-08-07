@@ -1,18 +1,20 @@
 {
-  "version": "V55-CLEAN-SUPPLIER-KHATA",
-  "source": "V54 Supplier/Truck Pay + Dropdowns full project",
+  "version": "V56-SUPPLIER-TRUCK-FILTER",
+  "source": "V55 Clean Supplier Khata full project",
   "schema_version": "53 unchanged",
   "checks": {
-    "supplier_card_layout": "passed",
-    "one_owner_pay_button": "passed",
-    "no_truck_pay_button_rendered": "passed",
-    "truck_chips_static": "passed",
-    "ledger_view_retained": "passed",
-    "reset_v55": "passed",
+    "supplier_filter_uses_linked_trucks": "passed",
+    "global_pay_requires_supplier_first": "passed",
+    "supplier_change_refreshes_trucks": "passed",
+    "new_truck_retained": "passed",
+    "new_truck_prefills_supplier": "passed",
+    "wrong_combo_prevented": "passed",
+    "reset_v56": "passed",
+    "supplier_mapping_simulation": "passed",
     "javascript_syntax": "passed",
     "vercel_build": "passed"
   },
-  "total_files": 71,
+  "total_files": 73,
   "files": [
     {
       "path": ".vercelignore",
@@ -21,13 +23,13 @@
     },
     {
       "path": "README.md",
-      "size": 31246,
-      "sha256": "607cc88761fa885ca9b65e21907aa75f21488915f1670bd6cf7a987a98baadaf"
+      "size": 32306,
+      "sha256": "94acf335f79f2f31db61e78d1ea6bbb4457f1aeb1455577ffddaa714e2b6a5e1"
     },
     {
       "path": "START-HERE.txt",
-      "size": 28594,
-      "sha256": "ceee60f9125aa95c483105d6fc58a0683b5d0038a491d5eb82fe2cb493459a3b"
+      "size": 29654,
+      "sha256": "3ef320294d2e931ce785f9478240c16d365d0ef25308076657cab39f51b5c5a3"
     },
     {
       "path": "V44-TEST-REPORT.txt",
@@ -88,6 +90,11 @@
       "path": "V55-CLEAN-SUPPLIER-KHATA-REPORT.txt",
       "size": 797,
       "sha256": "f8c29b14375c5bbefe63c7f4b8c9149ccbb988826461a1faa2a1702201189b2a"
+    },
+    {
+      "path": "V56-SUPPLIER-TRUCK-FILTER-REPORT.txt",
+      "size": 1058,
+      "sha256": "837b6306b3e2b4478c421a5c49510322cc932d845e30db65183f59fc81abe061"
     },
     {
       "path": "package.json",
@@ -212,7 +219,7 @@
     {
       "path": "public/index.html",
       "size": 1964,
-      "sha256": "aba790243088005388e49df56d41e9dafbb8a87848021b04c7c1a7b94f3aa1c3"
+      "sha256": "eeb924eb44d756bfaa7ecedc4d00d34acacbf4dc0ef1c32d782d4b05b3549f1f"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -231,8 +238,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 125818,
-      "sha256": "368c8df4f54b23d8e449a4bead5914300f4d15b597ee7ec587a6d9e3d20d83d9"
+      "size": 128620,
+      "sha256": "997698b09a65a1d4cf378ea31aa9eda739373089e13e11f08e2d48e18df099ff"
     },
     {
       "path": "public/src/core/api.js",
@@ -313,6 +320,11 @@
       "path": "public/version-v55.txt",
       "size": 63,
       "sha256": "cf1001afbff8efa10eab157526de7686588f923c88f71bdc0dd45d5bb2535e57"
+    },
+    {
+      "path": "public/version-v56.txt",
+      "size": 64,
+      "sha256": "a03b37caaf14e4f0f846dcdf9a84c35846091596b3d1deb78eac5e4878322dc5"
     },
     {
       "path": "vercel.json",
