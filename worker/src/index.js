@@ -38,8 +38,8 @@ const DEFAULT_COMPANY_ID='CMP-MEERA';
 const ROLE_PERMISSIONS={
   OWNER:['*'],
   ADMIN:['*'],
-  ACCOUNTANT:['read','parties.write','party-payments.write','invoices.write','pm-bills.write','truck-entries.write','supplier-payments.write','expenses.write','settings.write','excel.write','reports.write'],
-  OPERATOR:['read','trips.write','trucks.write','routes.write','materials.write','documents.write','workflow.write'],
+  ACCOUNTANT:['read','suppliers.write','parties.write','party-payments.write','invoices.write','pm-bills.write','truck-entries.write','supplier-payments.write','expenses.write','settings.write','excel.write','reports.write'],
+  OPERATOR:['read','suppliers.write','trips.write','trucks.write','routes.write','materials.write','documents.write','workflow.write'],
   VIEWER:['read']
 };
 function permissionsForRole(role='VIEWER'){
@@ -53,7 +53,7 @@ function resourceWritePermission(resource=''){
   const map={
     'parties':'parties.write','party-payments':'party-payments.write','invoices':'invoices.write',
     'pm-bills':'pm-bills.write','truck-entries':'truck-entries.write','supplier-payments':'supplier-payments.write',
-    'expenses':'expenses.write','settings':'settings.write','trips':'trips.write','trucks':'trucks.write',
+    'expenses':'expenses.write','suppliers':'suppliers.write','settings':'settings.write','trips':'trips.write','trucks':'trucks.write',
     'routes':'routes.write','materials':'materials.write','documents':'documents.write',
     'workflow-bookings':'workflow.write','approvals':'workflow.write','recycle-bin':'settings.write',
     'backups':'settings.write','monthly-exports':'excel.write','excel-import':'excel.write','import':'excel.write'
@@ -209,7 +209,7 @@ const TENANT_TABLES=[
 ];
 const TENANT_RESOURCE_TABLE={
   parties:'party_accounts','party-payments':'party_payments',trucks:'trucks',trips:'trips',
-  invoices:'invoices','pm-bills':'pm_bills','truck-entries':'truck_payments',
+  invoices:'invoices','pm-bills':'pm_bills','truck-entries':'truck_payments',suppliers:'supplier_accounts',
   'supplier-payments':'supplier_payments',expenses:'expenses',documents:'truck_documents',
   'workflow-bookings':'workflow_bookings',approvals:'approval_requests','recycle-bin':'recycle_bin',
   backups:'backup_snapshots','monthly-exports':'monthly_exports'
@@ -1123,6 +1123,10 @@ async function bootstrap(env,user){
   const partyLedger=Object.values(partyMap).map(x=>({...x,billed:round2(x.billed),received:round2(x.received),outstanding:round2(x.billed-x.received)})).sort((a,b)=>b.outstanding-a.outstanding);
 
   const supplierMap={};
+  for(const account of supplierAccounts){
+    const n=upper(account.owner_name||'');if(!n)continue;
+    supplierMap[n]??={owner_name:n,payable:0,paid:0,entries:0,payments:0,trucks:new Set(),pm_bills:0};
+  }
   for(const trip of trips){
     const n=upper(trip.supplier_name||'');
     if(!n)continue;
@@ -1148,8 +1152,8 @@ async function bootstrap(env,user){
   }
   const supplierAccountByName=Object.fromEntries(supplierAccounts.map(x=>[upper(x.owner_name),x]));
   const supplierLedger=Object.values(supplierMap).map(x=>({
-    owner_name:x.owner_name,ledger_no:supplierAccountByName[upper(x.owner_name)]?.ledger_no||'',payable:round2(x.payable),paid:round2(x.paid),pending:round2(x.payable-x.paid),
-    entries:x.entries,payments:x.payments,truck_count:x.trucks.size
+    id:supplierAccountByName[upper(x.owner_name)]?.id||'',owner_name:x.owner_name,ledger_no:supplierAccountByName[upper(x.owner_name)]?.ledger_no||'',payable:round2(x.payable),paid:round2(x.paid),pending:round2(x.payable-x.paid),
+    entries:x.entries||0,payments:x.payments||0,pm_bills:x.pm_bills||0,truck_count:x.trucks.size
   })).sort((a,b)=>b.pending-a.pending);
 
   const totalBilling=round2(invoices.reduce((a,x)=>a+num(x.total),0));
@@ -1177,7 +1181,7 @@ async function bootstrap(env,user){
   const gstPrefix=company.invoice_prefix||'ML';
   const nonGstPrefix=company.non_gst_prefix||'JAY';
   return {
-    version:'V53-Stable-Fast-Login',
+    version:'V54-Supplier-Truck-UX',
     user:{...user,permissions:permissionsForRole(user.role)},saas,parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
     pmBills,pmBillItems,truckEntries,supplierPayments,supplierAccounts,expenses,documents,audits,partyLedger,supplierLedger,issues,
     nextInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='GST').map(x=>x.invoice_no),`${gstPrefix} - `),
@@ -1540,7 +1544,7 @@ export default {
       const resource=parts[0]||'';
       const id=decodeURIComponent(parts[1]||'');
 
-      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'V53-Stable-Fast-Login'}),{headers:{...HEADERS,'cache-control':'public,max-age=15'}});
+      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'V54-Supplier-Truck-UX'}),{headers:{...HEADERS,'cache-control':'public,max-age=15'}});
       if(resource==='saas-plans'&&req.method==='GET'){
         await ensureDatabase(env);
         const plans=await all(env,`SELECT id,plan_name,monthly_price,yearly_price,max_users,max_trips_month,max_invoices_month,max_storage_mb,features_json,play_product_id_monthly,play_product_id_yearly FROM saas_plans WHERE active=1 ORDER BY sort_order`);
@@ -1782,6 +1786,35 @@ export default {
         let balance=0;for(const x of lines){balance=round2(balance+x.debit-x.credit);x.balance=balance}
         return json({party,invoices,payments,lines,balance});
       }
+      if(resource==='suppliers'){
+        if(req.method==='GET')return json(await all(env,`SELECT * FROM supplier_accounts WHERE company_id=? ORDER BY CAST(REPLACE(ledger_no,'PML ','') AS INTEGER),owner_name`,companyId));
+        if(req.method==='POST'){
+          const b=await requestBody(req),name=upper(b.supplierName||b.ownerName);
+          if(!name)return json({error:'Supplier name required'},400);
+          const ledgerNo=await ensureSupplierAccountForName(env,name,companyId);
+          const account=await first(env,`SELECT * FROM supplier_accounts WHERE company_id=? AND owner_name=?`,companyId,name);
+          await audit(env,user,'CREATE','supplier',account?.id||'',{supplierName:name});
+          return json({ok:true,id:account?.id||'',ledgerNo});
+        }
+        if(req.method==='PUT'&&id){
+          const b=await requestBody(req),name=upper(b.supplierName||b.ownerName);
+          if(!name)return json({error:'Supplier name required'},400);
+          const old=await first(env,`SELECT * FROM supplier_accounts WHERE id=? AND company_id=?`,id,companyId);
+          if(!old)return json({error:'Supplier not found'},404);
+          const duplicate=await first(env,`SELECT id FROM supplier_accounts WHERE company_id=? AND owner_name=? AND id<>?`,companyId,name,id);
+          if(duplicate)return json({error:'Supplier name already exists'},409);
+          await run(env,`UPDATE supplier_accounts SET owner_name=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,name,id,companyId);
+          if(upper(old.owner_name)!==name){
+            await run(env,`UPDATE trucks SET owner_name=?,updated_at=CURRENT_TIMESTAMP WHERE company_id=? AND owner_name=?`,name,companyId,upper(old.owner_name));
+            await run(env,`UPDATE trips SET supplier_name=?,updated_at=CURRENT_TIMESTAMP WHERE company_id=? AND supplier_name=?`,name,companyId,upper(old.owner_name));
+            await run(env,`UPDATE truck_payments SET owner_name=?,updated_at=CURRENT_TIMESTAMP WHERE company_id=? AND owner_name=?`,name,companyId,upper(old.owner_name));
+            await run(env,`UPDATE supplier_payments SET owner_name=?,updated_at=CURRENT_TIMESTAMP WHERE company_id=? AND owner_name=?`,name,companyId,upper(old.owner_name));
+            await run(env,`UPDATE pm_bills SET supplier_name=?,updated_at=CURRENT_TIMESTAMP WHERE company_id=? AND supplier_name=?`,name,companyId,upper(old.owner_name));
+          }
+          await audit(env,user,'UPDATE','supplier',id,{oldName:old.owner_name,supplierName:name});return json({ok:true});
+        }
+      }
+
       if(resource==='supplier-ledger'&&req.method==='GET'&&id){
         const name=upper(id);
         const entries=await all(env,`SELECT * FROM truck_payments WHERE company_id=? AND owner_name=? ORDER BY entry_date,created_at`,companyId,name);
@@ -1940,8 +1973,8 @@ export default {
             );
             if(upper(b.supplierName)){
               await ensureSupplierAccountForName(env,b.supplierName,companyId);
-              await run(env,`UPDATE truck_payments SET owner_name=?,updated_at=CURRENT_TIMESTAMP WHERE trip_id=?`,upper(b.supplierName),newId);
-              await run(env,`UPDATE supplier_payments SET owner_name=?,updated_at=CURRENT_TIMESTAMP WHERE trip_id=?`,upper(b.supplierName),newId);
+              await run(env,`UPDATE truck_payments SET owner_name=?,truck_no=?,updated_at=CURRENT_TIMESTAMP WHERE company_id=? AND trip_id=?`,upper(b.supplierName),upper(b.truckNo),companyId,newId);
+              await run(env,`UPDATE supplier_payments SET owner_name=?,truck_no=?,updated_at=CURRENT_TIMESTAMP WHERE company_id=? AND trip_id=?`,upper(b.supplierName),upper(b.truckNo),companyId,newId);
             }
             await audit(env,user,'CREATE','trip',newId,b);
             return json({ok:true,id:newId,tripNo});
@@ -1963,8 +1996,8 @@ export default {
           );
           if(upper(b.supplierName)){
             await ensureSupplierAccountForName(env,b.supplierName,companyId);
-            await run(env,`UPDATE truck_payments SET owner_name=?,updated_at=CURRENT_TIMESTAMP WHERE trip_id=?`,upper(b.supplierName),id);
-            await run(env,`UPDATE supplier_payments SET owner_name=?,updated_at=CURRENT_TIMESTAMP WHERE trip_id=?`,upper(b.supplierName),id);
+            await run(env,`UPDATE truck_payments SET owner_name=?,truck_no=?,updated_at=CURRENT_TIMESTAMP WHERE company_id=? AND trip_id=?`,upper(b.supplierName),upper(b.truckNo),companyId,id);
+            await run(env,`UPDATE supplier_payments SET owner_name=?,truck_no=?,updated_at=CURRENT_TIMESTAMP WHERE company_id=? AND trip_id=?`,upper(b.supplierName),upper(b.truckNo),companyId,id);
           }
 
           // Keep the linked invoice line synchronized.

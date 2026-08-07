@@ -1,24 +1,26 @@
 {
-  "version": "V53-STABLE-FAST-LOGIN",
-  "source": "V52 Fast D1 Migration full project",
-  "schema_version": "53",
+  "version": "V54-SUPPLIER-TRUCK-PAY-DROPDOWNS",
+  "source": "V53 Stable Fast Login full project",
+  "schema_version": "53 unchanged",
   "checks": {
-    "schema_v53": "passed",
-    "healthy_fast_path": "passed",
-    "fast_user_schema_inspection": "passed",
-    "persistent_saas_marker": "passed",
-    "login_no_saas_wait": "passed",
-    "staged_one_table": "passed",
-    "root_reset_query": "passed",
-    "vercel_reset_rewrite": "passed",
-    "first_load_timeout_45s": "passed",
+    "supplier_each_pay": "passed",
+    "truck_wise_pay": "passed",
+    "trip_history_supplier": "passed",
+    "supplier_dropdown": "passed",
+    "new_supplier_api": "passed",
+    "new_truck_dropdown": "passed",
+    "truck_form_both_dropdowns": "passed",
+    "full_trip_supplier_tab": "passed",
+    "trip_edit_supplier_dropdown": "passed",
+    "linked_supplier_truck_sync": "passed",
+    "advanced_new_truck": "passed",
+    "schema_53_retained": "passed",
+    "v53_fast_login_retained": "passed",
     "invoice_pdf_view_retained": "passed",
-    "multi_company_retained": "passed",
     "javascript_syntax": "passed",
-    "vercel_build": "passed",
-    "sqlite_user_schema_detection": "passed"
+    "vercel_build": "passed"
   },
-  "total_files": 66,
+  "total_files": 69,
   "files": [
     {
       "path": ".vercelignore",
@@ -27,13 +29,13 @@
     },
     {
       "path": "README.md",
-      "size": 28714,
-      "sha256": "18a9a078dacd898d55b049cbbcf41f3119e2172ac04e041d42f80ddf92214069"
+      "size": 30447,
+      "sha256": "2a63e0cf37a50ee064efc79014a048f408214512348fc852627b2ce22fd3e4a4"
     },
     {
       "path": "START-HERE.txt",
-      "size": 26062,
-      "sha256": "523c2ae39c1a4a9f19b41bdd3a301da2f4ab8e4a9dd9b996c74bdda39fe9cb4f"
+      "size": 27795,
+      "sha256": "c3c09611c1ee622e836c9e34175ae38774dca861ff51d89598e60621bc9af69d"
     },
     {
       "path": "V44-TEST-REPORT.txt",
@@ -84,6 +86,11 @@
       "path": "V53-STABLE-FAST-LOGIN-REPORT.txt",
       "size": 1017,
       "sha256": "8a7e19730e8084494cba5d3aea167bc8a8a95c1ddd31596c74c57fa09d83e0c7"
+    },
+    {
+      "path": "V54-SUPPLIER-TRUCK-UX-REPORT.txt",
+      "size": 1731,
+      "sha256": "2236f2389ecb4c59271ef753d0080d0a7de785b5255deeba6d3da71e03aa3c7f"
     },
     {
       "path": "package.json",
@@ -156,6 +163,11 @@
       "sha256": "e023f58b408e8a81965220c5529f9b817a2aa01930ca461d196e1259072e4ff6"
     },
     {
+      "path": "public/cache-reset-v54.html",
+      "size": 185,
+      "sha256": "6313218912d1ea8229d2b4ce64bdc227b1e0232789fc9f3c19db3f6e618354ca"
+    },
+    {
       "path": "public/data/invoices.json",
       "size": 19834,
       "sha256": "cdcc10cfb1ed33a3c914b3d71f26ad907a3ad81a0a9cd2300a50394b6255147b"
@@ -203,7 +215,7 @@
     {
       "path": "public/index.html",
       "size": 1964,
-      "sha256": "f650d6242717b8d8563d42f3d7d8cb404aa5fefc786e58d9f8020e77ed459033"
+      "sha256": "7f2724486126450b2211ea7194ba63856aed226700c607045aaaa224fdf9715f"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -217,13 +229,13 @@
     },
     {
       "path": "public/src/advanced-v44.js",
-      "size": 46786,
-      "sha256": "afc8c2b33c39f1fd1743ae51db0d66243b601eeac3a6ab8767e4f57d61a5d5cb"
+      "size": 47023,
+      "sha256": "880a7fcb0935fea1b2bf174a265980d50d3c4cd2644513a59552f1c33a18943c"
     },
     {
       "path": "public/src/app.js",
-      "size": 114067,
-      "sha256": "04f3be98f0207d1df4ae63afcec166777380b5af6ac149abbe2a88d7026224d6"
+      "size": 125798,
+      "sha256": "1e511bdca4a72e1bfcd6840e233424140f17aa648d1de1298134825f9f8c6957"
     },
     {
       "path": "public/src/core/api.js",
@@ -262,8 +274,8 @@
     },
     {
       "path": "public/src/styles.css",
-      "size": 31603,
-      "sha256": "511b97fd3d29c3d8bab36471fcab8ee2c1dddbe9ba072efb3f036e2faa485903"
+      "size": 32683,
+      "sha256": "07d8f47e1de405cb99303511cf7670dacfed84ff6344522d5943ebacb99328a9"
     },
     {
       "path": "public/src/supplier-ledger-pdf-v41.js",
@@ -296,9 +308,14 @@
       "sha256": "31a47762c7d756f85471381c7fd7fe7c2ab2d31bec542261bd4fd8cd42d09cfc"
     },
     {
+      "path": "public/version-v54.txt",
+      "size": 84,
+      "sha256": "5309f13923f3e007c3958bb8ea38ac10d82856b9bb985f413954a14e7189777f"
+    },
+    {
       "path": "vercel.json",
       "size": 655,
-      "sha256": "87b8107d70a23d3ec6cc9a658470047b4fa3d05b490662a5dfd16f5d7c6e0ee7"
+      "sha256": "1b53413a59fb95085053cba3a166882ff08dcfe5c48610556157f496d6907eb6"
     },
     {
       "path": "worker/migrations/0001_init.sql",
@@ -337,8 +354,8 @@
     },
     {
       "path": "worker/src/index.js",
-      "size": 154636,
-      "sha256": "56017702200338b922828be17bd5e4ac5e78c7a4a65d508f95ae984183360591"
+      "size": 157796,
+      "sha256": "9c9bc59628c7d1125cd95ae38fe71beb17edf5385420323ced312aede00a5bc9"
     },
     {
       "path": "worker/src/seed-data.js",

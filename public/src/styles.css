@@ -340,3 +340,16 @@ select option[value="__ADD_NEW__"]{font-weight:800;color:#2457d2}
 .invoice-line{grid-template-columns:.7fr .8fr .9fr 1.25fr .72fr .72fr .65fr .72fr .65fr .75fr auto!important;min-width:1500px!important}
 .invoice-line input[readonly]{background:#f3f6fa}
 @media(max-width:700px){.invoice-line{grid-template-columns:1fr 1fr!important;min-width:0!important}.invoice-line button{align-self:end}}
+
+/* V54 Supplier / Truck UX */
+.v54-supplier-row{align-items:stretch;gap:14px}
+.v54-ledger-open{all:unset;display:block;cursor:pointer;flex:1;min-width:0}
+.v54-supplier-actions{display:flex;min-width:190px;flex-direction:column;align-items:flex-end;gap:7px;justify-content:center}
+.v54-supplier-actions .btn{width:150px;padding:7px 10px}
+.v54-truck-pay-chip{display:flex!important;align-items:center;gap:8px;padding:7px 8px!important}
+.v54-truck-main{all:unset;cursor:pointer;display:flex;flex-direction:column;min-width:145px}
+.v54-truck-pay-chip .mini{white-space:nowrap}
+.v54-linked-trucks{display:flex;gap:7px;flex-wrap:wrap;padding-top:7px}
+.v54-linked-truck{border:1px solid #d5dbe5;background:#f7f9fc;border-radius:999px;padding:7px 11px;cursor:pointer;font-weight:700}
+.v54-linked-truck.active{outline:2px solid currentColor}
+@media(max-width:760px){.v54-supplier-row{flex-direction:column}.v54-supplier-actions{align-items:stretch;width:100%}.v54-supplier-actions .btn{width:100%}.v54-truck-pay-chip{width:100%;justify-content:space-between}.v54-truck-main{min-width:0}}

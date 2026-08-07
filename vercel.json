@@ -26,8 +26,8 @@
   ],
   "rewrites": [
     {
-      "source": "/cache-reset-v53",
-      "destination": "/cache-reset-v53.html"
+      "source": "/cache-reset-v54",
+      "destination": "/cache-reset-v54.html"
     }
   ]
 }

@@ -1,0 +1,31 @@
+V54 SUPPLIER / TRUCK PAY + DROPDOWN UX
+
+DONE
+- Supplier Khata: every supplier row has Pay Supplier button.
+- Supplier Khata: every linked truck has its own Truck-wise Pay button and truck pending amount.
+- Trip History: Supplier name appears directly below Truck Number.
+- Add/Edit Truck: Truck Number is dropdown; Owner Name is Supplier dropdown.
+- New Truck Add and New Supplier Add options are inside dropdowns.
+- Invoice truck rows keep dropdown and now New Truck flow uses Supplier dropdown for Owner Name.
+- Universal Trip Supplier field is a real dropdown with New Supplier Add.
+- Truck Entry and Supplier Payment Owner/Supplier fields are dropdowns.
+- Supplier Payment truck selection auto-fills the linked supplier.
+- Advanced Booking and Truck Document Gallery also expose New Truck Add in truck dropdown.
+- Edit Supplier from Universal Trip now opens a full Supplier & Truck tab with Truck, Supplier, Mobile, Bank, Supplier Rate, Commission, Payable and linked vehicles.
+- Saving full Supplier tab updates Trip, Truck Master and the linked Supplier/Truck payable entry.
+- Editing a Trip continues to allow Supplier change directly in the full Universal Trip form.
+- Explicit Supplier master POST/PUT API added; newly added supplier appears in Supplier Khata even before any payment/entry.
+- Trip supplier changes synchronize both owner_name and truck_no into linked supplier entries/payments.
+
+RETAINED
+- V53 fast/stable login and non-blocking D1 migration.
+- V50 multi-company isolation.
+- Invoice View = exact same generated PDF as Download.
+- V48 Non-GST Party GST.
+- V47 Party MLP fix.
+
+DATABASE
+- No new D1 schema migration in V54. schema_version remains 53.
+
+CACHE RESET
+- Use /?reset=v54 after Vercel deployment.

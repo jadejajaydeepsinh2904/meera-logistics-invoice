@@ -63,12 +63,44 @@ function datalistField(label,name,value,listId,items,opts=''){
 }
 
 function masterSelectField(label,name,items,value='',masterType='',opts='',cls=''){
-  const cleanItems=[...new Set(items.filter(Boolean))];
+  const cleanItems=[...new Set([value,...items].filter(Boolean))];
+  const addText=masterType==='truck'?'＋ New Truck Add':masterType==='supplier'?'＋ New Supplier Add':`＋ Add New ${label}`;
   return `<label class="field ${cls}"><span>${label}</span><select name="${name}" data-master-type="${masterType}" ${opts}>
     <option value="">Select ${esc(label)}</option>
     ${selectOptions(cleanItems,value)}
-    <option value="__ADD_NEW__">＋ Add New ${esc(label)}</option>
+    <option value="__ADD_NEW__">${esc(addText)}</option>
   </select></label>`;
+}
+function supplierMasterNames(d=state.data){
+  return [...new Set([
+    ...(d?.supplierLedger||[]).map(x=>x.owner_name),
+    ...(d?.trucks||[]).map(x=>x.owner_name),
+    ...(d?.truckEntries||[]).map(x=>x.owner_name),
+    ...(d?.supplierPayments||[]).map(x=>x.owner_name),
+    ...(d?.trips||[]).map(x=>x.supplier_name)
+  ].filter(Boolean).map(norm))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+}
+function supplierSelectField(label,name,value='',opts='',cls=''){
+  return masterSelectField(label,name,supplierMasterNames(),value,'supplier',opts,cls);
+}
+function newValueSelectField(label,name,items,value='',addLabel='＋ Add New',opts='',cls=''){
+  const cleanItems=[...new Set([value,...items].filter(Boolean))];
+  return `<label class="field ${cls}"><span>${label}</span><select name="${name}" data-new-value-label="${esc(label)}" data-new-value-add="${esc(addLabel)}" ${opts}>
+    <option value="">Select ${esc(label)}</option>
+    ${selectOptions(cleanItems,value)}
+    <option value="__ADD_VALUE__">${esc(addLabel)}</option>
+  </select></label>`;
+}
+function wireNewValueSelects(host){
+  host.querySelectorAll('select[data-new-value-label]').forEach(select=>{
+    select.addEventListener('change',()=>{
+      if(select.value!=='__ADD_VALUE__')return;
+      const label=select.dataset.newValueLabel||'Value';
+      const value=prompt(`Enter new ${label}`,'');
+      if(!value){select.value='';return}
+      addOptionAndSelect(select,value);
+    });
+  });
 }
 function addOptionAndSelect(select,value){
   const cleanValue=norm(value);
@@ -92,6 +124,7 @@ function wireMasterSelects(host){
     });
   });
 }
+window.ML_WIRE_MASTER_SELECTS=wireMasterSelects;
 async function quickAddMaster(type,target,parentHost){
   const d=state.data;
   if(type==='party'){
@@ -117,22 +150,60 @@ async function quickAddMaster(type,target,parentHost){
     }});return;
   }
   if(type==='truck'){
+    let activeTruckId='';
     const h=modal('Add New Truck',`<form class="form-grid" id="quickTruckForm">
-      ${field('Truck Number','truckNo','','text','required')}
-      ${field('Owner Name','ownerName','','text','required')}
+      ${newValueSelectField('Truck Number','truckNo',d.trucks.map(t=>t.truck_no),'','＋ New Truck Add','required')}
+      ${supplierSelectField('Owner Name','ownerName','','required')}
       ${field('Owner Mobile','ownerMobile','','tel')}
       ${textarea('Bank Details','bankDetails','','span2')}
-      <div class="form-actions"><button type="button" class="btn light" data-cancel>Cancel</button><button class="btn primary">Add Truck</button></div>
+      <div class="form-actions"><button type="button" class="btn light" data-cancel>Cancel</button><button class="btn primary" data-save-truck>Add Truck</button></div>
     </form>`,{small:true,onMount:h=>{
+      wireNewValueSelects(h);wireMasterSelects(h);
+      const truckSelect=h.querySelector('[name=truckNo]'),ownerSelect=h.querySelector('[name=ownerName]'),save=h.querySelector('[data-save-truck]');
+      const loadExisting=()=>{
+        const t=d.trucks.find(x=>norm(x.truck_no)===norm(truckSelect.value));
+        activeTruckId=t?.id||'';
+        if(t){
+          if(t.owner_name)addOptionAndSelect(ownerSelect,t.owner_name);
+          h.querySelector('[name=ownerMobile]').value=t.owner_mobile||'';
+          h.querySelector('[name=bankDetails]').value=t.bank_details||'';
+          save.textContent='Update Truck';
+        }else save.textContent='Add Truck';
+      };
+      truckSelect.addEventListener('change',loadExisting);
       h.querySelector('[data-cancel]').onclick=()=>h.remove();
       h.querySelector('#quickTruckForm').onsubmit=async e=>{
         e.preventDefault();const body=formDataObject(e.target),btn=e.submitter;
-        try{setBusy(btn,true);const res=await api('/trucks',{method:'POST',body:JSON.stringify(body)});
-          const item={id:res.id,truck_no:norm(body.truckNo),owner_name:norm(body.ownerName),owner_mobile:body.ownerMobile||'',bank_details:body.bankDetails||''};
-          d.trucks.push(item);addOptionAndSelect(target,item.truck_no);
-          const owner=parentHost.querySelector('[name=ownerName]'),bank=parentHost.querySelector('[name=bankDetails]');
-          if(owner)owner.value=item.owner_name;if(bank)bank.value=item.bank_details;
+        if(!body.truckNo||body.truckNo==='__ADD_VALUE__')return alert('Truck Number required.');
+        if(!body.ownerName||body.ownerName==='__ADD_NEW__')return alert('Owner / Supplier required.');
+        try{
+          setBusy(btn,true);
+          const path=activeTruckId?`/trucks/${activeTruckId}`:'/trucks';
+          const res=await api(path,{method:activeTruckId?'PUT':'POST',body:JSON.stringify(body)});
+          const item={id:activeTruckId||res.id,truck_no:norm(body.truckNo),owner_name:norm(body.ownerName),owner_mobile:body.ownerMobile||'',bank_details:body.bankDetails||''};
+          const ix=d.trucks.findIndex(x=>String(x.id)===String(item.id));if(ix>=0)d.trucks[ix]=item;else d.trucks.push(item);
+          addOptionAndSelect(target,item.truck_no);
+          const owner=parentHost.querySelector('[name=ownerName], [name=supplierName]'),bank=parentHost.querySelector('[name=bankDetails]');
+          if(owner)addOptionAndSelect(owner,item.owner_name);if(bank)bank.value=item.bank_details;
           h.remove();
+        }catch(err){alert(err.message)}finally{setBusy(btn,false)}
+      };
+    }});return;
+  }
+  if(type==='supplier'){
+    const h=modal('Add New Supplier',`<form class="form-grid" id="quickSupplierForm">
+      ${field('Supplier / Truck Malik Name','supplierName','','text','required')}
+      <div class="span2 notice">Supplier save thaya pachhi aa naam badha Supplier dropdown ma available thashe. Truck pachi pan link kari shako.</div>
+      <div class="form-actions"><button type="button" class="btn light" data-cancel>Cancel</button><button class="btn primary">Add Supplier</button></div>
+    </form>`,{small:true,onMount:h=>{
+      h.querySelector('[data-cancel]').onclick=()=>h.remove();
+      h.querySelector('#quickSupplierForm').onsubmit=async e=>{
+        e.preventDefault();const body=formDataObject(e.target),btn=e.submitter;
+        try{
+          setBusy(btn,true);const res=await api('/suppliers',{method:'POST',body:JSON.stringify(body)});
+          const name=norm(body.supplierName);
+          if(!d.supplierLedger.some(x=>norm(x.owner_name)===name))d.supplierLedger.push({id:res.id||'',ledger_no:res.ledgerNo||'',owner_name:name,payable:0,paid:0,pending:0,entries:0,payments:0,pm_bills:0,truck_count:0});
+          addOptionAndSelect(target,name);h.remove();
         }catch(err){alert(err.message)}finally{setBusy(btn,false)}
       };
     }});return;
@@ -383,10 +454,10 @@ function dashboardPanel(d){
 function tripsPanel(d){
   const rows=filterRows(d.trips,['trip_no','invoice_no','trip_date','party_name','truck_no','material','loading_point','unloading_point','status'])
     .sort((a,b)=>Number(String(b.trip_no||'').replace(/\D/g,''))-Number(String(a.trip_no||'').replace(/\D/g,'')));
-  return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Transport Khata</h2><small>Trip booking, status and POD</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search trips…"><button class="btn primary" data-action="new-trip">New Trip</button></div></div>${table(['Trip No.','Invoice','Date','Party','Truck / Driver','Route','Material','Weight × Rate','Status','POD','Action'],rows.map(t=>[
+  return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Transport Khata</h2><small>Trip booking, status and POD</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search trips…"><button class="btn primary" data-action="new-trip">New Trip</button></div></div>${table(['Trip No.','Invoice','Date','Party','Truck / Supplier','Route','Material','Weight × Rate','Status','POD','Action'],rows.map(t=>[
     `<button class="link-btn" data-action="view-trip" data-id="${esc(t.id)}"><b>${esc(t.trip_no||t.id)}</b></button>`,
     t.invoice_no?`<button class="link-btn" data-action="view-linked-invoice" data-id="${esc(t.invoice_id)}">${esc(t.invoice_no)}</button>`:'-',
-    esc(t.trip_date),esc(t.party_name),`<b>${esc(t.truck_no)}</b><br><small>${esc(t.driver_name||'')}</small>`,`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,esc(t.material),`${esc(t.weight)} × ${money(t.rate)}`,statusBadge(t.status),t.pod_file_name?`<span class="badge info">${esc(t.pod_file_name)}</span>`:'-',`<div class="action-set"><button class="mini green" data-action="view-trip" data-id="${esc(t.id)}">Open Trip</button><button class="mini" data-action="edit-trip" data-id="${esc(t.id)}">Edit</button><button class="mini danger" data-action="delete-trip" data-id="${esc(t.id)}">Delete</button></div>`
+    esc(t.trip_date),esc(t.party_name),`<b>${esc(t.truck_no)}</b><br><small><b>Supplier:</b> ${esc(tripSupplierName(t))}</small>${t.driver_name?`<br><small>Driver: ${esc(t.driver_name)}</small>`:''}`,`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,esc(t.material),`${esc(t.weight)} × ${money(t.rate)}`,statusBadge(t.status),t.pod_file_name?`<span class="badge info">${esc(t.pod_file_name)}</span>`:'-',`<div class="action-set"><button class="mini green" data-action="view-trip" data-id="${esc(t.id)}">Open Trip</button><button class="mini" data-action="edit-trip" data-id="${esc(t.id)}">Edit</button><button class="mini danger" data-action="delete-trip" data-id="${esc(t.id)}">Delete</button></div>`
   ]),'1250px')}</div></section>`;
 }
 function invoicesPanel(d){
@@ -503,6 +574,16 @@ function supplierTruckNumbers(d,ownerName){
   for(const b of d.pmBills||[])if(norm(b.supplier_name)===owner)for(const item of b.items||[])if(item.truck_no)numbers.add(norm(item.truck_no));
   return [...numbers].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
 }
+function supplierTruckBalance(d,ownerName,truckNo){
+  const owner=norm(ownerName),truck=norm(truckNo);
+  const entryPayable=(d.truckEntries||[]).filter(e=>norm(e.owner_name)===owner&&norm(e.truck_no)===truck).reduce((a,x)=>a+Number(x.payable||0),0);
+  const pmPayable=(d.pmBills||[]).filter(b=>norm(b.supplier_name)===owner).reduce((sum,b)=>sum+(b.items||[]).filter(i=>norm(i.truck_no)===truck).reduce((a,i)=>a+Number(i.supplier_amount||0),0),0);
+  const paid=(d.supplierPayments||[]).filter(p=>norm(p.owner_name)===owner&&norm(p.truck_no)===truck).reduce((a,x)=>a+Number(x.amount||0),0);
+  return {payable:entryPayable+pmPayable,paid,pending:entryPayable+pmPayable-paid};
+}
+function supplierPayActionId(ownerName,truckNo='',suggestedAmount=0){
+  return encodeURIComponent(JSON.stringify({ownerName:norm(ownerName),truckNo:norm(truckNo),suggestedAmount:Math.max(0,Number(suggestedAmount||0))}));
+}
 function suppliersPanel(d){
   const all=d.supplierLedger||[];
   const rows=all.filter(s=>{
@@ -510,10 +591,13 @@ function suppliersPanel(d){
     const trucks=supplierTruckNumbers(d,s.owner_name).join(' ').toLowerCase();
     return String(s.owner_name||'').toLowerCase().includes(state.search)||String(s.ledger_no||'').toLowerCase().includes(state.search)||trucks.includes(state.search);
   });
-  return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Supplier Khata</h2><small>Truck malik, owner-wise vehicles, payable and payment ledger</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search supplier or truck…"><button class="btn green" data-action="new-supplier-payment">Pay Supplier</button></div></div><div class="row-list">${rows.map(s=>{
+  return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Supplier Khata</h2><small>Supplier-wise ane truck-wise payable / payment</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search supplier or truck…"><button class="btn green" data-action="new-supplier-payment">Pay Supplier</button></div></div><div class="row-list">${rows.map(s=>{
     const trucks=supplierTruckNumbers(d,s.owner_name);
-    const truckHtml=trucks.length?`<div class="supplier-truck-list">${trucks.map(no=>`<span class="supplier-truck-chip"><b>${esc(no)}</b><small>${esc(s.owner_name)}</small></span>`).join('')}</div>`:'<div class="supplier-truck-empty">No truck linked. Audit Alertમાંથી Add Truck કરો.</div>';
-    return `<button class="ledger-row supplier-ledger-row" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}"><div class="supplier-ledger-main"><b>${esc((s.ledger_no?s.ledger_no+' · ':'')+s.owner_name)}</b><small>${s.entries} freight entries · ${s.pm_bills||0} PM bills · ${s.payments} payments · ${trucks.length} trucks</small>${truckHtml}</div><div class="money-right"><b>${money(s.pending)}</b><small>Payable ${money(s.payable)}</small></div></button>`;
+    const truckHtml=trucks.length?`<div class="supplier-truck-list">${trucks.map(no=>{
+      const bal=supplierTruckBalance(d,s.owner_name,no);
+      return `<div class="supplier-truck-chip v54-truck-pay-chip"><button class="v54-truck-main" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}"><b>${esc(no)}</b><small>${esc(s.owner_name)} · Pending ${money(bal.pending)}</small></button><button class="mini green" data-action="pay-supplier-truck" data-id="${supplierPayActionId(s.owner_name,no,bal.pending)}">₹ Pay</button></div>`;
+    }).join('')}</div>`:'<div class="supplier-truck-empty">No truck linked. New Truck Add dropdown thi truck link karo.</div>';
+    return `<div class="ledger-row supplier-ledger-row v54-supplier-row"><button class="supplier-ledger-main v54-ledger-open" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}"><b>${esc((s.ledger_no?s.ledger_no+' · ':'')+s.owner_name)}</b><small>${s.entries} freight entries · ${s.pm_bills||0} PM bills · ${s.payments} payments · ${trucks.length} trucks</small>${truckHtml}</button><div class="money-right v54-supplier-actions"><b>${money(s.pending)}</b><small>Payable ${money(s.payable)}</small><button class="btn green" data-action="pay-supplier-owner" data-id="${supplierPayActionId(s.owner_name,'',s.pending)}">₹ Pay Supplier</button><button class="btn soft" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}">Ledger View</button></div></div>`;
   }).join('')}</div></div></section>`;
 }
 function truckEntriesPanel(d){
@@ -706,8 +790,12 @@ function handleAction(action,id){
   if(action==='trip-party-payment'){const t=find('trip',id);return partyPaymentForm({},t||{});}
   if(action==='trip-supplier-payment'){
     const t=find('trip',id)||{};
-    const owner=state.data.trucks.find(x=>x.truck_no===t.truck_no)?.owner_name||t.driver_name||'';
-    return supplierPaymentForm({}, {...t,owner_name:owner});
+    const owner=tripSupplierName(t),f=tripFinancials(t);
+    return supplierPaymentForm({}, {...t,owner_name:owner,truck_no:t.truck_no,suggestedAmount:Math.max(0,f.supplierPayable-f.supplierPaid)});
+  }
+  if(action==='pay-supplier-owner'||action==='pay-supplier-truck'){
+    try{const ctx=JSON.parse(decodeURIComponent(id||''));return supplierPaymentForm({}, {owner_name:ctx.ownerName||'',truck_no:ctx.truckNo||'',suggestedAmount:ctx.suggestedAmount||0});}
+    catch(_){return supplierPaymentForm({});}
   }
   if(action==='trip-expense'){const t=find('trip',id);return expenseForm({},t||{});}
   if(action==='delete-trip')return remove(`/trips/${id}`,'Delete this trip?');
@@ -757,14 +845,14 @@ function tripSupplierName(trip){
   const truck=d.trucks.find(t=>norm(t.truck_no)===norm(trip.truck_no));
   return norm(trip.supplier_name||linkedEntry?.owner_name||truck?.owner_name||trip.driver_name||'SUPPLIER');
 }
-function tripPutBody(trip,supplierName){
+function tripPutBody(trip,supplierName,overrides={}){
   return {
-    tripDate:trip.trip_date||today(),
-    partyName:trip.party_name||'',
-    truckNo:trip.truck_no||'',
-    driverName:trip.driver_name||'',
-    driverMobile:trip.driver_mobile||'',
-    supplierName:supplierName||tripSupplierName(trip),
+    tripDate:overrides.tripDate||trip.trip_date||today(),
+    partyName:overrides.partyName||trip.party_name||'',
+    truckNo:overrides.truckNo||trip.truck_no||'',
+    driverName:(overrides.driverName??trip.driver_name)||'',
+    driverMobile:(overrides.driverMobile??trip.driver_mobile)||'',
+    supplierName:supplierName||overrides.supplierName||tripSupplierName(trip),
     material:trip.material||'',
     loadingPoint:trip.loading_point||'',
     unloadingPoint:trip.unloading_point||'',
@@ -782,32 +870,61 @@ function tripPutBody(trip,supplierName){
 }
 function editTripSupplier(trip){
   if(!trip)return;
-  const names=[...new Set([
-    ...(state.data.supplierLedger||[]).map(x=>x.owner_name),
-    ...(state.data.trucks||[]).map(x=>x.owner_name),
-    ...(state.data.truckEntries||[]).map(x=>x.owner_name),
-    ...(state.data.trips||[]).map(x=>x.supplier_name)
-  ].filter(Boolean).map(norm))].sort();
+  const d=state.data;
+  const linkedEntry=(d.truckEntries||[]).find(e=>String(e.trip_id||'')===String(trip.id))||null;
+  const currentTruck=d.trucks.find(t=>norm(t.truck_no)===norm(trip.truck_no))||{};
   const current=tripSupplierName(trip);
-  const host=modal(`Edit Supplier · ${trip.trip_no||trip.id}`,`<form class="form-grid" id="tripSupplierForm">
-    ${datalistField('Supplier / Truck Malik Name','supplierName',current,'tripSupplierNames',names,'required')}
-    <div class="span2 notice">Aa supplier khali aa Trip Number sathe save thashe. Linked Supplier Entry ane Supplier Payment pan aa name par update thashe.</div>
-    <div class="form-actions"><button type="button" class="btn light" data-cancel>Cancel</button><button class="btn primary">Save Supplier</button></div>
-  </form>`,{small:true,onMount:host=>{
+  const host=modal(`Edit Supplier & Truck · ${trip.trip_no||trip.id}`,`<form class="form-grid" id="tripSupplierForm">
+    ${field('Trip Number','tripNo',trip.trip_no||trip.id,'text','readonly')}
+    ${masterSelectField('Truck Number','truckNo',d.trucks.map(t=>t.truck_no),trip.truck_no||'','truck','required')}
+    ${supplierSelectField('Supplier / Truck Malik Name','supplierName',current,'required')}
+    ${field('Owner Mobile','ownerMobile',currentTruck.owner_mobile||'','tel')}
+    ${textarea('Bank Details','bankDetails',linkedEntry?.bank_details||currentTruck.bank_details||'','span2')}
+    ${field('Supplier Rate','supplierRate',linkedEntry?.rate||0,'number','step="0.01" min="0"')}
+    ${field('Commission','commission',linkedEntry?.commission||0,'number','step="0.01" min="0"')}
+    ${field('Supplier Payable','supplierPayable',linkedEntry?.payable||0,'number','readonly')}
+    <div class="field span2"><span>Supplier Vehicles</span><div class="v54-linked-trucks" data-linked-trucks></div></div>
+    <div class="span2 notice">Aa full supplier tab mathi Supplier, Truck, Mobile, Bank, Supplier Rate ane Commission badhu aa Trip sathe update thashe.</div>
+    <div class="form-actions"><button type="button" class="btn light" data-cancel>Cancel</button><button class="btn primary">Save Supplier & Truck</button></div>
+  </form>`,{onMount:host=>{
+    wireMasterSelects(host);
+    const truckSelect=host.querySelector('[name=truckNo]'),supplierSelect=host.querySelector('[name=supplierName]');
+    const mobile=host.querySelector('[name=ownerMobile]'),bank=host.querySelector('[name=bankDetails]');
+    const rate=host.querySelector('[name=supplierRate]'),commission=host.querySelector('[name=commission]'),payable=host.querySelector('[name=supplierPayable]');
+    const linked=host.querySelector('[data-linked-trucks]');
+    const renderLinked=()=>{
+      const owner=norm(supplierSelect.value),trucks=supplierTruckNumbers(d,owner);
+      linked.innerHTML=trucks.length?trucks.map(no=>`<button type="button" class="v54-linked-truck ${norm(no)===norm(truckSelect.value)?'active':''}" data-v54-truck="${esc(no)}">${esc(no)}</button>`).join(''):'<small>No vehicle linked yet.</small>';
+      linked.querySelectorAll('[data-v54-truck]').forEach(btn=>btn.onclick=()=>{addOptionAndSelect(truckSelect,btn.dataset.v54Truck);truckSelect.dispatchEvent(new Event('change',{bubbles:true}))});
+    };
+    const recalc=()=>{payable.value=Math.max(0,Number(trip.billing_weight??trip.weight??0)*Number(rate.value||0)-Number(commission.value||0)).toFixed(2)};
+    supplierSelect.addEventListener('change',()=>{supplierSelect.dataset.manual='1';renderLinked()});
+    truckSelect.addEventListener('change',()=>{
+      const t=d.trucks.find(x=>norm(x.truck_no)===norm(truckSelect.value));
+      if(t){
+        if(t.owner_name&&!supplierSelect.dataset.manual){addOptionAndSelect(supplierSelect,t.owner_name);supplierSelect.dataset.manual=''}
+        mobile.value=t.owner_mobile||'';bank.value=t.bank_details||bank.value||'';
+      }
+      renderLinked();
+    });
+    rate.addEventListener('input',recalc);commission.addEventListener('input',recalc);recalc();renderLinked();
     host.querySelector('[data-cancel]').onclick=()=>host.remove();
     host.querySelector('#tripSupplierForm').onsubmit=async event=>{
-      event.preventDefault();
-      const button=event.submitter;
-      const supplierName=norm(new FormData(event.target).get('supplierName'));
-      if(!supplierName){alert('Supplier name required.');return}
+      event.preventDefault();const button=event.submitter,body=formDataObject(event.target);
+      const supplierName=norm(body.supplierName),truckNo=norm(body.truckNo);
+      if(!supplierName)return alert('Supplier name required.');if(!truckNo)return alert('Truck Number required.');
       try{
         setBusy(button,true);
-        await api('/trips/'+trip.id,{method:'PUT',body:JSON.stringify(tripPutBody(trip,supplierName))});
-        const fresh=await api('/bootstrap');
-        state.data=fresh;writeCache(fresh);host.remove();
-        universalTripScreen(fresh.trips.find(x=>String(x.id)===String(trip.id)));
-      }catch(error){alert(error.message||'Unable to update supplier.')}
-      finally{setBusy(button,false)}
+        await api('/trips/'+trip.id,{method:'PUT',body:JSON.stringify(tripPutBody(trip,supplierName,{truckNo}))});
+        let truck=d.trucks.find(t=>norm(t.truck_no)===truckNo);
+        const truckBody={truckNo,ownerName:supplierName,ownerMobile:body.ownerMobile||'',bankDetails:body.bankDetails||''};
+        if(truck)await api('/trucks/'+truck.id,{method:'PUT',body:JSON.stringify(truckBody)});
+        else{const res=await api('/trucks',{method:'POST',body:JSON.stringify(truckBody)});truck={id:res.id,...truckBody,truck_no:truckNo,owner_name:supplierName}}
+        const entryBody={tripId:trip.id,entryDate:trip.trip_date||today(),truckNo,ownerName:supplierName,bankDetails:body.bankDetails||'',loadingPoint:trip.loading_point||'',unloadingPoint:trip.unloading_point||'',weight:Number(trip.billing_weight??trip.weight??0),rate:Number(body.supplierRate||0),commission:Number(body.commission||0),notes:linkedEntry?.notes||''};
+        if(linkedEntry)await api('/truck-entries/'+linkedEntry.id,{method:'PUT',body:JSON.stringify(entryBody)});
+        else if(Number(body.supplierRate||0)>0)await api('/truck-entries',{method:'POST',body:JSON.stringify(entryBody)});
+        const fresh=await api('/bootstrap');state.data=fresh;writeCache(fresh);host.remove();universalTripScreen(fresh.trips.find(x=>String(x.id)===String(trip.id)));
+      }catch(error){alert(error.message||'Unable to update supplier / truck.')}finally{setBusy(button,false)}
     };
   }});
 }
@@ -1029,7 +1146,7 @@ function tripForm(x={},afterSave=null){
     ${textarea('Invoice Comments','comments',linkedInvoice?.comments||window.ML_SETTINGS?.defaultComments||'1. Payment due within 30 days.\\n2. Mention invoice number in payment reference.','span2')}
 
     <div class="span2 universal-section-title supplier"><b>SUPPLIER / TRUCK MALIK</b><small>Supplier aa Trip Number sathe separately save ane edit thashe</small></div>
-    ${datalistField('Supplier / Truck Malik Name','supplierName',initialSupplier,'tripSupplierNamesMain',supplierNames,'required')}
+    ${supplierSelectField('Supplier / Truck Malik Name','supplierName',initialSupplier,'required')}
     ${field('Supplier Rate','supplierRate',linkedSupplierEntry?.rate||0,'number','step="0.01"')}
     ${field('Commission','commission',linkedSupplierEntry?.commission||0,'number','step="0.01"')}
     ${field('Supplier Advance','supplierAdvance',existingAdvance,'number','step="0.01"')}
@@ -1045,10 +1162,10 @@ function tripForm(x={},afterSave=null){
     const partySelect=host.querySelector('[name=partyName]');
     const truckSelect=host.querySelector('[name=truckNo]');
     const supplierInput=host.querySelector('[name=supplierName]');
-    supplierInput.addEventListener('input',()=>supplierInput.dataset.manual='1');
+    supplierInput.addEventListener('change',()=>supplierInput.dataset.manual='1');
     truckSelect.addEventListener('change',()=>{
       const truck=d.trucks.find(t=>norm(t.truck_no)===norm(truckSelect.value));
-      if(truck?.owner_name && (!supplierInput.value || supplierInput.dataset.manual!=='1'))supplierInput.value=norm(truck.owner_name);
+      if(truck?.owner_name && (!supplierInput.value || supplierInput.dataset.manual!=='1')){addOptionAndSelect(supplierInput,truck.owner_name);supplierInput.dataset.manual=''}
     });
 
     const applyTripType=(type,forceNumber=true)=>{
@@ -1429,7 +1546,7 @@ function truckEntryForm(x={}){
     ${field('Entry Date','entryDate',x.entry_date||today(),'date','required')}
     ${selectField('Trip Link','tripId',['',...d.trips.map(t=>t.id)],x.trip_id||'')}
     ${masterSelectField('Truck Number','truckNo',d.trucks.map(t=>t.truck_no),x.truck_no||'','truck','required')}
-    ${datalistField('Owner / Supplier','ownerName',x.owner_name||'','ownerList',[...new Set(d.trucks.map(t=>t.owner_name).filter(Boolean))],'required')}
+    ${supplierSelectField('Owner / Supplier','ownerName',x.owner_name||'','required')}
     ${field('Bank Details','bankDetails',x.bank_details||'')}
     ${masterSelectField('Loading Point','loadingPoint',[...new Set(d.routes.map(r=>r.loading_point))],x.loading_point||'','route-loading','required')}
     ${masterSelectField('Unloading Point','unloadingPoint',[...new Set(d.routes.map(r=>r.unloading_point))],x.unloading_point||'','route-unloading','required')}
@@ -1439,39 +1556,57 @@ function truckEntryForm(x={}){
     ${textarea('Notes','notes',x.notes||'','span2')}
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">Save Entry</button></div></form>`,{onMount:host=>{
       wireMasterSelects(host);
-      host.querySelector('[name=tripId]').onchange=e=>{const t=d.trips.find(t=>String(t.id)===String(e.target.value));if(!t)return;for(const [n,v] of Object.entries({truckNo:t.truck_no,loadingPoint:t.loading_point,unloadingPoint:t.unloading_point,weight:t.weight})){host.querySelector(`[name=${n}]`).value=v}};
-      host.querySelector('[name=truckNo]').onchange=e=>{const t=d.trucks.find(t=>t.truck_no===norm(e.target.value));if(t){host.querySelector('[name=ownerName]').value=t.owner_name||'';host.querySelector('[name=bankDetails]').value=t.bank_details||''}};
+      host.querySelector('[name=tripId]').onchange=e=>{const t=d.trips.find(t=>String(t.id)===String(e.target.value));if(!t)return;for(const [n,v] of Object.entries({truckNo:t.truck_no,loadingPoint:t.loading_point,unloadingPoint:t.unloading_point,weight:t.weight})){host.querySelector(`[name=${n}]`).value=v}const owner=tripSupplierName(t);if(owner)addOptionAndSelect(host.querySelector('[name=ownerName]'),owner);const tm=d.trucks.find(x=>norm(x.truck_no)===norm(t.truck_no));if(tm)host.querySelector('[name=bankDetails]').value=tm.bank_details||''};
+      host.querySelector('[name=truckNo]').onchange=e=>{const t=d.trucks.find(t=>t.truck_no===norm(e.target.value));if(t){addOptionAndSelect(host.querySelector('[name=ownerName]'),t.owner_name||'');host.querySelector('[name=bankDetails]').value=t.bank_details||''}};
       host.querySelector('[data-close-form]').onclick=()=>host.remove();
       host.querySelector('#truckEntryForm').onsubmit=async e=>{e.preventDefault();if(await mutate('/truck-entries'+(edit?'/'+x.id:''),edit?'PUT':'POST',formDataObject(e.target),e.submitter))host.remove()};
     }});
 }
 function supplierPaymentForm(x={},tripContext=null){
   x=x||{};
-  const d=state.data,edit=!!x.id,owners=[...new Set([...d.trucks.map(t=>t.owner_name),...d.supplierLedger.map(s=>s.owner_name)].filter(Boolean))],host=modal(edit?'Edit Supplier Payment':'Pay Supplier',`<form class="form-grid" id="supplierPayForm">
-    ${datalistField('Owner / Supplier','ownerName',x.owner_name||tripContext?.owner_name||'','supplierOwnerList',owners,'required')}
+  const d=state.data,edit=!!x.id,host=modal(edit?'Edit Supplier Payment':'Pay Supplier',`<form class="form-grid" id="supplierPayForm">
+    ${supplierSelectField('Owner / Supplier','ownerName',x.owner_name||tripContext?.owner_name||'','required')}
     ${field('Trip ID','tripId',x.trip_id||tripContext?.id||'','text','readonly')}
-    ${masterSelectField('Truck Number','truckNo',d.trucks.map(t=>t.truck_no),x.truck_no||'','truck')}
+    ${masterSelectField('Truck Number','truckNo',d.trucks.map(t=>t.truck_no),x.truck_no||tripContext?.truck_no||'','truck')}
     ${field('Payment Date','paymentDate',x.payment_date||today(),'date','required')}
-    ${field('Amount','amount',x.amount||0,'number','step="0.01" min="0.01" required')}
+    ${field('Amount','amount',x.amount||tripContext?.suggestedAmount||0,'number','step="0.01" min="0.01" required')}
     ${selectField('Mode','paymentMode',['CASH','BANK','UPI','CHEQUE'],x.payment_mode||'BANK')}
     ${field('Reference','reference',x.reference||'')}
     ${textarea('Notes','notes',x.notes||'','span2')}
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn green">Save Payment</button></div></form>`,{small:true,onMount:host=>{
       wireMasterSelects(host);
+      const truckSelect=host.querySelector('[name=truckNo]'),ownerSelect=host.querySelector('[name=ownerName]');
+      truckSelect.addEventListener('change',()=>{const t=d.trucks.find(x=>norm(x.truck_no)===norm(truckSelect.value));if(t?.owner_name)addOptionAndSelect(ownerSelect,t.owner_name)});
       host.querySelector('[data-close-form]').onclick=()=>host.remove();
       host.querySelector('#supplierPayForm').onsubmit=async e=>{e.preventDefault();if(await mutate('/supplier-payments'+(edit?'/'+x.id:''),edit?'PUT':'POST',formDataObject(e.target),e.submitter))host.remove()};
     }});
 }
 function truckForm(x={}){
   x=x||{};
-  const edit=!!x.id,host=modal(edit?'Edit Truck':'Add Truck',`<form class="form-grid" id="truckForm">
-    ${field('Truck Number','truckNo',x.truck_no||'','text','required')}
-    ${field('Owner Name','ownerName',x.owner_name||'','text','required')}
+  const d=state.data,edit=!!x.id;
+  let activeTruckId=x.id||'';
+  const host=modal(edit?'Edit Truck':'Add Truck',`<form class="form-grid" id="truckForm">
+    ${newValueSelectField('Truck Number','truckNo',d.trucks.map(t=>t.truck_no),x.truck_no||'','＋ New Truck Add','required')}
+    ${supplierSelectField('Owner Name','ownerName',x.owner_name||'','required')}
     ${field('Owner Mobile','ownerMobile',x.owner_mobile||'','tel')}
     ${textarea('Bank Details','bankDetails',x.bank_details||'','span2')}
-    <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">Save Truck</button></div></form>`,{small:true,onMount:host=>{
+    <div class="span2 notice">Truck Number ane Owner Name banne dropdown chhe. New Truck Add / New Supplier Add option dropdown ma j chhe.</div>
+    <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary" data-save-truck>${edit?'Update Truck':'Save Truck'}</button></div></form>`,{small:true,onMount:host=>{
+      wireNewValueSelects(host);wireMasterSelects(host);
+      const truckSelect=host.querySelector('[name=truckNo]'),ownerSelect=host.querySelector('[name=ownerName]'),save=host.querySelector('[data-save-truck]');
+      truckSelect.addEventListener('change',()=>{
+        const t=d.trucks.find(x=>norm(x.truck_no)===norm(truckSelect.value));
+        if(t){activeTruckId=t.id;if(t.owner_name)addOptionAndSelect(ownerSelect,t.owner_name);host.querySelector('[name=ownerMobile]').value=t.owner_mobile||'';host.querySelector('[name=bankDetails]').value=t.bank_details||'';save.textContent='Update Truck'}
+        else{activeTruckId=x.id||'';save.textContent=activeTruckId?'Update Truck':'Save Truck'}
+      });
       host.querySelector('[data-close-form]').onclick=()=>host.remove();
-      host.querySelector('#truckForm').onsubmit=async e=>{e.preventDefault();if(await mutate('/trucks'+(edit?'/'+x.id:''),edit?'PUT':'POST',formDataObject(e.target),e.submitter))host.remove()};
+      host.querySelector('#truckForm').onsubmit=async e=>{
+        e.preventDefault();const body=formDataObject(e.target);
+        if(!body.truckNo||body.truckNo==='__ADD_VALUE__')return alert('Truck Number required.');
+        if(!body.ownerName||body.ownerName==='__ADD_NEW__')return alert('Owner / Supplier required.');
+        const path='/trucks'+(activeTruckId?'/'+activeTruckId:'');
+        if(await mutate(path,activeTruckId?'PUT':'POST',body,e.submitter))host.remove();
+      };
     }});
 }
 function routeForm(x={}){
