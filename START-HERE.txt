@@ -412,3 +412,29 @@ V48 NON-GST PARTY GST DISPLAY FIX
 - Old Non-GST invoices with blank stored GSTIN fall back to the Party Master GST Number when viewed/downloaded.
 - GST Invoice behavior is unchanged.
 - Login and D1 schema_version 34 are unchanged.
+
+
+V49 SaaS + Subscription Foundation
+
+Added:
+- Company account model.
+- Existing Meera Logistics mapped to CMP-MEERA.
+- Free Trial, Basic, Pro and Business plan catalog.
+- Existing Meera account is GRANDFATHERED Business so current work is not locked.
+- Subscription status, feature entitlement and monthly usage context.
+- Roles: OWNER, ADMIN, ACCOUNTANT, OPERATOR, VIEWER.
+- Team & Access screen for staff login/role/status/password management.
+- Company & Plan screen for GST/PAN/contact/address and numbering prefixes.
+- Expired subscriptions become read-only.
+- Google Play product ID, purchase token and order ID fields are ready.
+- No fake subscription purchase is activated.
+- V48 Non-GST Party GST fix retained.
+- V47 Party MLP fix retained.
+- V46 Vercel fix retained.
+
+Important:
+V49 is the SaaS FOUNDATION. Public signup for outside transport companies is intentionally not enabled yet. Before onboarding another company, the operational tables must be tenantized with company_id and company-scoped unique numbers/queries. That next migration is required to guarantee that one transporter's trips/invoices/ledgers can never mix with another.
+
+Database:
+- schema_version upgrades from 34 to 49 automatically on first Worker request.
+- Existing business records are not deleted.

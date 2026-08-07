@@ -42,13 +42,110 @@ function openTools(){
     ${toolCard('📊','Excel Center','Full export, import and monthly files','excel')}
     ${toolCard('☁️','Scheduled Backups','Daily Cloudflare backup snapshots','backups')}
     ${toolCard('🖼️','Truck Gallery','Multiple document images per truck','gallery')}
+    ${toolCard('🏢','Company & Plan','Company profile, subscription and usage','saas')}
+    ${toolCard('👥','Team & Access','Owner, Admin, Accountant, Operator and Viewer','team')}
     ${toolCard('⚙️','Settings','Company details, interface and backup defaults','settings')}
   </div><div class="a43-tip"><b>Command Palette:</b> keyboard par <kbd>Ctrl</kbd> + <kbd>K</kbd></div>`);
   host.querySelectorAll('[data-a43-tool]').forEach(b=>b.onclick=()=>openFeature(b.dataset.a43Tool));
 }
 async function openFeature(name){
-  const map={calendar:openCalendar,workflow:openWorkflow,approvals:openApprovals,recycle:openRecycle,health:openHealth,excel:openExcel,backups:openBackups,gallery:openGallery,settings:openSettings};
+  const map={calendar:openCalendar,workflow:openWorkflow,approvals:openApprovals,recycle:openRecycle,health:openHealth,excel:openExcel,backups:openBackups,gallery:openGallery,saas:openSaasCenter,team:openTeamAccess,settings:openSettings};
   return map[name]?.();
+}
+
+
+
+function planFeatureList(features={}){
+  const labels={calendar:'Calendar',trip:'Trips',invoice:'Invoices',ledger:'Ledgers',reports:'Reports',approvals:'Approval',excel:'Excel',offline:'Offline/PWA',documents:'Documents',team:'Team',prioritySupport:'Priority Support'};
+  return Object.entries(features).filter(([,v])=>v).map(([k])=>`<span class="v49-chip">${esc(labels[k]||k)}</span>`).join('');
+}
+async function openSaasCenter(){
+  const host=loading('Company & Subscription');
+  try{
+    const [ctx,plans]=await Promise.all([api('/saas-context'),api('/saas-plans')]);
+    const c=ctx.company||{},s=ctx.subscription||{},u=ctx.usage||{};
+    host.querySelector('main').innerHTML=`
+      <div class="v49-summary-grid">
+        <div class="v49-summary"><small>COMPANY</small><b>${esc(c.company_name||'-')}</b><span>${esc(c.company_code||'')}</span></div>
+        <div class="v49-summary"><small>CURRENT PLAN</small><b>${esc(s.plan_name||s.plan_id||'-')}</b><span>${esc(s.status||'-')}</span></div>
+        <div class="v49-summary"><small>YOUR ROLE</small><b>${esc(ctx.role||'-')}</b><span>${(ctx.permissions||[]).includes('*')?'Full access':'Limited access'}</span></div>
+        <div class="v49-summary"><small>THIS MONTH</small><b>${u.trips||0} Trips · ${u.invoices||0} Bills</b><span>${u.users||0}/${s.max_users||1} users</span></div>
+      </div>
+      <form id="v49CompanyForm" class="a43-form a44-settings-form">
+        <div class="a44-settings-section wide"><b>Company Profile</b><small>Each transporter account will have its own identity</small></div>
+        ${settingField('Company Name','companyName',c.company_name||'')}
+        ${settingField('Legal Name','legalName',c.legal_name||'')}
+        ${settingField('GST Number','gstNo',c.gst_no||'')}
+        ${settingField('PAN Number','panNo',c.pan_no||'')}
+        ${settingField('Mobile','mobile',c.mobile||'')}
+        ${settingField('Email','email',c.email||'','email')}
+        <label class="wide"><span>Address</span><textarea name="address">${esc(c.address||'')}</textarea></label>
+        ${settingField('GST Invoice Prefix','invoicePrefix',c.invoice_prefix||'ML')}
+        ${settingField('Non-GST Prefix','nonGstPrefix',c.non_gst_prefix||'JAY')}
+        ${settingField('Trip Prefix','tripPrefix',c.trip_prefix||'TR')}
+        ${settingField('Supplier Prefix','supplierPrefix',c.supplier_prefix||'PML')}
+        <div class="a43-form-actions wide"><button class="primary">Save Company</button></div>
+      </form>
+      <div class="a44-settings-section"><b>Subscription Plans</b><small>Google Play billing product IDs will be connected in the Android billing phase.</small></div>
+      <div class="v49-plan-grid">${plans.map(p=>`
+        <div class="v49-plan ${p.id===s.plan_id?'current':''}">
+          <small>${esc(p.id)}</small><h3>${esc(p.plan_name)}</h3>
+          <p>${p.max_users} users · ${p.max_trips_month>=999999?'Unlimited':p.max_trips_month} trips/month · ${p.max_invoices_month>=999999?'Unlimited':p.max_invoices_month} invoices/month</p>
+          <div class="v49-chips">${planFeatureList(p.features||{})}</div>
+          <button type="button" ${p.id===s.plan_id?'disabled':''}>${p.id===s.plan_id?'Current Plan':'Play Billing setup pending'}</button>
+        </div>`).join('')}</div>
+      <div class="v49-note"><b>Billing safety:</b> V49 fake payment/upgrade activate કરતું નથી. Real Google Play Product IDs અને purchase-token verification આવ્યા પછી જ paid upgrade live થશે.</div>`;
+    host.querySelector('#v49CompanyForm').onsubmit=async e=>{
+      e.preventDefault();
+      try{
+        await api('/company-profile',{method:'PUT',body:JSON.stringify(Object.fromEntries(new FormData(e.target).entries()))});
+        toast('Company profile saved');closeAdvanced();openSaasCenter();
+      }catch(err){alert(err.message)}
+    };
+  }catch(e){host.querySelector('main').innerHTML=`<div class="a43-error">${esc(e.message)}</div>`}
+}
+async function openTeamAccess(){
+  const host=loading('Team & Access');
+  try{
+    const [users,ctx]=await Promise.all([api('/team-users'),api('/saas-context')]),s=ctx.subscription||{};
+    host.querySelector('main').innerHTML=`
+      <div class="v49-note"><b>${esc(s.plan_name||'Plan')}</b> · Active users ${ctx.usage?.users||0}/${s.max_users||1}. Staff ને Owner password આપ્યા વગર role પ્રમાણે access આપી શકાય.</div>
+      <div class="a43-table-wrap"><table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Status</th><th>Mobile</th><th>Action</th></tr></thead><tbody>
+        ${users.map(u=>`<tr><td>${esc(u.username)}</td><td>${esc(u.full_name||'-')}</td><td><b>${esc(u.role)}</b></td><td>${u.active?'Active':'Disabled'}</td><td>${esc(u.mobile||'-')}</td><td><button type="button" data-v49-edit-user="${u.id}">Edit</button></td></tr>`).join('')||'<tr><td colspan="6">No team users</td></tr>'}
+      </tbody></table></div>
+      <form id="v49TeamForm" class="a43-form a44-settings-form">
+        <div class="a44-settings-section wide"><b>Add Staff Login</b><small>Owner/Admin only</small></div>
+        ${settingField('Username','username','')}
+        ${settingField('Full Name','fullName','')}
+        ${settingField('Mobile','mobile','')}
+        ${settingField('Email','email','','email')}
+        <label><span>Role</span><select name="role"><option>ADMIN</option><option>ACCOUNTANT</option><option>OPERATOR</option><option>VIEWER</option></select></label>
+        <label><span>Temporary Password</span><input name="password" type="password" minlength="6" required></label>
+        <div class="a43-form-actions wide"><button class="primary">Create Staff Login</button></div>
+      </form>`;
+    host.querySelector('#v49TeamForm').onsubmit=async e=>{
+      e.preventDefault();
+      try{await api('/team-users',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(e.target).entries()))});toast('Staff login created');closeAdvanced();openTeamAccess()}
+      catch(err){alert(err.message)}
+    };
+    host.querySelectorAll('[data-v49-edit-user]').forEach(btn=>btn.onclick=()=>{
+      const u=users.find(x=>String(x.id)===String(btn.dataset.v49EditUser));if(!u)return;
+      const edit=modal('Edit Staff Access',`<form id="v49EditForm" class="a43-form a44-settings-form">
+        ${settingField('Full Name','fullName',u.full_name||'')}
+        ${settingField('Mobile','mobile',u.mobile||'')}
+        ${settingField('Email','email',u.email||'','email')}
+        <label><span>Role</span><select name="role">${['ADMIN','ACCOUNTANT','OPERATOR','VIEWER'].map(r=>`<option ${r===u.role?'selected':''}>${r}</option>`).join('')}</select></label>
+        <label><span>Status</span><select name="active"><option value="1" ${u.active?'selected':''}>Active</option><option value="0" ${!u.active?'selected':''}>Disabled</option></select></label>
+        <label><span>New Password (optional)</span><input name="password" type="password" minlength="6"></label>
+        <div class="a43-form-actions wide"><button class="primary">Save Access</button></div>
+      </form>`);
+      edit.querySelector('#v49EditForm').onsubmit=async e=>{
+        e.preventDefault();const body=Object.fromEntries(new FormData(e.target).entries());body.active=body.active==='1';
+        try{await api('/team-users/'+u.id,{method:'PUT',body:JSON.stringify(body)});toast('Staff access updated');closeAdvanced();openTeamAccess()}
+        catch(err){alert(err.message)}
+      };
+    });
+  }catch(e){host.querySelector('main').innerHTML=`<div class="a43-error">${esc(e.message)}</div>`}
 }
 
 
@@ -249,7 +346,7 @@ function galleryUploadForm(trucks){
 async function openCommandPalette(){
   const host=modal('Command Palette',`<div class="a43-command"><input autofocus placeholder="Type command, invoice, trip, party, truck…" data-cmd-input><div data-cmd-results></div></div>`);
   const input=host.querySelector('[data-cmd-input]'),results=host.querySelector('[data-cmd-results]');let b=null;
-  const actions=[['Calendar','calendar'],['New Booking','new-booking'],['Booking Workflow','workflow'],['Approvals','approvals'],['Recycle Bin','recycle'],['System Health','health'],['Excel Center','excel'],['Scheduled Backups','backups'],['Truck Gallery','gallery'],['Settings','settings'],['New Trip','new-trip'],['New Invoice','new-invoice']];
+  const actions=[['Company & Plan','saas'],['Team & Access','team'],['Calendar','calendar'],['New Booking','new-booking'],['Booking Workflow','workflow'],['Approvals','approvals'],['Recycle Bin','recycle'],['System Health','health'],['Excel Center','excel'],['Scheduled Backups','backups'],['Truck Gallery','gallery'],['Settings','settings'],['New Trip','new-trip'],['New Invoice','new-invoice']];
   const render=async()=>{const q=input.value.trim().toUpperCase();if(!b)b=await loadBootstrap();const rows=actions.filter(x=>!q||x[0].toUpperCase().includes(q)).map(x=>({label:x[0],kind:'COMMAND',action:x[1]}));if(q){for(const i of b.invoices.filter(x=>String(x.invoice_no).toUpperCase().includes(q)||String(x.party_name).toUpperCase().includes(q)).slice(0,5))rows.push({label:`${i.invoice_no} · ${i.party_name}`,kind:'INVOICE',id:i.id});for(const t of b.trips.filter(x=>String(x.trip_no).toUpperCase().includes(q)||String(x.truck_no).toUpperCase().includes(q)).slice(0,5))rows.push({label:`${t.trip_no} · ${t.truck_no}`,kind:'TRIP',id:t.id});for(const p of b.parties.filter(x=>String(x.party_name).toUpperCase().includes(q)).slice(0,5))rows.push({label:p.party_name,kind:'PARTY'});for(const t of b.trucks.filter(x=>String(x.truck_no).toUpperCase().includes(q)||String(x.owner_name).toUpperCase().includes(q)).slice(0,5))rows.push({label:`${t.truck_no} · ${t.owner_name}`,kind:'TRUCK'})}results.innerHTML=rows.slice(0,20).map((r,i)=>`<button data-cmd-i="${i}"><span>${esc(r.kind)}</span><b>${esc(r.label)}</b></button>`).join('')||'<p>No result</p>';results.querySelectorAll('button').forEach((el,i)=>el.onclick=()=>runCommand(rows[i]))};
   input.oninput=render;render();setTimeout(()=>input.focus(),50);
 }
@@ -265,7 +362,9 @@ function decorate(){
   // Enforce the exact compact sidebar requested earlier, even if old browser cache is present.
   document.querySelectorAll('.sidebar [data-panel]').forEach(b=>{if(['partyPayments','truckEntries','supplierPayments','expenses'].includes(b.dataset.panel))b.remove()});
   const sidebar=document.querySelector('.sidebar');
-  if(sidebar&&!sidebar.querySelector('[data-a44-settings-side]'))sidebar.insertAdjacentHTML('beforeend','<div class="nav-group-title a44-settings-title">System</div><div class="nav a44-settings-nav"><button type="button" data-a44-settings-side><span class="dot"></span>Settings</button></div>');
+  if(sidebar&&!sidebar.querySelector('[data-a44-settings-side]'))sidebar.insertAdjacentHTML('beforeend','<div class="nav-group-title a44-settings-title">System</div><div class="nav a44-settings-nav"><button type="button" data-v49-saas-side><span class="dot"></span>Company & Plan</button><button type="button" data-v49-team-side><span class="dot"></span>Team & Access</button><button type="button" data-a44-settings-side><span class="dot"></span>Settings</button></div>');
+  const sideSaas=document.querySelector('[data-v49-saas-side]');if(sideSaas&&!sideSaas.dataset.v49Bound){sideSaas.dataset.v49Bound='1';sideSaas.addEventListener('click',openSaasCenter)}
+  const sideTeam=document.querySelector('[data-v49-team-side]');if(sideTeam&&!sideTeam.dataset.v49Bound){sideTeam.dataset.v49Bound='1';sideTeam.addEventListener('click',openTeamAccess)}
   const sideSettings=document.querySelector('[data-a44-settings-side]');if(sideSettings&&!sideSettings.dataset.a44Bound){sideSettings.dataset.a44Bound='1';sideSettings.addEventListener('click',openSettings)}
   const top=document.querySelector('.top-actions');
   if(top&&!top.querySelector('[data-a44-settings-top]'))top.insertAdjacentHTML('afterbegin','<button class="btn light" data-a44-settings-top>Settings</button>');

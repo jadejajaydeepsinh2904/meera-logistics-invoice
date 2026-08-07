@@ -30,6 +30,119 @@ async function safe(env, sql){
 }
 
 
+
+const DEFAULT_COMPANY_ID='CMP-MEERA';
+const ROLE_PERMISSIONS={
+  OWNER:['*'],
+  ADMIN:['*'],
+  ACCOUNTANT:['read','parties.write','party-payments.write','invoices.write','pm-bills.write','truck-entries.write','supplier-payments.write','expenses.write','settings.write','excel.write','reports.write'],
+  OPERATOR:['read','trips.write','trucks.write','routes.write','materials.write','documents.write','workflow.write'],
+  VIEWER:['read']
+};
+function permissionsForRole(role='VIEWER'){
+  return ROLE_PERMISSIONS[upper(role)]||ROLE_PERMISSIONS.VIEWER;
+}
+function hasPermission(user,permission){
+  const permissions=user?.permissions||permissionsForRole(user?.role);
+  return permissions.includes('*')||permissions.includes(permission);
+}
+function resourceWritePermission(resource=''){
+  const map={
+    'parties':'parties.write','party-payments':'party-payments.write','invoices':'invoices.write',
+    'pm-bills':'pm-bills.write','truck-entries':'truck-entries.write','supplier-payments':'supplier-payments.write',
+    'expenses':'expenses.write','settings':'settings.write','trips':'trips.write','trucks':'trucks.write',
+    'routes':'routes.write','materials':'materials.write','documents':'documents.write',
+    'workflow-bookings':'workflow.write','approvals':'workflow.write','recycle-bin':'settings.write',
+    'backups':'settings.write','monthly-exports':'excel.write','excel-import':'excel.write','import':'excel.write'
+  };
+  return map[resource]||'settings.write';
+}
+function canWriteResource(user,resource){
+  if(['OWNER','ADMIN'].includes(upper(user?.role)))return true;
+  return hasPermission(user,resourceWritePermission(resource));
+}
+async function ensureSaasFoundation(env){
+  const creates=[
+    `CREATE TABLE IF NOT EXISTS companies(
+      id TEXT PRIMARY KEY,company_code TEXT UNIQUE NOT NULL,company_name TEXT NOT NULL,
+      legal_name TEXT DEFAULT '',gst_no TEXT DEFAULT '',pan_no TEXT DEFAULT '',mobile TEXT DEFAULT '',
+      email TEXT DEFAULT '',address TEXT DEFAULT '',invoice_prefix TEXT DEFAULT 'ML',
+      non_gst_prefix TEXT DEFAULT 'JAY',trip_prefix TEXT DEFAULT 'TR',supplier_prefix TEXT DEFAULT 'PML',
+      status TEXT NOT NULL DEFAULT 'ACTIVE',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS saas_plans(
+      id TEXT PRIMARY KEY,plan_name TEXT UNIQUE NOT NULL,monthly_price REAL DEFAULT 0,yearly_price REAL DEFAULT 0,
+      max_users INTEGER DEFAULT 1,max_trips_month INTEGER DEFAULT 100,max_invoices_month INTEGER DEFAULT 100,
+      max_storage_mb INTEGER DEFAULT 100,features_json TEXT DEFAULT '{}',play_product_id_monthly TEXT DEFAULT '',
+      play_product_id_yearly TEXT DEFAULT '',active INTEGER NOT NULL DEFAULT 1,sort_order INTEGER DEFAULT 0,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS company_subscriptions(
+      id TEXT PRIMARY KEY,company_id TEXT UNIQUE NOT NULL,plan_id TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'TRIAL',
+      source TEXT NOT NULL DEFAULT 'SYSTEM',trial_started_at TEXT DEFAULT '',trial_ends_at TEXT DEFAULT '',
+      current_period_start TEXT DEFAULT '',current_period_end TEXT DEFAULT '',grace_ends_at TEXT DEFAULT '',
+      play_purchase_token TEXT DEFAULT '',play_order_id TEXT DEFAULT '',auto_renewing INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`
+  ];
+  for(const sql of creates)await env.DB.prepare(sql).run();
+  for(const sql of [
+    `ALTER TABLE users ADD COLUMN company_id TEXT DEFAULT '${DEFAULT_COMPANY_ID}'`,
+    `ALTER TABLE users ADD COLUMN full_name TEXT DEFAULT ''`,
+    `ALTER TABLE users ADD COLUMN email TEXT DEFAULT ''`,
+    `ALTER TABLE users ADD COLUMN mobile TEXT DEFAULT ''`,
+    `ALTER TABLE users ADD COLUMN updated_at TEXT DEFAULT ''`
+  ])await safe(env,sql);
+
+  await run(env,`INSERT OR IGNORE INTO companies(
+    id,company_code,company_name,legal_name,gst_no,pan_no,mobile,email,address,invoice_prefix,non_gst_prefix,trip_prefix,supplier_prefix,status
+  ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    DEFAULT_COMPANY_ID,'MEERA','MEERA LOGISTICS','MEERA LOGISTICS','24ACFFM2544N1Z1','ACFFM2544N',
+    '9558959579','meera.logistics99@gmail.com','OFFICE NO.101, MOMAI COMPLEX, BEDI BANDAR ROAD, JAMNAGAR',
+    'ML','JAY','TR','PML','ACTIVE');
+
+  const plans=[
+    ['TRIAL','Free Trial',1,50,25,100,{calendar:true,trip:true,invoice:true,ledger:true},0],
+    ['BASIC','Basic',2,300,150,500,{calendar:true,trip:true,invoice:true,ledger:true,reports:true,excel:true,offline:true},10],
+    ['PRO','Pro',5,1500,750,2048,{calendar:true,trip:true,invoice:true,ledger:true,reports:true,approvals:true,excel:true,offline:true,documents:true},20],
+    ['BUSINESS','Business',15,999999,999999,10240,{calendar:true,trip:true,invoice:true,ledger:true,reports:true,approvals:true,excel:true,offline:true,documents:true,team:true,prioritySupport:true},30]
+  ];
+  for(const p of plans)await run(env,`INSERT OR IGNORE INTO saas_plans(
+    id,plan_name,max_users,max_trips_month,max_invoices_month,max_storage_mb,features_json,sort_order
+  ) VALUES(?,?,?,?,?,?,?,?)`,p[0],p[1],p[2],p[3],p[4],p[5],JSON.stringify(p[6]),p[7]);
+
+  await run(env,`INSERT OR IGNORE INTO company_subscriptions(
+    id,company_id,plan_id,status,source,current_period_start
+  ) VALUES(?,?,?,?,?,date('now'))`,uid('SUB'),DEFAULT_COMPANY_ID,'BUSINESS','GRANDFATHERED','LEGACY_MIGRATION');
+
+  await run(env,`UPDATE users SET company_id=? WHERE company_id IS NULL OR TRIM(company_id)=''`,DEFAULT_COMPANY_ID);
+}
+async function saasContext(env,user){
+  await ensureSaasFoundation(env);
+  const companyId=user?.company_id||DEFAULT_COMPANY_ID;
+  const company=await first(env,`SELECT * FROM companies WHERE id=?`,companyId)
+    ||await first(env,`SELECT * FROM companies WHERE id=?`,DEFAULT_COMPANY_ID);
+  const subscription=await first(env,`
+    SELECT cs.*,sp.plan_name,sp.max_users,sp.max_trips_month,sp.max_invoices_month,sp.max_storage_mb,
+      sp.features_json,sp.monthly_price,sp.yearly_price,sp.play_product_id_monthly,sp.play_product_id_yearly
+    FROM company_subscriptions cs JOIN saas_plans sp ON sp.id=cs.plan_id WHERE cs.company_id=?`,
+    company?.id||DEFAULT_COMPANY_ID);
+  const month=new Date().toISOString().slice(0,7);
+  const users=Number((await first(env,`SELECT COUNT(*) count FROM users WHERE company_id=? AND active=1`,company?.id||DEFAULT_COMPANY_ID))?.count||0);
+  const trips=Number((await first(env,`SELECT COUNT(*) count FROM trips WHERE substr(COALESCE(trip_date,''),1,7)=?`,month))?.count||0);
+  const invoices=Number((await first(env,`SELECT COUNT(*) count FROM invoices WHERE substr(COALESCE(invoice_date,''),1,7)=?`,month))?.count||0);
+  const features=JSON.parse(subscription?.features_json||'{}');
+  return {company,subscription:{...subscription,features_json:undefined,features},usage:{month,users,trips,invoices},
+    role:upper(user?.role||'VIEWER'),permissions:permissionsForRole(user?.role)};
+}
+async function subscriptionAccess(env,user){
+  const context=await saasContext(env,user),s=context.subscription||{},today=new Date().toISOString().slice(0,10);
+  const expired=s.status==='EXPIRED'
+    ||(s.status==='TRIAL'&&s.trial_ends_at&&s.trial_ends_at<today)
+    ||(s.current_period_end&&['ACTIVE','GRACE','CANCELLED'].includes(s.status)&&s.current_period_end<today&&(!s.grace_ends_at||s.grace_ends_at<today));
+  return {...context,readOnly:expired};
+}
+
 async function backfillPartyMaster(env){
   // Older databases may already contain Party rows with blank GST/address.
   // Use the latest available invoice values to complete the Party Master.
@@ -303,9 +416,10 @@ async function ensureDatabase(env){
     // statements on every Worker cold start.
     try{
       const ready=await first(env,`SELECT value FROM app_meta WHERE key='schema_version'`);
-      if(ready?.value==='34'){
+      if(ready?.value==='49'){
         await first(env,`SELECT trip_no,invoice_id,invoice_item_id FROM trips LIMIT 1`);
         await first(env,`SELECT ledger_no FROM supplier_accounts LIMIT 1`);
+        await first(env,`SELECT id FROM companies LIMIT 1`);
         return;
       }
     }catch(_){/* first deployment or an incomplete older schema */}
@@ -498,7 +612,8 @@ async function ensureDatabase(env){
     await run(env,`CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_no
       ON trips(trip_no)
       WHERE trip_no IS NOT NULL AND TRIM(trip_no)<>''`);
-    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','34',CURRENT_TIMESTAMP)`);
+    await ensureSaasFoundation(env);
+    await run(env, `INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','49',CURRENT_TIMESTAMP)`);
   })().catch(e=>{ initPromise=null; throw e; });
   return initPromise;
 }
@@ -506,7 +621,9 @@ async function ensureDatabase(env){
 async function auth(req,env){
   const token=(req.headers.get('authorization')||'').replace(/^Bearer\s+/i,'');
   if(!token) return null;
-  return first(env, `SELECT u.id,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires_at>datetime('now') AND u.active=1`, token);
+  const user=await first(env, `SELECT u.id,u.username,u.role,u.company_id,u.full_name,u.email,u.mobile FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires_at>datetime('now') AND u.active=1`, token);
+  if(user)user.permissions=permissionsForRole(user.role);
+  return user;
 }
 async function requestBody(req){
   const type=req.headers.get('content-type')||'';
@@ -656,9 +773,10 @@ async function bootstrap(env,user){
     }
   }
 
+  const saas=await subscriptionAccess(env,user);
   return {
-    version:'2026.08.04-final',
-    user,parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
+    version:'V49-SaaS-Foundation',
+    user:{...user,permissions:permissionsForRole(user.role)},saas,parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
     pmBills,pmBillItems,truckEntries,supplierPayments,supplierAccounts,expenses,documents,audits,partyLedger,supplierLedger,issues,
     nextInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='GST').map(x=>x.invoice_no),'ML - '),
     nextNonGstInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='NON_GST').map(x=>x.invoice_no),'JAY '),
@@ -995,27 +1113,104 @@ export default {
       const resource=parts[0]||'';
       const id=decodeURIComponent(parts[1]||'');
 
-      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'2026.08.04-speed'}),{headers:{...HEADERS,'cache-control':'public,max-age=60'}});
+      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'V49-SaaS-Foundation'}),{headers:{...HEADERS,'cache-control':'public,max-age=60'}});
+      if(resource==='saas-plans'&&req.method==='GET'){
+        await ensureDatabase(env);
+        const plans=await all(env,`SELECT id,plan_name,monthly_price,yearly_price,max_users,max_trips_month,max_invoices_month,max_storage_mb,features_json,play_product_id_monthly,play_product_id_yearly FROM saas_plans WHERE active=1 ORDER BY sort_order`);
+        return json(plans.map(p=>({...p,features:JSON.parse(p.features_json||'{}'),features_json:undefined})));
+      }
 
       // Login fast path: query the existing users table first. Only run the full
       // schema initializer if this is a brand-new database.
       if(resource==='login'&&req.method==='POST'){
         let usersReady=true;
-        try{await first(env,`SELECT id FROM users LIMIT 1`)}catch(_){usersReady=false}
+        try{
+          await first(env,`SELECT id,company_id FROM users LIMIT 1`);
+          await first(env,`SELECT id FROM companies LIMIT 1`);
+        }catch(_){usersReady=false}
         if(!usersReady)await ensureDatabase(env);
         const b=await requestBody(req);
         const hash=await sha256(b.password||'');
-        const user=await first(env,`SELECT id,username,role FROM users WHERE LOWER(username)=LOWER(?) AND password_hash=? AND active=1`,clean(b.username),hash);
+        const user=await first(env,`SELECT id,username,role,company_id,full_name,email,mobile FROM users WHERE LOWER(username)=LOWER(?) AND password_hash=? AND active=1`,clean(b.username),hash);
+        if(user)user.permissions=permissionsForRole(user.role);
         if(!user)return json({error:'Invalid username or password'},401);
         const token=crypto.randomUUID();
         await run(env,`DELETE FROM sessions WHERE expires_at<=datetime('now')`);
         await run(env,`INSERT INTO sessions(token,user_id,expires_at) VALUES(?,?,datetime('now','+30 days'))`,token,user.id);
-        return json({token,user});
+        return json({token,user,saas:await saasContext(env,user)});
       }
 
       await ensureDatabase(env);
       const user=await auth(req,env);
       if(!user)return json({error:'Unauthorized'},401);
+
+
+      if(resource==='saas-context'&&req.method==='GET')return json(await subscriptionAccess(env,user));
+
+      if(resource==='company-profile'){
+        if(req.method==='GET')return json((await saasContext(env,user)).company);
+        if(req.method==='PUT'){
+          if(!['OWNER','ADMIN'].includes(upper(user.role)))return json({error:'Owner/Admin permission required'},403);
+          const b=await requestBody(req),companyId=user.company_id||DEFAULT_COMPANY_ID;
+          await run(env,`UPDATE companies SET company_name=?,legal_name=?,gst_no=?,pan_no=?,mobile=?,email=?,address=?,
+            invoice_prefix=?,non_gst_prefix=?,trip_prefix=?,supplier_prefix=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+            upper(b.companyName),upper(b.legalName||b.companyName),upper(b.gstNo),upper(b.panNo),clean(b.mobile),clean(b.email),b.address||'',
+            upper(b.invoicePrefix||'ML'),upper(b.nonGstPrefix||'JAY'),upper(b.tripPrefix||'TR'),upper(b.supplierPrefix||'PML'),companyId);
+          await audit(env,user,'UPDATE','company',companyId,b);
+          return json({ok:true,company:(await saasContext(env,user)).company});
+        }
+      }
+
+      if(resource==='subscription'&&req.method==='GET')return json(await subscriptionAccess(env,user));
+
+      if(resource==='team-users'){
+        const companyId=user.company_id||DEFAULT_COMPANY_ID;
+        if(req.method==='GET'){
+          if(!['OWNER','ADMIN'].includes(upper(user.role)))return json({error:'Owner/Admin permission required'},403);
+          return json(await all(env,`SELECT id,username,role,full_name,email,mobile,active,created_at,updated_at FROM users WHERE company_id=? ORDER BY active DESC,username`,companyId));
+        }
+        if(req.method==='POST'){
+          if(!['OWNER','ADMIN'].includes(upper(user.role)))return json({error:'Owner/Admin permission required'},403);
+          const b=await requestBody(req),username=clean(b.username),role=upper(b.role||'VIEWER');
+          if(!username||!b.password)return json({error:'Username and password required'},400);
+          if(!ROLE_PERMISSIONS[role])return json({error:'Invalid role'},400);
+          const ctx=await subscriptionAccess(env,user);
+          if(ctx.readOnly)return json({error:'Subscription expired. Team changes are locked.'},402);
+          const current=Number((await first(env,`SELECT COUNT(*) count FROM users WHERE company_id=? AND active=1`,companyId))?.count||0);
+          const max=Number(ctx.subscription?.max_users||1);
+          if(current>=max)return json({error:`Your ${ctx.subscription?.plan_name||'plan'} allows ${max} active user(s). Upgrade required.`},402);
+          try{
+            await run(env,`INSERT INTO users(username,password_hash,role,active,company_id,full_name,email,mobile,updated_at) VALUES(?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+              username,await sha256(b.password),role,1,companyId,upper(b.fullName),clean(b.email),clean(b.mobile));
+            await audit(env,user,'CREATE','team_user',username,{role});
+            return json({ok:true});
+          }catch(e){
+            if(/UNIQUE|constraint/i.test(String(e?.message||e)))return json({error:'Username already exists'},409);
+            throw e;
+          }
+        }
+        if(req.method==='PUT'&&id){
+          if(!['OWNER','ADMIN'].includes(upper(user.role)))return json({error:'Owner/Admin permission required'},403);
+          const target=await first(env,`SELECT * FROM users WHERE id=? AND company_id=?`,id,companyId);
+          if(!target)return json({error:'User not found'},404);
+          const b=await requestBody(req),role=upper(b.role||target.role);
+          if(!ROLE_PERMISSIONS[role])return json({error:'Invalid role'},400);
+          await run(env,`UPDATE users SET role=?,full_name=?,email=?,mobile=?,active=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,
+            role,upper(b.fullName||target.full_name),clean(b.email||target.email),clean(b.mobile||target.mobile),
+            b.active===false||String(b.active)==='0'?0:1,id,companyId);
+          if(b.password)await run(env,`UPDATE users SET password_hash=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,await sha256(b.password),id,companyId);
+          await audit(env,user,'UPDATE','team_user',id,{role,active:b.active});
+          return json({ok:true});
+        }
+        if(req.method==='DELETE'&&id){
+          if(!['OWNER','ADMIN'].includes(upper(user.role)))return json({error:'Owner/Admin permission required'},403);
+          if(String(id)===String(user.id))return json({error:'You cannot disable your own login'},400);
+          await run(env,`UPDATE users SET active=0,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,id,companyId);
+          await run(env,`DELETE FROM sessions WHERE user_id=?`,id);
+          await audit(env,user,'DISABLE','team_user',id,{});
+          return json({ok:true});
+        }
+      }
 
       if(resource==='logout'&&req.method==='POST'){
         const token=(req.headers.get('authorization')||'').replace(/^Bearer\s+/i,'');
@@ -1023,12 +1218,24 @@ export default {
         return json({ok:true});
       }
 
+      const writeRequest=!['GET','HEAD','OPTIONS'].includes(req.method);
+      if(writeRequest&&!['company-profile','team-users'].includes(resource)){
+        const access=await subscriptionAccess(env,user);
+        if(access.readOnly)return json({error:'Subscription expired. Account is read-only until renewal.'},402);
+        if(!canWriteResource(user,resource))return json({error:'Your staff role does not allow this action.'},403);
+      }
+
       // V43 advanced operations are initialized only when these tools are opened.
       if(['advanced-data','workflow-bookings','approvals','recycle-bin','system-health','backups','monthly-exports','excel-export','excel-import','settings'].includes(resource))await ensureAdvancedTables(env);
 
       if(resource==='settings'){
         if(req.method==='GET')return json(await readAppSettings(env));
-        if(req.method==='PUT')return json(await writeAppSettings(env,user,await requestBody(req)));
+        if(req.method==='PUT'){
+          const b=await requestBody(req),result=await writeAppSettings(env,user,b),companyId=user.company_id||DEFAULT_COMPANY_ID;
+          await run(env,`UPDATE companies SET company_name=?,gst_no=?,pan_no=?,mobile=?,email=?,address=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+            upper(b.companyName||'MEERA LOGISTICS'),upper(b.gstNo),upper(b.pan||b.panNo),clean(b.phone||b.mobile),clean(b.email),b.address||'',companyId);
+          return json(result);
+        }
       }
 
       if(resource==='advanced-data'&&req.method==='GET'){

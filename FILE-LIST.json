@@ -1,20 +1,25 @@
 {
-  "version": "V48-NON-GST-PARTY-GST",
-  "source": "V47 full project",
-  "schema_version": "34 unchanged",
+  "version": "V49-SAAS-SUBSCRIPTION-FOUNDATION",
+  "source": "V48 full project",
+  "schema_version": "49",
   "checks": {
-    "non_gst_backend_keeps_party_gst": "passed",
-    "trip_non_gst_party_gst_not_cleared": "passed",
-    "trip_party_gst_visible_separate_class": "passed",
-    "invoice_party_gst_visible_separate_class": "passed",
-    "pdf_party_master_fallback": "passed",
-    "view_party_master_fallback": "passed",
-    "schema_34_unchanged": "passed",
+    "schema_v49": "passed",
+    "login_migration_safe": "passed",
+    "company_model": "passed",
+    "plan_model": "passed",
+    "subscription_model": "passed",
+    "role_permissions": "passed",
+    "team_api": "passed",
+    "company_api": "passed",
+    "subscription_api": "passed",
+    "play_billing_fields": "passed",
+    "company_plan_ui": "passed",
+    "team_access_ui": "passed",
     "javascript_syntax": "passed",
     "vercel_build": "passed",
-    "non_gst_test_pdf_created": "passed"
+    "sqlite_saas_migration": "passed"
   },
-  "total_files": 50,
+  "total_files": 53,
   "files": [
     {
       "path": ".vercelignore",
@@ -23,13 +28,13 @@
     },
     {
       "path": "README.md",
-      "size": 21829,
-      "sha256": "92ed7140673db6e316a3e57c600a2ee78e6ca7ed9d9e4849b24090b842cf478f"
+      "size": 23117,
+      "sha256": "a13dbcd68800e519b49f516420a9a536774b915ca5cdfe76ca1c52b389dd2a20"
     },
     {
       "path": "START-HERE.txt",
-      "size": 19177,
-      "sha256": "a39e4765f89aa53de9bf134913bb6a4efe250e28d7d3af68551003098bedeb16"
+      "size": 20465,
+      "sha256": "7cbc045f23a94cf0ba7ffb3e01aa4457b32b397cd53c7a0fe3e0e751b1eadd02"
     },
     {
       "path": "V44-TEST-REPORT.txt",
@@ -55,6 +60,11 @@
       "path": "V48-NON-GST-PARTY-GST-REPORT.txt",
       "size": 526,
       "sha256": "cb4e6b41a70b5c51f6578f246c6385ef8cf3d0f5dc908de57ade06e3b2578d73"
+    },
+    {
+      "path": "V49-SAAS-FOUNDATION-REPORT.txt",
+      "size": 1286,
+      "sha256": "8a52d128ed1f46198f9aa689662b152a3b6a6084902151e30fd5d71d924ab098"
     },
     {
       "path": "package.json",
@@ -100,6 +110,11 @@
       "path": "public/cache-reset-v48.html",
       "size": 542,
       "sha256": "150d46f6bcee744a5995ce10f241afdeca8c0a3487544a217a41c651c2c5e9f3"
+    },
+    {
+      "path": "public/cache-reset-v49.html",
+      "size": 488,
+      "sha256": "de464af6e9ff394896499dea178899b6f52fb57912de2e923ae9b700a1fc29fc"
     },
     {
       "path": "public/data/invoices.json",
@@ -149,7 +164,7 @@
     {
       "path": "public/index.html",
       "size": 1047,
-      "sha256": "db31ddc9bdd7f2515278b846f6f414396188c8467f7d169cc839dc96380a04cc"
+      "sha256": "5672dfa192af90b4d9343e53912ea9e21d324b405546f36f9ca0ae25a92e8c87"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -158,18 +173,18 @@
     },
     {
       "path": "public/src/advanced-v44.css",
-      "size": 9563,
-      "sha256": "2751845ce85704a27d9212bed3008eab758b277d532d21db54bcac598b0966be"
+      "size": 10890,
+      "sha256": "cfbd847eaadefd21c2899b3819311bf772968ed5291db0e30cdaddb9d9c4a34e"
     },
     {
       "path": "public/src/advanced-v44.js",
-      "size": 38374,
-      "sha256": "39deb37da6a5b5130203e6acad4374b083a8689f16a66033d3d96cc78ff29233"
+      "size": 46782,
+      "sha256": "07e219c7fea970059f23bc26dcd9932fa7525dbcb705e1aced807d1f61a12087"
     },
     {
       "path": "public/src/app.js",
-      "size": 112016,
-      "sha256": "67f50bf59913134d907b779037261fb307d5ee8af2a586494e7cb571b14251f4"
+      "size": 112121,
+      "sha256": "3c5d8cc83eecc7edd5c0f06b1e633152fb698ec0d292b6de201bd0da34e76536"
     },
     {
       "path": "public/src/core/api.js",
@@ -247,14 +262,19 @@
       "sha256": "bf9b9be171dc0f5dfce0e4b5c711946f9d924fb1bfb735e4bcbbcf655df2cef5"
     },
     {
+      "path": "worker/migrations/0003_saas_v49.sql",
+      "size": 1640,
+      "sha256": "b13648150ed40c979e0612f41162dfdb5193ab1866a90553cb0f8fb08db1fc14"
+    },
+    {
       "path": "worker/package.json",
       "size": 266,
       "sha256": "eb8864702c69ac951a9a76b54e05bae2168e11de3c4274aaa0920b413725b1a9"
     },
     {
       "path": "worker/src/index.js",
-      "size": 107448,
-      "sha256": "6f18acdf3a3deea3e0b3ff3e9ed488f3e8410197affabfe10432954016c911d9"
+      "size": 121639,
+      "sha256": "442e0f78e52418bf187e94ba893ffbf83007ae4bcc3a594a4e528e121d4c3a14"
     },
     {
       "path": "worker/src/seed-data.js",
