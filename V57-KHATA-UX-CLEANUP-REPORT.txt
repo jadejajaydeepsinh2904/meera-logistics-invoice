@@ -1,0 +1,16 @@
+V57 KHATA UX CLEANUP
+
+- Trip History (Transport Khata) renamed to Trip History everywhere in the main UI.
+- Party Khata top/global Receive Payment button removed.
+- Every Party card now has its own ₹ Receive Payment button.
+- Party-wise Receive Payment opens with that Party selected and outstanding amount prefilled.
+- Supplier Khata top/global Pay Supplier button removed.
+- Every Supplier still has its own ₹ Pay Supplier and Ledger View buttons.
+- Supplier ledger details are now visible directly on Supplier Khata like Party Khata.
+- Supplier preview columns: Date, Type, Trip/Reference, Truck, Route/Detail, Payable, Paid, Balance.
+- Freight entries, Supplier Payments and PM Bills are combined in the supplier preview.
+- V56 supplier-wise truck filtering retained.
+- No D1 schema change; schema_version remains 53.
+- Exact Invoice View = Download PDF retained.
+
+Deploy: upload full V57, redeploy Vercel, then open /?reset=v57 once.

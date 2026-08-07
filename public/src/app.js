@@ -353,11 +353,11 @@ function openCompanyRegistration(){
 
 function render(){
   const d=state.data;
-  const titles={dashboard:'Dashboard',trips:'Trip History (Transport Khata)',invoices:'Invoice History',parties:'Party Khata',partyPayments:'Party Payments',suppliers:'Supplier Khata',truckEntries:'Truck / Supplier Entries',supplierPayments:'Supplier Payments',trucks:'Truck & Document',masters:'Master',forms:'Forms',expenses:'Office Expenses',reports:'Reports & Audit'};
+  const titles={dashboard:'Dashboard',trips:'Trip History',invoices:'Invoice History',parties:'Party Khata',partyPayments:'Party Payments',suppliers:'Supplier Khata',truckEntries:'Truck / Supplier Entries',supplierPayments:'Supplier Payments',trucks:'Truck & Document',masters:'Master',forms:'Forms',expenses:'Office Expenses',reports:'Reports & Audit'};
   app.innerHTML=`<div class="erp">
     <aside class="sidebar" id="sidebar">
       <div class="brand"><div class="brand-mark">ML</div><div><b>MEERA LOGISTICS</b><small>TRANSPORT ERP</small></div></div>
-      <div class="nav-group-title">Dashboard</div><div class="nav">${navButton('dashboard','Dashboard')}${navButton('trips','Trip History (Transport Khata)')}${navButton('invoices','Invoice History')}</div>
+      <div class="nav-group-title">Dashboard</div><div class="nav">${navButton('dashboard','Dashboard')}${navButton('trips','Trip History')}${navButton('invoices','Invoice History')}</div>
       <div class="nav-group-title">Account</div><div class="nav">${navButton('parties','Party Khata')}${navButton('suppliers','Supplier Khata')}</div>
       <div class="nav-group-title">Office</div><div class="nav">${navButton('trucks','Truck & Document')}${navButton('masters','Master')}${navButton('forms','Forms')}${navButton('reports','Reports & Audit')}</div>
     </aside>
@@ -456,7 +456,7 @@ function dashboardPanel(d){
 function tripsPanel(d){
   const rows=filterRows(d.trips,['trip_no','invoice_no','trip_date','party_name','truck_no','material','loading_point','unloading_point','status'])
     .sort((a,b)=>Number(String(b.trip_no||'').replace(/\D/g,''))-Number(String(a.trip_no||'').replace(/\D/g,'')));
-  return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Transport Khata</h2><small>Trip booking, status and POD</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search trips…"><button class="btn primary" data-action="new-trip">New Trip</button></div></div>${table(['Trip No.','Invoice','Date','Party','Truck / Supplier','Route','Material','Weight × Rate','Status','POD','Action'],rows.map(t=>[
+  return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Trip History</h2><small>Trip booking, status and POD</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search trips…"><button class="btn primary" data-action="new-trip">New Trip</button></div></div>${table(['Trip No.','Invoice','Date','Party','Truck / Supplier','Route','Material','Weight × Rate','Status','POD','Action'],rows.map(t=>[
     `<button class="link-btn" data-action="view-trip" data-id="${esc(t.id)}"><b>${esc(t.trip_no||t.id)}</b></button>`,
     t.invoice_no?`<button class="link-btn" data-action="view-linked-invoice" data-id="${esc(t.invoice_id)}">${esc(t.invoice_no)}</button>`:'-',
     esc(t.trip_date),esc(t.party_name),`<b>${esc(t.truck_no)}</b><br><small><b>Supplier:</b> ${esc(tripSupplierName(t))}</small>${t.driver_name?`<br><small>Driver: ${esc(t.driver_name)}</small>`:''}`,`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,esc(t.material),`${esc(t.weight)} × ${money(t.rate)}`,statusBadge(t.status),t.pod_file_name?`<span class="badge info">${esc(t.pod_file_name)}</span>`:'-',`<div class="action-set"><button class="mini green" data-action="view-trip" data-id="${esc(t.id)}">Open Trip</button><button class="mini" data-action="edit-trip" data-id="${esc(t.id)}">Edit</button><button class="mini danger" data-action="delete-trip" data-id="${esc(t.id)}">Delete</button></div>`
@@ -514,7 +514,6 @@ function partiesPanel(d){
         <div class="toolbar">
           <input class="search" data-search value="${esc(state.search)}" placeholder="Search party or invoice…">
           <button class="btn primary" data-action="new-party">New Party</button>
-          <button class="btn green" data-action="new-party-payment">Receive Payment</button>
         </div>
       </div>
       <div class="row-list">
@@ -526,7 +525,10 @@ function partiesPanel(d){
                 <b>${esc((p.ledger_no?p.ledger_no+' · ':'')+p.party_name)}</b>
                 <small>Billed ${money(p.billed)} · Received ${money(p.received)} · ${invoices.length} invoices</small>
               </button>
-              <div class="money-right"><b>${money(p.outstanding)}</b><small>Outstanding</small></div>
+              <div class="v57-party-head-actions">
+                <div class="money-right"><b>${money(p.outstanding)}</b><small>Outstanding</small></div>
+                <button class="btn green" data-action="receive-party-owner" data-id="${encodeURIComponent(JSON.stringify({partyName:p.party_name,amount:Math.max(0,Number(p.outstanding||0))}))}">₹ Receive Payment</button>
+              </div>
             </div>
             ${invoices.length?table(
               ['Invoice No.','Type','Date','Truck / Route','Bill','Received','Pending','Status','Action'],
@@ -586,6 +588,28 @@ function supplierTruckBalance(d,ownerName,truckNo){
 function supplierPayActionId(ownerName,truckNo='',suggestedAmount=0){
   return encodeURIComponent(JSON.stringify({ownerName:norm(ownerName),truckNo:norm(truckNo),suggestedAmount:Math.max(0,Number(suggestedAmount||0))}));
 }
+function supplierLedgerLinesForCard(d,ownerName){
+  const owner=norm(ownerName);
+  const entries=(d.truckEntries||[]).filter(e=>norm(e.owner_name)===owner).map(e=>({
+    date:e.entry_date||'',type:'FREIGHT',reference:e.trip_id||e.truck_no||'-',truck:e.truck_no||'-',
+    detail:`${e.loading_point||'-'} → ${e.unloading_point||'-'}`,debit:Number(e.payable||0),credit:0,created:e.created_at||''
+  }));
+  const payments=(d.supplierPayments||[]).filter(p=>norm(p.owner_name)===owner).map(p=>({
+    date:p.payment_date||'',type:'PAYMENT',reference:p.receipt_no||p.reference||'-',truck:p.truck_no||'-',
+    detail:p.reference||p.payment_mode||'-',debit:0,credit:Number(p.amount||0),created:p.created_at||''
+  }));
+  const pmBills=(d.pmBills||[]).filter(b=>norm(b.supplier_name)===owner).map(b=>({
+    date:b.bill_date||'',type:'PM BILL',reference:b.bill_no||'-',truck:'-',
+    detail:b.party_name||b.notes||'-',debit:Number(b.supplier_total||0),credit:0,created:b.created_at||''
+  }));
+  const lines=[...entries,...payments,...pmBills].sort((a,b)=>{
+    const da=String(a.date||''),db=String(b.date||'');
+    if(da!==db)return da.localeCompare(db);
+    return String(a.created||'').localeCompare(String(b.created||''));
+  });
+  let balance=0;
+  return lines.map(line=>{balance+=Number(line.debit||0)-Number(line.credit||0);return {...line,balance}});
+}
 function suppliersPanel(d){
   const all=d.supplierLedger||[];
   const rows=all.filter(s=>{
@@ -597,33 +621,45 @@ function suppliersPanel(d){
   });
   return `<section class="panel active"><div class="card">
     <div class="section-title v55-supplier-title">
-      <div><h2>Supplier Khata</h2><small>Supplier-wise payable, payment ane linked trucks</small></div>
-      <div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search supplier or truck…"><button class="btn green" data-action="new-supplier-payment">Pay Supplier</button></div>
+      <div><h2>Supplier Khata</h2><small>Supplier-wise payable, payments, linked trucks ane ledger details</small></div>
+      <div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search supplier or truck…"></div>
     </div>
-    <div class="v55-supplier-list">${rows.map(s=>{
+    <div class="v57-supplier-list">${rows.map(s=>{
       const trucks=supplierTruckNumbers(d,s.owner_name);
       const truckHtml=trucks.length
         ? `<div class="v55-truck-list">${trucks.map(no=>`<span class="v55-truck-chip"><b>${esc(no)}</b></span>`).join('')}</div>`
         : `<div class="v55-no-truck">No truck linked</div>`;
       const pending=Math.max(0,Number(s.pending||0));
-      return `<article class="v55-supplier-card">
-        <div class="v55-supplier-main">
-          <button class="v55-supplier-name" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}">
-            <b>${esc((s.ledger_no?s.ledger_no+' · ':'')+s.owner_name)}</b>
-            <small>${s.entries} freight entries · ${s.pm_bills||0} PM bills · ${s.payments} payments · ${trucks.length} trucks</small>
-          </button>
-          ${truckHtml}
+      const ledgerLines=[...supplierLedgerLinesForCard(d,s.owner_name)].reverse();
+      return `<article class="v57-supplier-card">
+        <div class="v57-supplier-head">
+          <div class="v57-supplier-main">
+            <button class="v55-supplier-name" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}">
+              <b>${esc((s.ledger_no?s.ledger_no+' · ':'')+s.owner_name)}</b>
+              <small>${s.entries} freight entries · ${s.pm_bills||0} PM bills · ${s.payments} payments · ${trucks.length} trucks</small>
+            </button>
+            ${truckHtml}
+          </div>
+          <div class="v57-supplier-summary">
+            <div class="v55-money">
+              <small>Pending</small>
+              <b>${money(s.pending)}</b>
+              <span>Payable ${money(s.payable)} · Paid ${money(s.paid||0)}</span>
+            </div>
+            <div class="v55-actions">
+              <button class="btn green" data-action="pay-supplier-owner" data-id="${supplierPayActionId(s.owner_name,'',pending)}">₹ Pay Supplier</button>
+              <button class="btn soft" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}">Ledger View</button>
+            </div>
+          </div>
         </div>
-        <div class="v55-supplier-summary">
-          <div class="v55-money">
-            <small>Pending</small>
-            <b>${money(s.pending)}</b>
-            <span>Payable ${money(s.payable)} · Paid ${money(s.paid||0)}</span>
-          </div>
-          <div class="v55-actions">
-            <button class="btn green" data-action="pay-supplier-owner" data-id="${supplierPayActionId(s.owner_name,'',pending)}">₹ Pay Supplier</button>
-            <button class="btn soft" data-action="view-supplier-ledger" data-id="${encodeURIComponent(s.owner_name)}">Ledger View</button>
-          </div>
+        <div class="v57-supplier-ledger-preview">
+          ${ledgerLines.length?table(
+            ['Date','Type','Trip / Ref','Truck','Route / Detail','Payable','Paid','Balance'],
+            ledgerLines.map(l=>[
+              esc(l.date),statusBadge(l.type),esc(l.reference),`<b>${esc(l.truck)}</b>`,esc(l.detail),
+              l.debit?money(l.debit):'-',l.credit?money(l.credit):'-',`<b>${money(l.balance)}</b>`
+            ]),'980px'
+          ):'<div class="notice">No supplier ledger entries yet.</div>'}
         </div>
       </article>`;
     }).join('')||'<div class="empty">No supplier found.</div>'}</div>
@@ -841,6 +877,12 @@ function handleAction(action,id){
   if(action==='new-party'||action==='edit-party')return partyForm(action==='edit-party'?(find('party',id)||{}):{});
   if(action==='delete-party')return remove(`/parties/${id}`,'Delete this party?');
   if(action==='view-party-ledger')return viewPartyLedger(decodeURIComponent(id));
+  if(action==='receive-party-owner'){
+    try{
+      const payload=JSON.parse(decodeURIComponent(id||''));
+      return partyPaymentForm({party_name:payload.partyName||'',amount:Number(payload.amount||0)});
+    }catch(_){return partyPaymentForm({})}
+  }
   if(action==='new-party-payment'||action==='edit-party-payment')return partyPaymentForm(action==='edit-party-payment'?(find('party-payment',id)||{}):{});
   if(action==='delete-party-payment')return remove(`/party-payments/${id}`,'Delete this party payment?');
   if(action==='view-supplier-ledger')return viewSupplierLedger(decodeURIComponent(id));

@@ -1,20 +1,21 @@
 {
-  "version": "V56-SUPPLIER-TRUCK-FILTER",
-  "source": "V55 Clean Supplier Khata full project",
+  "version": "V57-KHATA-UX-CLEANUP",
+  "source": "V56 Supplier Truck Filter full project",
   "schema_version": "53 unchanged",
   "checks": {
-    "supplier_filter_uses_linked_trucks": "passed",
-    "global_pay_requires_supplier_first": "passed",
-    "supplier_change_refreshes_trucks": "passed",
-    "new_truck_retained": "passed",
-    "new_truck_prefills_supplier": "passed",
-    "wrong_combo_prevented": "passed",
-    "reset_v56": "passed",
-    "supplier_mapping_simulation": "passed",
+    "trip_history_renamed": "passed",
+    "party_top_receive_removed": "passed",
+    "party_receive_per_card": "passed",
+    "party_prefill_handler": "passed",
+    "supplier_top_pay_removed": "passed",
+    "supplier_per_card_pay": "passed",
+    "supplier_inline_ledger": "passed",
+    "supplier_ledger_columns": "passed",
+    "reset_v57": "passed",
     "javascript_syntax": "passed",
     "vercel_build": "passed"
   },
-  "total_files": 73,
+  "total_files": 75,
   "files": [
     {
       "path": ".vercelignore",
@@ -23,13 +24,13 @@
     },
     {
       "path": "README.md",
-      "size": 32306,
-      "sha256": "94acf335f79f2f31db61e78d1ea6bbb4457f1aeb1455577ffddaa714e2b6a5e1"
+      "size": 33251,
+      "sha256": "f0db85c9759956c178c5088da0ecd0809df13de1e3e2e8a2d91970c242a6f6bf"
     },
     {
       "path": "START-HERE.txt",
-      "size": 29654,
-      "sha256": "3ef320294d2e931ce785f9478240c16d365d0ef25308076657cab39f51b5c5a3"
+      "size": 30599,
+      "sha256": "904f8cb1397aa6b4f7879913c7ce82657c23e0791da1b86d0949e0361f9d0d67"
     },
     {
       "path": "V44-TEST-REPORT.txt",
@@ -95,6 +96,11 @@
       "path": "V56-SUPPLIER-TRUCK-FILTER-REPORT.txt",
       "size": 1058,
       "sha256": "837b6306b3e2b4478c421a5c49510322cc932d845e30db65183f59fc81abe061"
+    },
+    {
+      "path": "V57-KHATA-UX-CLEANUP-REPORT.txt",
+      "size": 943,
+      "sha256": "f2ddcbc1a268e7a88518b9b0820c6539424c01f2b05c55ec1d548062a411a54f"
     },
     {
       "path": "package.json",
@@ -219,7 +225,7 @@
     {
       "path": "public/index.html",
       "size": 1964,
-      "sha256": "eeb924eb44d756bfaa7ecedc4d00d34acacbf4dc0ef1c32d782d4b05b3549f1f"
+      "sha256": "e5264991eae4e6aa3d51ac11cb5b2d92def09752d885bcc5e11aaf9e04b869ac"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -238,8 +244,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 128620,
-      "sha256": "997698b09a65a1d4cf378ea31aa9eda739373089e13e11f08e2d48e18df099ff"
+      "size": 131025,
+      "sha256": "b05444a21a2e39a32963358f093216187c2c6de1cd0b89104da12e9141a1ce7f"
     },
     {
       "path": "public/src/core/api.js",
@@ -278,8 +284,8 @@
     },
     {
       "path": "public/src/styles.css",
-      "size": 34111,
-      "sha256": "b72e8e88ca7d4e3cb44690e19638e26ba1065cba07475e357b96fced39eb8183"
+      "size": 35428,
+      "sha256": "2cce83154142f0f6bf67f6d9c09d9257cdd574c9e1cbf4cb754f01a02fb6c630"
     },
     {
       "path": "public/src/supplier-ledger-pdf-v41.js",
@@ -325,6 +331,11 @@
       "path": "public/version-v56.txt",
       "size": 64,
       "sha256": "a03b37caaf14e4f0f846dcdf9a84c35846091596b3d1deb78eac5e4878322dc5"
+    },
+    {
+      "path": "public/version-v57.txt",
+      "size": 59,
+      "sha256": "473612c3201770bff41679a839b1493b7d2271b61478c485e81601d89dafcb9c"
     },
     {
       "path": "vercel.json",

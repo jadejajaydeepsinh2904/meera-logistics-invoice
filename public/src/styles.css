@@ -405,3 +405,24 @@ select option[value="__ADD_NEW__"]{font-weight:800;color:#2457d2}
   .v55-actions{justify-content:stretch}
   .v55-actions .btn{flex:1;min-width:0}
 }
+
+/* V57 Khata UX cleanup */
+.v57-party-head-actions{display:flex;align-items:center;gap:12px;justify-content:flex-end;flex-wrap:wrap}
+.v57-party-head-actions .btn{white-space:nowrap}
+.v57-supplier-list{display:grid;gap:14px}
+.v57-supplier-card{border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}
+.v57-supplier-head{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:18px;align-items:center;padding:16px 18px}
+.v57-supplier-main{min-width:0;display:grid;gap:10px}
+.v57-supplier-summary{display:grid;gap:10px;justify-items:end;border-left:1px solid var(--line);padding-left:18px}
+.v57-supplier-ledger-preview{border-top:1px solid var(--line);padding:0;background:#fbfcfe}
+.v57-supplier-ledger-preview .table-wrap{margin:0;border:0;border-radius:0}
+.v57-supplier-ledger-preview table{background:#fff}
+.v57-supplier-ledger-preview th{font-size:9px}
+.v57-supplier-ledger-preview td{font-size:10px}
+@media(max-width:760px){
+  .v57-party-head-actions{justify-content:flex-start;width:100%}
+  .v57-party-head-actions .money-right{text-align:left}
+  .v57-supplier-head{grid-template-columns:1fr;padding:14px}
+  .v57-supplier-summary{border-left:0;border-top:1px solid var(--line);padding-left:0;padding-top:12px;justify-items:stretch}
+  .v57-supplier-summary .v55-money{text-align:left}
+}
