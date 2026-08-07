@@ -641,6 +641,210 @@ async function ensureTripWeightColumns(env){
   for(const sql of statements)await safe(env,sql);
 }
 
+let accountingV58Promise=null;
+async function ensureAccountingV58(env){
+  if(accountingV58Promise)return accountingV58Promise;
+  accountingV58Promise=(async()=>{
+    const row=await first(env,`SELECT sql FROM sqlite_master WHERE type='table' AND name='party_payments'`);
+    const sql=String(row?.sql||'');
+    if(sql&&!/\binvoice_id\b/i.test(sql)){
+      await env.DB.prepare(`ALTER TABLE party_payments ADD COLUMN invoice_id TEXT DEFAULT ''`).run();
+    }
+    await safe(env,`CREATE INDEX IF NOT EXISTS idx_party_payment_invoice_v58 ON party_payments(company_id,invoice_id)`);
+    await safe(env,`CREATE INDEX IF NOT EXISTS idx_party_payment_party_v58 ON party_payments(company_id,party_name,payment_date)`);
+    return true;
+  })().catch(error=>{accountingV58Promise=null;throw error});
+  return accountingV58Promise;
+}
+
+function partyPaymentAllocationV58(invoices=[],invoiceItems=[],payments=[]){
+  const sortedInvoices=[...invoices].sort((a,b)=>
+    String(a.invoice_date||'').localeCompare(String(b.invoice_date||'')) ||
+    String(a.created_at||'').localeCompare(String(b.created_at||'')) ||
+    String(a.invoice_no||'').localeCompare(String(b.invoice_no||''),undefined,{numeric:true})
+  );
+  const invoiceById=Object.fromEntries(sortedInvoices.map(i=>[String(i.id),i]));
+  const tripToInvoice={};
+  for(const item of invoiceItems){
+    if(item.trip_id&&item.invoice_id)tripToInvoice[String(item.trip_id)]=String(item.invoice_id);
+  }
+  const allocated={};
+  const paymentAllocations={};
+  const creditsByParty={};
+  for(const inv of sortedInvoices)allocated[String(inv.id)]=0;
+
+  const payRows=[...payments].sort((a,b)=>
+    String(a.payment_date||'').localeCompare(String(b.payment_date||'')) ||
+    String(a.created_at||'').localeCompare(String(b.created_at||'')) ||
+    String(a.id||'').localeCompare(String(b.id||''))
+  );
+
+  // Explicit invoice/trip-linked payments get first priority.
+  const unlinked=[];
+  for(const p of payRows){
+    const amount=Math.max(0,num(p.amount));
+    let left=amount;
+    const explicitId=clean(p.invoice_id)||tripToInvoice[String(p.trip_id||'')]||'';
+    const inv=invoiceById[String(explicitId||'')];
+    const party=upper(p.party_name||'');
+    const pieces=[];
+    if(inv&&upper(inv.party_name)===party){
+      const invId=String(inv.id);
+      const remaining=Math.max(0,num(inv.total)-num(allocated[invId]));
+      const applied=round2(Math.min(left,remaining));
+      if(applied>0){
+        allocated[invId]=round2(num(allocated[invId])+applied);
+        pieces.push({invoice_id:invId,amount:applied,mode:'EXPLICIT'});
+        left=round2(left-applied);
+      }
+    }else{
+      unlinked.push({payment:p,left,party,pieces});
+      continue;
+    }
+    if(left>0)creditsByParty[party]=round2(num(creditsByParty[party])+left);
+    paymentAllocations[String(p.id)]={payment_id:p.id,amount,allocated:round2(amount-left),unallocated:left,pieces};
+  }
+
+  // Legacy/unlinked payments are allocated FIFO ONCE across that party's invoices.
+  for(const entry of unlinked){
+    const p=entry.payment,party=entry.party;
+    let left=entry.left;
+    const pieces=entry.pieces;
+    const partyInvoices=sortedInvoices.filter(i=>upper(i.party_name)===party);
+    const dated=partyInvoices.filter(i=>!p.payment_date||!i.invoice_date||String(i.invoice_date)<=String(p.payment_date));
+    const future=partyInvoices.filter(i=>!dated.includes(i));
+    for(const inv of [...dated,...future]){
+      if(left<=0)break;
+      const invId=String(inv.id);
+      const remaining=Math.max(0,num(inv.total)-num(allocated[invId]));
+      if(remaining<=0)continue;
+      const applied=round2(Math.min(left,remaining));
+      allocated[invId]=round2(num(allocated[invId])+applied);
+      pieces.push({invoice_id:invId,amount:applied,mode:'FIFO'});
+      left=round2(left-applied);
+    }
+    if(left>0)creditsByParty[party]=round2(num(creditsByParty[party])+left);
+    paymentAllocations[String(p.id)]={payment_id:p.id,amount:num(p.amount),allocated:round2(num(p.amount)-left),unallocated:left,pieces};
+  }
+
+  const invoiceAllocations={};
+  for(const inv of sortedInvoices){
+    const received=round2(num(allocated[String(inv.id)]));
+    invoiceAllocations[String(inv.id)]={
+      invoice_id:inv.id,
+      invoice_no:inv.invoice_no,
+      party_name:inv.party_name,
+      total:round2(inv.total),
+      received,
+      pending:round2(Math.max(0,num(inv.total)-received)),
+      overpaid:round2(Math.max(0,received-num(inv.total)))
+    };
+  }
+  return {invoiceAllocations,paymentAllocations,creditsByParty};
+}
+
+async function accountingAuditV58(env,user){
+  const companyId=companyIdOf(user);
+  await ensureAccountingV58(env);
+  const [parties,invoices,items,payments,trips,trucks,truckEntries,supplierPayments,supplierAccounts,pmBills,expenses]=await Promise.all([
+    all(env,`SELECT * FROM party_accounts WHERE company_id=?`,companyId),
+    all(env,`SELECT * FROM invoices WHERE company_id=?`,companyId),
+    all(env,`SELECT * FROM invoice_items WHERE company_id=?`,companyId),
+    all(env,`SELECT * FROM party_payments WHERE company_id=?`,companyId),
+    all(env,`SELECT * FROM trips WHERE company_id=?`,companyId),
+    all(env,`SELECT * FROM trucks WHERE company_id=?`,companyId),
+    all(env,`SELECT * FROM truck_payments WHERE company_id=?`,companyId),
+    all(env,`SELECT * FROM supplier_payments WHERE company_id=?`,companyId),
+    all(env,`SELECT * FROM supplier_accounts WHERE company_id=?`,companyId),
+    all(env,`SELECT * FROM pm_bills WHERE company_id=?`,companyId),
+    all(env,`SELECT * FROM expenses WHERE company_id=?`,companyId)
+  ]);
+  const alloc=partyPaymentAllocationV58(invoices,items,payments);
+  const issues=[];
+  const partyNames=new Set(parties.map(x=>upper(x.party_name)));
+  const invoiceById=Object.fromEntries(invoices.map(x=>[String(x.id),x]));
+  const tripById=Object.fromEntries(trips.map(x=>[String(x.id),x]));
+  const supplierNames=new Set(supplierAccounts.map(x=>upper(x.owner_name)));
+  const truckByNo=Object.fromEntries(trucks.map(x=>[upper(x.truck_no),x]));
+
+  for(const p of payments){
+    if(!partyNames.has(upper(p.party_name)))issues.push({severity:'warning',type:'PAYMENT_PARTY_MISSING',text:`${p.receipt_no||p.id}: party ${p.party_name} is missing from Party Master.`});
+    if(p.invoice_id){
+      const inv=invoiceById[String(p.invoice_id)];
+      if(!inv)issues.push({severity:'error',type:'PAYMENT_INVOICE_MISSING',text:`${p.receipt_no||p.id}: linked invoice was not found.`});
+      else if(upper(inv.party_name)!==upper(p.party_name))issues.push({severity:'error',type:'PAYMENT_PARTY_INVOICE_MISMATCH',text:`${p.receipt_no||p.id}: payment party and invoice party do not match.`});
+    }
+    if(p.trip_id){
+      const trip=tripById[String(p.trip_id)];
+      if(!trip)issues.push({severity:'warning',type:'PAYMENT_TRIP_MISSING',text:`${p.receipt_no||p.id}: linked trip was not found.`});
+      else if(upper(trip.party_name)!==upper(p.party_name))issues.push({severity:'error',type:'PAYMENT_PARTY_TRIP_MISMATCH',text:`${p.receipt_no||p.id}: payment party and trip party do not match.`});
+    }
+  }
+
+  for(const inv of invoices){
+    const a=alloc.invoiceAllocations[String(inv.id)];
+    if(a&&a.overpaid>.01)issues.push({severity:'error',type:'INVOICE_OVERPAYMENT',text:`${inv.invoice_no}: allocated receipt exceeds bill by ${a.overpaid.toFixed(2)}.`});
+    const invoiceItems=items.filter(x=>String(x.invoice_id)===String(inv.id));
+    if(!invoiceItems.length)issues.push({severity:'warning',type:'INVOICE_WITHOUT_TRUCK',text:`${inv.invoice_no}: invoice has no truck line.`});
+  }
+  for(const item of items){
+    if(!invoiceById[String(item.invoice_id)])issues.push({severity:'error',type:'ORPHAN_INVOICE_ITEM',text:`Invoice item ${item.id} has no parent invoice.`});
+    if(item.trip_id&&!tripById[String(item.trip_id)])issues.push({severity:'warning',type:'INVOICE_ITEM_TRIP_MISSING',text:`Invoice item ${item.id} points to missing trip.`});
+  }
+  for(const t of trips){
+    if(t.truck_no&&!truckByNo[upper(t.truck_no)])issues.push({severity:'warning',type:'MISSING_TRUCK_MASTER',text:`${t.trip_no||t.id}: ${t.truck_no} missing from Truck Master.`});
+    if(t.supplier_name&&!supplierNames.has(upper(t.supplier_name)))issues.push({severity:'warning',type:'MISSING_SUPPLIER_MASTER',text:`${t.trip_no||t.id}: ${t.supplier_name} missing from Supplier Master.`});
+  }
+  for(const p of supplierPayments){
+    if(p.owner_name&&!supplierNames.has(upper(p.owner_name)))issues.push({severity:'warning',type:'SUPPLIER_PAYMENT_MASTER_MISSING',text:`${p.receipt_no||p.id}: ${p.owner_name} missing from Supplier Master.`});
+    if(p.truck_no){
+      const truck=truckByNo[upper(p.truck_no)];
+      if(truck&&upper(truck.owner_name)!==upper(p.owner_name))issues.push({severity:'warning',type:'SUPPLIER_TRUCK_OWNER_MISMATCH',text:`${p.receipt_no||p.id}: ${p.truck_no} belongs to ${truck.owner_name}, not ${p.owner_name}.`});
+    }
+  }
+
+  const unallocatedCredit=round2(Object.values(alloc.creditsByParty).reduce((a,x)=>a+num(x),0));
+  const totalBilling=round2(invoices.reduce((a,x)=>a+num(x.total),0));
+  const partyReceived=round2(payments.reduce((a,x)=>a+num(x.amount),0));
+  const supplierPayable=round2(truckEntries.reduce((a,x)=>a+num(x.payable),0)+pmBills.reduce((a,x)=>a+num(x.supplier_total),0));
+  const supplierPaid=round2(supplierPayments.reduce((a,x)=>a+num(x.amount),0));
+  const expensesTotal=round2(expenses.reduce((a,x)=>a+num(x.amount),0));
+
+  // Cross-company link audit: current-company child must never point at another-company parent.
+  const cross=[
+    ['Invoice Item → Invoice',`SELECT COUNT(*) count FROM invoice_items c JOIN invoices p ON p.id=c.invoice_id WHERE c.company_id=? AND p.company_id<>c.company_id`],
+    ['Trip → Invoice',`SELECT COUNT(*) count FROM trips c JOIN invoices p ON p.id=c.invoice_id WHERE c.company_id=? AND COALESCE(c.invoice_id,'')<>'' AND p.company_id<>c.company_id`],
+    ['Party Payment → Invoice',`SELECT COUNT(*) count FROM party_payments c JOIN invoices p ON p.id=c.invoice_id WHERE c.company_id=? AND COALESCE(c.invoice_id,'')<>'' AND p.company_id<>c.company_id`],
+    ['Truck Entry → Trip',`SELECT COUNT(*) count FROM truck_payments c JOIN trips p ON p.id=c.trip_id WHERE c.company_id=? AND COALESCE(c.trip_id,'')<>'' AND p.company_id<>c.company_id`],
+    ['Supplier Payment → Trip',`SELECT COUNT(*) count FROM supplier_payments c JOIN trips p ON p.id=c.trip_id WHERE c.company_id=? AND COALESCE(c.trip_id,'')<>'' AND p.company_id<>c.company_id`]
+  ];
+  let crossCompanyLinks=0;
+  for(const [label,sql] of cross){
+    const count=num((await first(env,sql,companyId))?.count);
+    crossCompanyLinks+=count;
+    if(count)issues.push({severity:'error',type:'CROSS_COMPANY_LINK',text:`${label}: ${count} cross-company link(s) detected.`});
+  }
+
+  return {
+    ok:issues.filter(x=>x.severity==='error').length===0,
+    companyId,
+    checkedAt:new Date().toISOString(),
+    issues,
+    counts:{
+      parties:parties.length,invoices:invoices.length,partyPayments:payments.length,trips:trips.length,
+      trucks:trucks.length,suppliers:supplierAccounts.length,supplierPayments:supplierPayments.length
+    },
+    totals:{
+      billing:totalBilling,partyReceived,partyOutstanding:round2(totalBilling-partyReceived),
+      unallocatedPartyCredit:unallocatedCredit,
+      supplierPayable,supplierPaid,supplierPending:round2(supplierPayable-supplierPaid),
+      expenses:expensesTotal
+    },
+    crossCompanyLinks
+  };
+}
+
+
 async function currentPartyLedgerMax(env,companyId=DEFAULT_COMPANY_ID){
   const rows=await all(env,`SELECT ledger_no FROM party_accounts WHERE company_id=? AND COALESCE(TRIM(ledger_no),'')<>''`,companyId);
   let max=0;for(const row of rows){const m=String(row.ledger_no||'').match(/MLP\s*0*(\d+)/i);if(m)max=Math.max(max,Number(m[1]))}
@@ -1073,6 +1277,7 @@ function pathParts(path){ return path.replace(/^\/api\/?/,'').split('/').filter(
 
 async function bootstrap(env,user){
   const companyId=companyIdOf(user);
+  await ensureAccountingV58(env);
   await ensureAllPartyLedgerNumbers(env,companyId);
   const [
     parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
@@ -1099,6 +1304,18 @@ async function bootstrap(env,user){
   const itemsByInvoice={};
   for(const it of invoiceItems)(itemsByInvoice[it.invoice_id]??=[]).push(it);
   for(const inv of invoices)inv.items=itemsByInvoice[inv.id]||[];
+  const partyAllocation=partyPaymentAllocationV58(invoices,invoiceItems,partyPayments);
+  for(const inv of invoices){
+    const a=partyAllocation.invoiceAllocations[String(inv.id)]||{};
+    inv.received_amount=round2(a.received||0);
+    inv.pending_amount=round2(a.pending??num(inv.total));
+  }
+  for(const pay of partyPayments){
+    const a=partyAllocation.paymentAllocations[String(pay.id)]||{};
+    pay.allocated_amount=round2(a.allocated||0);
+    pay.unallocated_amount=round2(a.unallocated||0);
+    pay.allocations=a.pieces||[];
+  }
   const invoiceById=Object.fromEntries(invoices.map(i=>[i.id,i]));
   for(const trip of trips){
     const inv=invoiceById[trip.invoice_id]||null;
@@ -1120,7 +1337,10 @@ async function bootstrap(env,user){
     partyMap[pay.party_name]??={party_name:pay.party_name,ledger_no:'',billed:0,received:0,invoices:0,payments:0};
     partyMap[pay.party_name].received+=num(pay.amount);partyMap[pay.party_name].payments++;
   }
-  const partyLedger=Object.values(partyMap).map(x=>({...x,billed:round2(x.billed),received:round2(x.received),outstanding:round2(x.billed-x.received)})).sort((a,b)=>b.outstanding-a.outstanding);
+  const partyLedger=Object.values(partyMap).map(x=>{
+    const credit=round2(partyAllocation.creditsByParty[upper(x.party_name)]||0);
+    return {...x,billed:round2(x.billed),received:round2(x.received),credit,outstanding:round2(x.billed-x.received)};
+  }).sort((a,b)=>b.outstanding-a.outstanding);
 
   const supplierMap={};
   for(const account of supplierAccounts){
@@ -1159,7 +1379,10 @@ async function bootstrap(env,user){
   const totalBilling=round2(invoices.reduce((a,x)=>a+num(x.total),0));
   const invoiceSubtotal=round2(invoices.reduce((a,x)=>a+num(x.subtotal),0));
   const partyReceived=round2(partyPayments.reduce((a,x)=>a+num(x.amount),0));
-  const supplierPayable=round2(truckEntries.reduce((a,x)=>a+num(x.payable),0));
+  const supplierPayable=round2(
+    truckEntries.reduce((a,x)=>a+num(x.payable),0)+
+    pmBills.reduce((a,x)=>a+num(x.supplier_total),0)
+  );
   const supplierPaid=round2(supplierPayments.reduce((a,x)=>a+num(x.amount),0));
   const expenseTotal=round2(expenses.reduce((a,x)=>a+num(x.amount),0));
 
@@ -1176,14 +1399,22 @@ async function bootstrap(env,user){
   }
 
 
+  const accountingAudit={
+    invoiceAllocationVersion:'V58',
+    unallocatedPartyCredit:round2(Object.values(partyAllocation.creditsByParty).reduce((a,x)=>a+num(x),0)),
+    exactLinkedPayments:partyPayments.filter(x=>clean(x.invoice_id)||clean(x.trip_id)).length,
+    fifoLegacyPayments:partyPayments.filter(x=>!clean(x.invoice_id)&&!clean(x.trip_id)).length,
+    invoicePending:round2(invoices.reduce((a,x)=>a+num(x.pending_amount),0))
+  };
+
   const saas=await subscriptionAccess(env,user);
   const company=saas.company||{};
   const gstPrefix=company.invoice_prefix||'ML';
   const nonGstPrefix=company.non_gst_prefix||'JAY';
   return {
-    version:'V54-Supplier-Truck-UX',
+    version:'V58-Accounting-Isolation-Audit',
     user:{...user,permissions:permissionsForRole(user.role)},saas,parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
-    pmBills,pmBillItems,truckEntries,supplierPayments,supplierAccounts,expenses,documents,audits,partyLedger,supplierLedger,issues,
+    pmBills,pmBillItems,truckEntries,supplierPayments,supplierAccounts,expenses,documents,audits,partyLedger,supplierLedger,issues,accountingAudit,
     nextInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='GST').map(x=>x.invoice_no),`${gstPrefix} - `),
     nextNonGstInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='NON_GST').map(x=>x.invoice_no),`${nonGstPrefix} `),
     nextTripNo:await reserveNextTripNumber(env,companyId),
@@ -1302,7 +1533,7 @@ async function writeAppSettings(env,user,input={}){
 
 const ADVANCED_EXPORT_TABLES={
   Parties:{table:'party_accounts',columns:['id','ledger_no','party_name','address','gst_no','mobile','email','created_at','updated_at']},
-  PartyPayments:{table:'party_payments',columns:['id','receipt_no','trip_id','party_name','payment_date','amount','payment_mode','reference','notes','created_at','updated_at']},
+  PartyPayments:{table:'party_payments',columns:['id','receipt_no','invoice_id','trip_id','party_name','payment_date','amount','payment_mode','reference','notes','created_at','updated_at']},
   Trucks:{table:'trucks',columns:['id','truck_no','owner_name','owner_mobile','bank_details','created_at','updated_at']},
   Routes:{table:'routes',columns:['id','loading_point','unloading_point','created_at','updated_at']},
   Materials:{table:'materials',columns:['id','material_name','created_at']},
@@ -1775,16 +2006,25 @@ export default {
       if(resource==='bootstrap'&&req.method==='GET')return json(await bootstrap(env,user));
 
       if(resource==='party-ledger'&&req.method==='GET'&&id){
+        await ensureAccountingV58(env);
         const name=upper(id);
         const party=await first(env,`SELECT * FROM party_accounts WHERE company_id=? AND party_name=?`,companyId,name);
         const invoices=await all(env,`SELECT * FROM invoices WHERE company_id=? AND party_name=? ORDER BY invoice_date,created_at`,companyId,name);
+        const invoiceIds=invoices.map(x=>x.id);
+        const items=invoiceIds.length?await all(env,`SELECT * FROM invoice_items WHERE company_id=? AND invoice_id IN (${invoiceIds.map(()=>'?').join(',')})`,companyId,...invoiceIds):[];
         const payments=await all(env,`SELECT * FROM party_payments WHERE company_id=? AND party_name=? ORDER BY payment_date,created_at`,companyId,name);
+        const allocation=partyPaymentAllocationV58(invoices,items,payments);
+        for(const inv of invoices){
+          const a=allocation.invoiceAllocations[String(inv.id)]||{};
+          inv.received_amount=round2(a.received||0);
+          inv.pending_amount=round2(a.pending??num(inv.total));
+        }
         const lines=[
           ...invoices.map(x=>({date:x.invoice_date,type:'INVOICE',reference:x.invoice_no,debit:num(x.total),credit:0,notes:x.lr_no||''})),
           ...payments.map(x=>({date:x.payment_date,type:'PAYMENT',reference:x.receipt_no||x.reference||x.id,debit:0,credit:num(x.amount),notes:x.notes||''}))
         ].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
         let balance=0;for(const x of lines){balance=round2(balance+x.debit-x.credit);x.balance=balance}
-        return json({party,invoices,payments,lines,balance});
+        return json({party,invoices,payments,lines,balance,invoiceAllocations:allocation.invoiceAllocations,unallocatedCredit:round2(allocation.creditsByParty[name]||0)});
       }
       if(resource==='suppliers'){
         if(req.method==='GET')return json(await all(env,`SELECT * FROM supplier_accounts WHERE company_id=? ORDER BY CAST(REPLACE(ledger_no,'PML ','') AS INTEGER),owner_name`,companyId));
@@ -1829,6 +2069,8 @@ export default {
         return json({entries,payments,pmBills,lines,balance});
       }
 
+      if(resource==='accounting-audit'&&req.method==='GET')return json(await accountingAuditV58(env,user));
+
       if(resource==='export'&&req.method==='GET')return json(await bootstrap(env,user));
 
       if(resource==='import'&&req.method==='POST'){
@@ -1842,7 +2084,7 @@ export default {
         }
         const rows=data;
         for(const p of rows.parties||[])await run(env,`INSERT OR IGNORE INTO party_accounts(id,company_id,ledger_no,party_name,address,gst_no,mobile,email) VALUES(?,?,?,?,?,?,?,?)`,p.id||uid('PA'),companyId,String(p.ledger_no||'').trim()||null,upper(p.party_name),p.address||'',p.gst_no||'',p.mobile||'',p.email||'');
-        for(const p of rows.partyPayments||[])await run(env,`INSERT OR IGNORE INTO party_payments(id,company_id,receipt_no,trip_id,party_name,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?,?)`,p.id||uid('PP'),companyId,p.receipt_no||'',p.trip_id||'',upper(p.party_name),p.payment_date,num(p.amount),upper(p.payment_mode),p.reference||'',p.notes||'');
+        for(const p of rows.partyPayments||[])await run(env,`INSERT OR IGNORE INTO party_payments(id,company_id,receipt_no,invoice_id,trip_id,party_name,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,p.id||uid('PP'),companyId,p.receipt_no||'',p.invoice_id||'',p.trip_id||'',upper(p.party_name),p.payment_date,num(p.amount),upper(p.payment_mode),p.reference||'',p.notes||'');
         for(const t of rows.trucks||[])await run(env,`INSERT OR IGNORE INTO trucks(id,company_id,truck_no,owner_name,owner_mobile,bank_details) VALUES(?,?,?,?,?,?)`,t.id||uid('TRK'),companyId,upper(t.truck_no),upper(t.owner_name),t.owner_mobile||'',t.bank_details||'');
         for(const r of rows.routes||[])await run(env,`INSERT OR IGNORE INTO routes(id,company_id,loading_point,unloading_point) VALUES(?,?,?,?)`,r.id||uid('RTE'),companyId,upper(r.loading_point),upper(r.unloading_point));
         for(const m of rows.materials||[])await run(env,`INSERT OR IGNORE INTO materials(id,company_id,material_name) VALUES(?,?,?)`,m.id||uid('MAT'),companyId,upper(m.material_name));
@@ -1884,7 +2126,7 @@ export default {
           try{
             const ledgerNo=String(b.ledgerNo||old.ledger_no||'').trim()||await normalizeRequestedPartyLedger(env,'',id,companyId);
             if(ledgerNo!==String(old.ledger_no||'').trim())await normalizeRequestedPartyLedger(env,ledgerNo,id,companyId);
-            await run(env,`UPDATE party_accounts SET ledger_no=?,party_name=?,address=?,gst_no=?,mobile=?,email=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,ledgerNo,name,b.address||'',upper(b.gstNo),b.mobile||'',b.email||'',id);
+            await run(env,`UPDATE party_accounts SET ledger_no=?,party_name=?,address=?,gst_no=?,mobile=?,email=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,ledgerNo,name,b.address||'',upper(b.gstNo),b.mobile||'',b.email||'',id,companyId);
           }catch(error){
             const message=String(error?.message||error);
             if(/UNIQUE|constraint|already exists/i.test(message))return json({error:message.includes('already exists')?message:'Party ledger number already exists. Please try again.'},409);
@@ -1903,23 +2145,40 @@ export default {
             const used=await first(env,`SELECT (SELECT COUNT(*) FROM invoices WHERE company_id=? AND party_name=?)+(SELECT COUNT(*) FROM trips WHERE company_id=? AND party_name=?)+(SELECT COUNT(*) FROM party_payments WHERE company_id=? AND party_name=?) AS c`,companyId,p.party_name,companyId,p.party_name,companyId,p.party_name);
             if(num(used?.c)>0)return json({error:'Party has linked invoices, trips or payments'},409);
           }
-          await run(env,`DELETE FROM party_accounts WHERE id=?`,id);await audit(env,user,'DELETE','party',id,{});return json({ok:true});
+          await run(env,`DELETE FROM party_accounts WHERE id=? AND company_id=?`,id,companyId);await audit(env,user,'DELETE','party',id,{});return json({ok:true});
         }
       }
 
       // PARTY PAYMENTS
       if(resource==='party-payments'){
+        await ensureAccountingV58(env);
         if(req.method==='POST'||(req.method==='PUT'&&id)){
           const b=await requestBody(req);await upsertMasters(env,b,companyId);
+          const partyName=upper(b.partyName),invoiceId=clean(b.invoiceId),tripId=clean(b.tripId);
+          if(invoiceId){
+            const inv=await first(env,`SELECT id,party_name,total FROM invoices WHERE id=? AND company_id=?`,invoiceId,companyId);
+            if(!inv)return json({error:'Selected invoice not found for this company'},404);
+            if(upper(inv.party_name)!==partyName)return json({error:'Selected invoice belongs to a different party'},409);
+          }
+          if(tripId){
+            const trip=await first(env,`SELECT id,party_name,invoice_id FROM trips WHERE id=? AND company_id=?`,tripId,companyId);
+            if(!trip)return json({error:'Selected trip not found for this company'},404);
+            if(upper(trip.party_name)!==partyName)return json({error:'Selected trip belongs to a different party'},409);
+          }
           if(req.method==='POST'){
             const newId=uid('PP'),receipt=`PR-${Date.now().toString().slice(-8)}`;
-            await run(env,`INSERT INTO party_payments(id,company_id,receipt_no,trip_id,party_name,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?,?)`,newId,companyId,receipt,b.tripId||'',upper(b.partyName),b.paymentDate,round2(b.amount),upper(b.paymentMode),b.reference||'',b.notes||'');
+            await run(env,`INSERT INTO party_payments(id,company_id,receipt_no,invoice_id,trip_id,party_name,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
+              newId,companyId,receipt,invoiceId,tripId,partyName,b.paymentDate,round2(b.amount),upper(b.paymentMode),b.reference||'',b.notes||'');
             await audit(env,user,'CREATE','party_payment',newId,b);return json({ok:true,id:newId,receipt});
           }
-          await run(env,`UPDATE party_payments SET trip_id=?,party_name=?,payment_date=?,amount=?,payment_mode=?,reference=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,b.tripId||'',upper(b.partyName),b.paymentDate,round2(b.amount),upper(b.paymentMode),b.reference||'',b.notes||'',id);
+          await run(env,`UPDATE party_payments SET invoice_id=?,trip_id=?,party_name=?,payment_date=?,amount=?,payment_mode=?,reference=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,
+            invoiceId,tripId,partyName,b.paymentDate,round2(b.amount),upper(b.paymentMode),b.reference||'',b.notes||'',id,companyId);
           await audit(env,user,'UPDATE','party_payment',id,b);return json({ok:true});
         }
-        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM party_payments WHERE id=?`,id);await audit(env,user,'DELETE','party_payment',id,{});return json({ok:true})}
+        if(req.method==='DELETE'&&id){
+          await run(env,`DELETE FROM party_payments WHERE id=? AND company_id=?`,id,companyId);
+          await audit(env,user,'DELETE','party_payment',id,{});return json({ok:true})
+        }
       }
 
       // TRUCKS
@@ -1931,7 +2190,7 @@ export default {
             await audit(env,user,'CREATE','truck',newId,b);return json({ok:true,id:newId});
           }
           const old=await first(env,`SELECT truck_no FROM trucks WHERE id=? AND company_id=?`,id,companyId);
-          await run(env,`UPDATE trucks SET truck_no=?,owner_name=?,owner_mobile=?,bank_details=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,no,upper(b.ownerName),b.ownerMobile||'',b.bankDetails||'',id);
+          await run(env,`UPDATE trucks SET truck_no=?,owner_name=?,owner_mobile=?,bank_details=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,no,upper(b.ownerName),b.ownerMobile||'',b.bankDetails||'',id,companyId);
           if(old&&old.truck_no!==no){
             for(const table of ['trips','invoice_items','truck_payments','supplier_payments','truck_documents'])await run(env,`UPDATE ${table} SET truck_no=? WHERE company_id=? AND truck_no=?`,no,companyId,old.truck_no);
           }
@@ -1943,7 +2202,7 @@ export default {
             const used=await first(env,`SELECT (SELECT COUNT(*) FROM trips WHERE company_id=? AND truck_no=?)+(SELECT COUNT(*) FROM truck_payments WHERE company_id=? AND truck_no=?) AS c`,companyId,t.truck_no,companyId,t.truck_no);
             if(num(used?.c)>0)return json({error:'Truck has linked trips or supplier entries'},409);
           }
-          await run(env,`DELETE FROM trucks WHERE id=?`,id);await audit(env,user,'DELETE','truck',id,{});return json({ok:true});
+          await run(env,`DELETE FROM trucks WHERE id=? AND company_id=?`,id,companyId);await audit(env,user,'DELETE','truck',id,{});return json({ok:true});
         }
       }
 
@@ -1985,14 +2244,14 @@ export default {
             trip_date=?,party_name=?,truck_no=?,driver_name=?,driver_mobile=?,material=?,
             loading_point=?,unloading_point=?,lr_number=?,loading_weight=?,unloading_weight=?,
             shortage=?,billing_weight=?,supplier_name=?,weight=?,rate=?,status=?,notes=?,pod_file_name=?,
-            pod_data=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+            pod_data=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,
             b.tripDate,upper(b.partyName),upper(b.truckNo),upper(b.driverName),b.driverMobile||'',
             upper(b.material),upper(b.loadingPoint),upper(b.unloadingPoint),clean(b.lrNumber),
             round2(b.loadingWeight),round2(b.unloadingWeight),
             round2(Math.max(0,num(b.loadingWeight)-num(b.unloadingWeight))),
             round2(b.billingWeight||b.unloadingWeight||b.loadingWeight),upper(b.supplierName),
             round2(b.billingWeight||b.unloadingWeight||b.loadingWeight),round2(b.rate),
-            upper(b.status||'BOOKED'),b.notes||'',b.podFileName||'',b.podData||'',id
+            upper(b.status||'BOOKED'),b.notes||'',b.podFileName||'',b.podData||'',id,companyId
           );
           if(upper(b.supplierName)){
             await ensureSupplierAccountForName(env,b.supplierName,companyId);
@@ -2010,13 +2269,13 @@ export default {
             const amount=round2(billingWeight*num(b.rate));
             await run(env,`UPDATE invoice_items SET
               lr_number=?,truck_no=?,description=?,loading_weight=?,unloading_weight=?,shortage=?,
-              weight=?,rate=?,amount=? WHERE id=?`,
+              weight=?,rate=?,amount=? WHERE id=? AND company_id=?`,
               clean(b.lrNumber),upper(b.truckNo),description,loadingWeight,unloadingWeight,shortage,
-              billingWeight,round2(b.rate),amount,old.invoice_item_id
+              billingWeight,round2(b.rate),amount,old.invoice_item_id,companyId
             );
             if(old.invoice_id){
-              await run(env,`UPDATE invoices SET party_name=?,material=?,loading_date=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-                upper(b.partyName),upper(b.material),b.tripDate,old.invoice_id);
+              await run(env,`UPDATE invoices SET party_name=?,material=?,loading_date=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,
+                upper(b.partyName),upper(b.material),b.tripDate,old.invoice_id,companyId);
               await recalcInvoiceById(env,old.invoice_id,companyId);
             }
           }
@@ -2029,15 +2288,15 @@ export default {
           const trip=await first(env,`SELECT * FROM trips WHERE id=? AND company_id=?`,id,companyId);
           if(!trip)return json({ok:true});
           if(trip.invoice_id){
-            const count=await first(env,`SELECT COUNT(*) count FROM invoice_items WHERE invoice_id=?`,trip.invoice_id);
+            const count=await first(env,`SELECT COUNT(*) count FROM invoice_items WHERE invoice_id=? AND company_id=?`,trip.invoice_id,companyId);
             if(num(count?.count)<=1){
               return json({error:'This is the last trip of the linked invoice. Delete the invoice, or add another truck line first.'},409);
             }
-            await run(env,`DELETE FROM invoice_items WHERE trip_id=?`,id);
+            await run(env,`DELETE FROM invoice_items WHERE trip_id=? AND company_id=?`,id,companyId);
             await recalcInvoiceById(env,trip.invoice_id,companyId);
           }
-          await run(env,`DELETE FROM truck_payments WHERE trip_id=?`,id);
-          await run(env,`DELETE FROM trips WHERE id=?`,id);
+          await run(env,`DELETE FROM truck_payments WHERE trip_id=? AND company_id=?`,id,companyId);
+          await run(env,`DELETE FROM trips WHERE id=? AND company_id=?`,id,companyId);
           await audit(env,user,'DELETE','trip',id,{});
           return json({ok:true});
         }
@@ -2086,16 +2345,16 @@ export default {
             await run(env,`UPDATE invoices SET
               invoice_no=?,invoice_type=?,invoice_date=?,party_name=?,party_address=?,party_gst=?,
               lr_no=?,material=?,loading_date=?,sgst=?,cgst=?,diesel=?,munshi=?,subtotal=?,
-              gst_amount=?,total=?,comments=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+              gst_amount=?,total=?,comments=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,
               clean(b.invoiceNo),invoiceType,b.invoiceDate,upper(b.partyName),b.partyAddress||'',
               upper(b.partyGst),b.lrNo||'',upper(b.material),b.loadingDate||'',
-              sgst,cgst,num(b.diesel),num(b.munshi),subtotal,gstAmount,total,b.comments||'',invoiceId
+              sgst,cgst,num(b.diesel),num(b.munshi),subtotal,gstAmount,total,b.comments||'',invoiceId,companyId
             );
           }
 
-          const oldItems=await all(env,`SELECT id,trip_id FROM invoice_items WHERE invoice_id=?`,invoiceId);
+          const oldItems=await all(env,`SELECT id,trip_id FROM invoice_items WHERE invoice_id=? AND company_id=?`,invoiceId,companyId);
           const usedTripIds=new Set();
-          await run(env,`DELETE FROM invoice_items WHERE invoice_id=?`,invoiceId);
+          await run(env,`DELETE FROM invoice_items WHERE invoice_id=? AND company_id=?`,invoiceId,companyId);
 
           for(const x of items){
             const itemId=uid('II');
@@ -2140,8 +2399,8 @@ export default {
           // Remove trips whose truck lines were removed from the invoice.
           for(const old of oldItems){
             if(old.trip_id && !usedTripIds.has(String(old.trip_id))){
-              await run(env,`DELETE FROM truck_payments WHERE trip_id=?`,old.trip_id);
-              await run(env,`DELETE FROM trips WHERE id=?`,old.trip_id);
+              await run(env,`DELETE FROM truck_payments WHERE trip_id=? AND company_id=?`,old.trip_id,companyId);
+              await run(env,`DELETE FROM trips WHERE id=? AND company_id=?`,old.trip_id,companyId);
             }
           }
 
@@ -2150,15 +2409,15 @@ export default {
         }
 
         if(req.method==='DELETE'&&id){
-          const linked=await all(env,`SELECT trip_id FROM invoice_items WHERE invoice_id=?`,id);
+          const linked=await all(env,`SELECT trip_id FROM invoice_items WHERE invoice_id=? AND company_id=?`,id,companyId);
           for(const row of linked){
             if(row.trip_id){
-              await run(env,`DELETE FROM truck_payments WHERE trip_id=?`,row.trip_id);
-              await run(env,`DELETE FROM trips WHERE id=?`,row.trip_id);
+              await run(env,`DELETE FROM truck_payments WHERE trip_id=? AND company_id=?`,row.trip_id,companyId);
+              await run(env,`DELETE FROM trips WHERE id=? AND company_id=?`,row.trip_id,companyId);
             }
           }
-          await run(env,`DELETE FROM invoice_items WHERE invoice_id=?`,id);
-          await run(env,`DELETE FROM invoices WHERE id=?`,id);
+          await run(env,`DELETE FROM invoice_items WHERE invoice_id=? AND company_id=?`,id,companyId);
+          await run(env,`DELETE FROM invoices WHERE id=? AND company_id=?`,id,companyId);
           await audit(env,user,'DELETE','invoice',id,{});
           return json({ok:true});
         }
@@ -2195,9 +2454,9 @@ export default {
             return json({ok:true,id:newId,total:subtotal,profit});
           }
 
-          await run(env,`UPDATE pm_bills SET bill_no=?,bill_date=?,party_name=?,party_address=?,supplier_name=?,notes=?,subtotal=?,supplier_total=?,profit=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-            clean(b.billNo),b.billDate,upper(b.partyName),b.partyAddress||'',upper(b.supplierName),b.notes||'',subtotal,supplierTotal,profit,id);
-          await run(env,`DELETE FROM pm_bill_items WHERE bill_id=?`,id);
+          await run(env,`UPDATE pm_bills SET bill_no=?,bill_date=?,party_name=?,party_address=?,supplier_name=?,notes=?,subtotal=?,supplier_total=?,profit=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,
+            clean(b.billNo),b.billDate,upper(b.partyName),b.partyAddress||'',upper(b.supplierName),b.notes||'',subtotal,supplierTotal,profit,id,companyId);
+          await run(env,`DELETE FROM pm_bill_items WHERE bill_id=? AND company_id=?`,id,companyId);
           for(const x of items){
             const partyAmount=round2(num(x.weight)*num(x.partyRate));
             const supplierAmount=round2(num(x.weight)*num(x.supplierRate));
@@ -2209,8 +2468,8 @@ export default {
         }
 
         if(req.method==='DELETE'&&id){
-          await run(env,`DELETE FROM pm_bill_items WHERE bill_id=?`,id);
-          await run(env,`DELETE FROM pm_bills WHERE id=?`,id);
+          await run(env,`DELETE FROM pm_bill_items WHERE bill_id=? AND company_id=?`,id,companyId);
+          await run(env,`DELETE FROM pm_bills WHERE id=? AND company_id=?`,id,companyId);
           await audit(env,user,'DELETE','pm_bill',id,{});
           return json({ok:true});
         }
@@ -2225,10 +2484,10 @@ export default {
             const newId=uid('TE');await run(env,`INSERT INTO truck_payments(id,company_id,trip_id,entry_date,truck_no,owner_name,bank_details,loading_point,unloading_point,weight,rate,commission,payable,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,newId,companyId,b.tripId||'',b.entryDate,upper(b.truckNo),upper(b.ownerName),b.bankDetails||'',upper(b.loadingPoint),upper(b.unloadingPoint),round2(b.weight),round2(b.rate),round2(b.commission),payable,b.notes||'');
             await audit(env,user,'CREATE','truck_entry',newId,b);return json({ok:true,id:newId,payable});
           }
-          await run(env,`UPDATE truck_payments SET trip_id=?,entry_date=?,truck_no=?,owner_name=?,bank_details=?,loading_point=?,unloading_point=?,weight=?,rate=?,commission=?,payable=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,b.tripId||'',b.entryDate,upper(b.truckNo),upper(b.ownerName),b.bankDetails||'',upper(b.loadingPoint),upper(b.unloadingPoint),round2(b.weight),round2(b.rate),round2(b.commission),payable,b.notes||'',id);
+          await run(env,`UPDATE truck_payments SET trip_id=?,entry_date=?,truck_no=?,owner_name=?,bank_details=?,loading_point=?,unloading_point=?,weight=?,rate=?,commission=?,payable=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,b.tripId||'',b.entryDate,upper(b.truckNo),upper(b.ownerName),b.bankDetails||'',upper(b.loadingPoint),upper(b.unloadingPoint),round2(b.weight),round2(b.rate),round2(b.commission),payable,b.notes||'',id);
           await audit(env,user,'UPDATE','truck_entry',id,b);return json({ok:true,payable});
         }
-        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM truck_payments WHERE id=?`,id);await audit(env,user,'DELETE','truck_entry',id,{});return json({ok:true})}
+        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM truck_payments WHERE id=? AND company_id=?`,id,companyId);await audit(env,user,'DELETE','truck_entry',id,{});return json({ok:true})}
       }
 
       // SUPPLIER PAYMENTS
@@ -2240,10 +2499,10 @@ export default {
             await run(env,`INSERT INTO supplier_payments(id,company_id,receipt_no,trip_id,owner_name,truck_no,payment_date,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,newId,companyId,receipt,b.tripId||'',upper(b.ownerName),upper(b.truckNo),b.paymentDate,round2(b.amount),upper(b.paymentMode),b.reference||'',b.notes||'');
             await audit(env,user,'CREATE','supplier_payment',newId,b);return json({ok:true,id:newId,receipt});
           }
-          await run(env,`UPDATE supplier_payments SET trip_id=?,owner_name=?,truck_no=?,payment_date=?,amount=?,payment_mode=?,reference=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,b.tripId||'',upper(b.ownerName),upper(b.truckNo),b.paymentDate,round2(b.amount),upper(b.paymentMode),b.reference||'',b.notes||'',id);
+          await run(env,`UPDATE supplier_payments SET trip_id=?,owner_name=?,truck_no=?,payment_date=?,amount=?,payment_mode=?,reference=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,b.tripId||'',upper(b.ownerName),upper(b.truckNo),b.paymentDate,round2(b.amount),upper(b.paymentMode),b.reference||'',b.notes||'',id,companyId);
           await audit(env,user,'UPDATE','supplier_payment',id,b);return json({ok:true});
         }
-        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM supplier_payments WHERE id=?`,id);await audit(env,user,'DELETE','supplier_payment',id,{});return json({ok:true})}
+        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM supplier_payments WHERE id=? AND company_id=?`,id,companyId);await audit(env,user,'DELETE','supplier_payment',id,{});return json({ok:true})}
       }
 
       // ROUTES & MATERIALS
@@ -2251,13 +2510,13 @@ export default {
         if(req.method==='POST'||(req.method==='PUT'&&id)){
           const b=await requestBody(req);
           if(req.method==='POST'){const newId=uid('RTE');await run(env,`INSERT INTO routes(id,company_id,loading_point,unloading_point) VALUES(?,?,?,?)`,newId,companyId,upper(b.loadingPoint),upper(b.unloadingPoint));await audit(env,user,'CREATE','route',newId,b);return json({ok:true,id:newId})}
-          await run(env,`UPDATE routes SET loading_point=?,unloading_point=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,upper(b.loadingPoint),upper(b.unloadingPoint),id);await audit(env,user,'UPDATE','route',id,b);return json({ok:true});
+          await run(env,`UPDATE routes SET loading_point=?,unloading_point=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,upper(b.loadingPoint),upper(b.unloadingPoint),id,companyId);await audit(env,user,'UPDATE','route',id,b);return json({ok:true});
         }
-        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM routes WHERE id=?`,id);await audit(env,user,'DELETE','route',id,{});return json({ok:true})}
+        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM routes WHERE id=? AND company_id=?`,id,companyId);await audit(env,user,'DELETE','route',id,{});return json({ok:true})}
       }
       if(resource==='materials'){
         if(req.method==='POST'){const b=await requestBody(req),newId=uid('MAT');await run(env,`INSERT INTO materials(id,company_id,material_name) VALUES(?,?,?)`,newId,companyId,upper(b.materialName));await audit(env,user,'CREATE','material',newId,b);return json({ok:true,id:newId})}
-        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM materials WHERE id=?`,id);await audit(env,user,'DELETE','material',id,{});return json({ok:true})}
+        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM materials WHERE id=? AND company_id=?`,id,companyId);await audit(env,user,'DELETE','material',id,{});return json({ok:true})}
       }
 
       // EXPENSES
@@ -2265,9 +2524,9 @@ export default {
         if(req.method==='POST'||(req.method==='PUT'&&id)){
           const b=await requestBody(req);
           if(req.method==='POST'){const newId=uid('EXP');await run(env,`INSERT INTO expenses(id,company_id,trip_id,expense_date,category,amount,notes) VALUES(?,?,?,?,?,?,?)`,newId,companyId,b.tripId||'',b.expenseDate,upper(b.category),round2(b.amount),b.notes||'');await audit(env,user,'CREATE','expense',newId,b);return json({ok:true,id:newId})}
-          await run(env,`UPDATE expenses SET trip_id=?,expense_date=?,category=?,amount=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,b.tripId||'',b.expenseDate,upper(b.category),round2(b.amount),b.notes||'',id);await audit(env,user,'UPDATE','expense',id,b);return json({ok:true});
+          await run(env,`UPDATE expenses SET trip_id=?,expense_date=?,category=?,amount=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,b.tripId||'',b.expenseDate,upper(b.category),round2(b.amount),b.notes||'',id,companyId);await audit(env,user,'UPDATE','expense',id,b);return json({ok:true});
         }
-        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM expenses WHERE id=?`,id);await audit(env,user,'DELETE','expense',id,{});return json({ok:true})}
+        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM expenses WHERE id=? AND company_id=?`,id,companyId);await audit(env,user,'DELETE','expense',id,{});return json({ok:true})}
       }
 
       // DOCUMENTS
@@ -2282,7 +2541,7 @@ export default {
           if(!d)return json({error:'File not found'},404);
           return json(d);
         }
-        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM truck_documents WHERE id=?`,id);await audit(env,user,'DELETE','document',id,{});return json({ok:true})}
+        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM truck_documents WHERE id=? AND company_id=?`,id,companyId);await audit(env,user,'DELETE','document',id,{});return json({ok:true})}
       }
 
       return json({error:'Not found'},404);

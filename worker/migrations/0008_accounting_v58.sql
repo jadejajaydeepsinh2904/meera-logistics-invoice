@@ -1,0 +1,5 @@
+-- V58 accounting migration reference.
+-- Worker applies this lazily and idempotently:
+-- ALTER TABLE party_payments ADD COLUMN invoice_id TEXT DEFAULT '';
+-- CREATE INDEX party_payments(company_id,invoice_id)
+-- D1 schema_version remains 53 to avoid another heavy global migration.

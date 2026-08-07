@@ -670,3 +670,62 @@ V57 KHATA UX CLEANUP
 - Exact Invoice View = Download PDF retained.
 
 Deploy: upload full V57, redeploy Vercel, then open /?reset=v57 once.
+
+
+V58 ACCOUNTING + DATA ISOLATION FINAL AUDIT
+
+MAIN FIXES
+
+1. Party payment allocation is now deterministic
+- Party payment can be linked directly to Invoice.
+- Trip-linked receipt maps to that Trip's Invoice.
+- Old/unlinked receipts are allocated FIFO only once.
+- One receipt can no longer be counted against every later invoice.
+- Invoice received/pending values in Party Khata use backend allocation.
+- Unallocated excess is kept as Party Advance/Credit.
+
+2. Receive Payment form
+- Party -> Invoice dropdown.
+- Only that Party's invoices are shown.
+- Invoice pending amount is visible.
+- Selecting invoice prefills current pending amount.
+- Blank Invoice means Party Advance / Auto FIFO.
+- Invoice/Party and Trip/Party mismatches are rejected by backend.
+
+3. Supplier accounting consistency
+- Dashboard/Reports Supplier Payable now matches Supplier Khata calculation:
+  Truck Entries + PM Bill supplier payable.
+- Supplier paid/pending remain company scoped.
+
+4. Multi-company hardening
+- Critical runtime updates/deletes are scoped with company_id.
+- Accounting audit checks cross-company parent/child links.
+- Party/Trip/Invoice payment links are validated inside the logged-in company.
+
+5. Reports & Audit
+- New "Run Full Accounting Audit" button.
+- Checks invoice/payment links, orphan rows, missing Truck/Supplier master,
+  supplier/truck mismatch, cross-company links, and accounting totals.
+- Shows Billing, Party Received/Outstanding, Supplier Payable/Paid/Pending,
+  unallocated credit, error/warning counts.
+
+6. Data safety
+- Existing payments are not deleted or rewritten.
+- New party_payments.invoice_id is added lazily once.
+- Old payments continue to work through FIFO compatibility allocation.
+- D1 schema_version remains 53; V58 adds only a small lazy accounting column/index.
+
+RETAINED
+- V57 Trip History naming + party-wise Receive Payment + inline Supplier ledger.
+- V56 supplier-wise Truck filtering.
+- V55 clean Supplier Khata.
+- Full Truck/Supplier dropdown/edit features.
+- Exact Invoice View = Download PDF.
+- Multi-company SaaS/subscription/team foundation.
+
+DEPLOY
+1. Upload complete V58 ZIP to GitHub main.
+2. Cloudflare Worker redeploy FIRST (backend accounting changes).
+3. Vercel redeploy.
+4. Open /?reset=v58 once.
+5. Open Reports & Audit -> Run Full Accounting Audit.

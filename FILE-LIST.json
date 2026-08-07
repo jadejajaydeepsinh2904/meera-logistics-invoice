@@ -1,21 +1,27 @@
 {
-  "version": "V57-KHATA-UX-CLEANUP",
-  "source": "V56 Supplier Truck Filter full project",
-  "schema_version": "53 unchanged",
+  "version": "V58-ACCOUNTING-ISOLATION-AUDIT",
+  "source": "V57 Khata UX Cleanup full project",
+  "schema_version": "53 unchanged + lazy party_payments.invoice_id",
   "checks": {
-    "trip_history_renamed": "passed",
-    "party_top_receive_removed": "passed",
-    "party_receive_per_card": "passed",
-    "party_prefill_handler": "passed",
-    "supplier_top_pay_removed": "passed",
-    "supplier_per_card_pay": "passed",
-    "supplier_inline_ledger": "passed",
-    "supplier_ledger_columns": "passed",
-    "reset_v57": "passed",
+    "lazy_invoice_id": "passed",
+    "allocation_helper": "passed",
+    "bootstrap_received_amount": "passed",
+    "party_payment_invoice_backend": "passed",
+    "party_invoice_mismatch_guard": "passed",
+    "accounting_audit_endpoint": "passed",
+    "cross_company_audit": "passed",
+    "supplier_total_includes_pm": "passed",
+    "frontend_exact_received": "passed",
+    "frontend_party_invoice_selector": "passed",
+    "frontend_audit_button": "passed",
+    "reset_v58": "passed",
+    "schema_53_retained": "passed",
+    "legacy_fifo_allocation_simulation": "passed",
+    "cross_company_link_sqlite_test": "passed",
     "javascript_syntax": "passed",
     "vercel_build": "passed"
   },
-  "total_files": 75,
+  "total_files": 78,
   "files": [
     {
       "path": ".vercelignore",
@@ -24,13 +30,13 @@
     },
     {
       "path": "README.md",
-      "size": 33251,
-      "sha256": "f0db85c9759956c178c5088da0ecd0809df13de1e3e2e8a2d91970c242a6f6bf"
+      "size": 35555,
+      "sha256": "23a6a7d1da0c88eeb545f9e775807234a2c0ba9d5a3da6a540cef565d9fa996c"
     },
     {
       "path": "START-HERE.txt",
-      "size": 30599,
-      "sha256": "904f8cb1397aa6b4f7879913c7ce82657c23e0791da1b86d0949e0361f9d0d67"
+      "size": 32903,
+      "sha256": "ea5c4ac0077576a902c88347924d66dcd9b362f44eedc7181bf3bad6c9719c1f"
     },
     {
       "path": "V44-TEST-REPORT.txt",
@@ -101,6 +107,11 @@
       "path": "V57-KHATA-UX-CLEANUP-REPORT.txt",
       "size": 943,
       "sha256": "f2ddcbc1a268e7a88518b9b0820c6539424c01f2b05c55ec1d548062a411a54f"
+    },
+    {
+      "path": "V58-ACCOUNTING-ISOLATION-AUDIT-REPORT.txt",
+      "size": 2302,
+      "sha256": "31d2d7cc92a29b1b0a6c985b86036c033583806dd32dde4e1769c9192b2d5e0d"
     },
     {
       "path": "package.json",
@@ -225,7 +236,7 @@
     {
       "path": "public/index.html",
       "size": 1964,
-      "sha256": "e5264991eae4e6aa3d51ac11cb5b2d92def09752d885bcc5e11aaf9e04b869ac"
+      "sha256": "a3fecbf768472a3c85359044cc5209cb71089d533389e0f8ef0dd7c75f918160"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -244,8 +255,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 131025,
-      "sha256": "b05444a21a2e39a32963358f093216187c2c6de1cd0b89104da12e9141a1ce7f"
+      "size": 133219,
+      "sha256": "87fe6278d5c58420c3873499f631e36685b2563cc4299d21f25c05f27227aee6"
     },
     {
       "path": "public/src/core/api.js",
@@ -284,8 +295,8 @@
     },
     {
       "path": "public/src/styles.css",
-      "size": 35428,
-      "sha256": "2cce83154142f0f6bf67f6d9c09d9257cdd574c9e1cbf4cb754f01a02fb6c630"
+      "size": 36499,
+      "sha256": "2a3fe60e32e0222f9cd23b3712f54cec3892055f9f621b3286c16975a43359ca"
     },
     {
       "path": "public/src/supplier-ledger-pdf-v41.js",
@@ -338,6 +349,11 @@
       "sha256": "473612c3201770bff41679a839b1493b7d2271b61478c485e81601d89dafcb9c"
     },
     {
+      "path": "public/version-v58.txt",
+      "size": 69,
+      "sha256": "b80f762cdf9d0e5bac843a9573db29ac3db459b120a81d0f5d570fe8c15a2b19"
+    },
+    {
       "path": "vercel.json",
       "size": 655,
       "sha256": "1b53413a59fb95085053cba3a166882ff08dcfe5c48610556157f496d6907eb6"
@@ -373,14 +389,19 @@
       "sha256": "cae70e87aa85acbe01ceb16d7afb8c3f8960cfe2756e19539ecf7b49f2afa904"
     },
     {
+      "path": "worker/migrations/0008_accounting_v58.sql",
+      "size": 283,
+      "sha256": "386bd9c194421d94b57c0cf7058fb91c86248e78d475b14bdf86354a97ed72f9"
+    },
+    {
       "path": "worker/package.json",
       "size": 266,
       "sha256": "eb8864702c69ac951a9a76b54e05bae2168e11de3c4274aaa0920b413725b1a9"
     },
     {
       "path": "worker/src/index.js",
-      "size": 157796,
-      "sha256": "9c9bc59628c7d1125cd95ae38fe71beb17edf5385420323ced312aede00a5bc9"
+      "size": 173254,
+      "sha256": "2e471ff984b2e69dd6d5d374568a13d9d50001e2001a594f36706577b9e64954"
     },
     {
       "path": "worker/src/seed-data.js",

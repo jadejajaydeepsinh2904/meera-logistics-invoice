@@ -31,9 +31,10 @@ function invoiceStatus(total,received){
   return 'PARTIAL';
 }
 function invoiceReceivedAmount(invoice){
+  if(invoice&&invoice.received_amount!==undefined&&invoice.received_amount!==null)return Number(invoice.received_amount||0);
   const linked=state.data.partyPayments.filter(p=>
-    (p.trip_id && (invoice.items||[]).some(i=>String(i.trip_id||'')===String(p.trip_id))) ||
-    (!p.trip_id && p.party_name===invoice.party_name && p.payment_date>=invoice.invoice_date)
+    (p.invoice_id&&String(p.invoice_id)===String(invoice.id)) ||
+    (p.trip_id&&(invoice.items||[]).some(i=>String(i.trip_id||'')===String(p.trip_id)))
   );
   return linked.reduce((a,x)=>a+Number(x.amount||0),0);
 }
@@ -523,7 +524,7 @@ function partiesPanel(d){
             <div class="party-account-head">
               <button class="party-account-title" data-action="view-party-ledger" data-id="${encodeURIComponent(p.party_name)}">
                 <b>${esc((p.ledger_no?p.ledger_no+' · ':'')+p.party_name)}</b>
-                <small>Billed ${money(p.billed)} · Received ${money(p.received)} · ${invoices.length} invoices</small>
+                <small>Billed ${money(p.billed)} · Received ${money(p.received)}${Number(p.credit||0)>0?` · Advance/Credit ${money(p.credit)}`:''} · ${invoices.length} invoices</small>
               </button>
               <div class="v57-party-head-actions">
                 <div class="money-right"><b>${money(p.outstanding)}</b><small>Outstanding</small></div>
@@ -808,8 +809,22 @@ function expensesPanel(d){
   ]),'700px')}</div></section>`;
 }
 function reportsPanel(d){
-  return `<section class="panel active"><div class="cards">${metric('Invoice Subtotal',d.summary.invoiceSubtotal)}${metric('Supplier Payable',d.summary.supplierPayable)}${metric('Supplier Paid',d.summary.supplierPaid)}${metric('Office Expenses',d.summary.expenses)}${metric('Estimated Profit',d.summary.estimatedProfit)}${metric('Party Outstanding',d.summary.partyOutstanding)}</div>
-  <div class="grid2"><div class="card"><div class="section-title"><div><h2>Audit Alerts</h2><small>દરેક query માટે Solve button થી સીધો fix screen ખૂલશે</small></div><button class="btn light" data-action="restore-backup">Restore Backup</button></div>${d.issues.length?d.issues.map(x=>`<div class="audit-item audit-resolvable ${x.severity==='warning'?'warning':''}"><div class="audit-copy"><b>${esc(x.type)}</b><small>${esc(x.text)}</small></div><button class="mini green audit-solve" data-action="resolve-audit" data-id="${encodeURIComponent(JSON.stringify(x))}">Solve</button></div>`).join(''):'<div class="notice">No detected ledger issues.</div>'}</div>
+  const a=d.accountingAudit||{};
+  return `<section class="panel active">
+  <div class="cards">
+    ${metric('Invoice Subtotal',d.summary.invoiceSubtotal)}
+    ${metric('Supplier Payable',d.summary.supplierPayable)}
+    ${metric('Supplier Paid',d.summary.supplierPaid)}
+    ${metric('Office Expenses',d.summary.expenses)}
+    ${metric('Estimated Profit',d.summary.estimatedProfit)}
+    ${metric('Party Outstanding',d.summary.partyOutstanding)}
+  </div>
+  <div class="v58-accounting-strip">
+    <div><b>Accounting Allocation V58</b><small>Exact invoice-linked receipts + one-time FIFO for old/unlinked receipts</small></div>
+    <div><span>Legacy FIFO: <b>${Number(a.fifoLegacyPayments||0)}</b></span><span>Unallocated Credit: <b>${money(a.unallocatedPartyCredit||0)}</b></span><span>Invoice Pending: <b>${money(a.invoicePending||0)}</b></span></div>
+    <button class="btn primary" data-action="run-accounting-audit">Run Full Accounting Audit</button>
+  </div>
+  <div class="grid2"><div class="card"><div class="section-title"><div><h2>Audit Alerts</h2><small>Darek query mate Solve button thi direct fix screen khulse</small></div><button class="btn light" data-action="restore-backup">Restore Backup</button></div>${d.issues.length?d.issues.map(x=>`<div class="audit-item audit-resolvable ${x.severity==='warning'?'warning':''}"><div class="audit-copy"><b>${esc(x.type)}</b><small>${esc(x.text)}</small></div><button class="mini green audit-solve" data-action="resolve-audit" data-id="${encodeURIComponent(JSON.stringify(x))}">Solve</button></div>`).join(''):'<div class="notice">No detected ledger issues.</div>'}</div>
   <div class="card"><div class="section-title"><h2>Recent Changes</h2></div>${d.audits.slice(0,30).map(x=>`<div class="audit-item"><b>${esc(x.action)} · ${esc(x.entity)}</b><small>${esc(x.created_at)} · ${esc(x.entity_id||'')}</small></div>`).join('')}</div></div></section>`;
 }
 
@@ -846,7 +861,33 @@ function resolveAuditIssue(raw){
   alert('Aa alert mate automatic fix screen available nathi. System Health ma details check karo.');
 }
 
+
+async function runAccountingAuditV58(){
+  try{
+    const a=await api('/accounting-audit');
+    const errorCount=(a.issues||[]).filter(x=>x.severity==='error').length;
+    const warningCount=(a.issues||[]).filter(x=>x.severity==='warning').length;
+    modal('V58 Accounting & Data Isolation Audit',`
+      <div class="cards">
+        ${metric('Billing',a.totals?.billing||0)}
+        ${metric('Party Received',a.totals?.partyReceived||0)}
+        ${metric('Party Outstanding',a.totals?.partyOutstanding||0)}
+        ${metric('Supplier Payable',a.totals?.supplierPayable||0)}
+        ${metric('Supplier Paid',a.totals?.supplierPaid||0)}
+        ${metric('Supplier Pending',a.totals?.supplierPending||0)}
+      </div>
+      <div class="v58-audit-status ${a.ok?'ok':'bad'}">
+        <b>${a.ok?'Accounting isolation checks passed':'Audit needs attention'}</b>
+        <span>${errorCount} errors · ${warningCount} warnings · Cross-company links ${a.crossCompanyLinks||0}</span>
+      </div>
+      <div class="v58-audit-meta">Checked ${esc(a.checkedAt||'')} · Company ${esc(a.companyId||'')} · Unallocated Party Credit ${money(a.totals?.unallocatedPartyCredit||0)}</div>
+      <div class="v58-audit-list">${(a.issues||[]).length?(a.issues||[]).map(x=>`<div class="audit-item ${x.severity==='warning'?'warning':''}"><b>${esc(x.type)}</b><small>${esc(x.text)}</small></div>`).join(''):'<div class="notice">No accounting/data-isolation issue detected.</div>'}</div>
+    `);
+  }catch(e){alert(e.message||'Accounting audit failed')}
+}
+
 function handleAction(action,id){
+  if(action==='run-accounting-audit')return runAccountingAuditV58();
   if(action==='resolve-audit')return resolveAuditIssue(id);
   if(action==='new-trip'||action==='edit-trip')return tripForm(action==='edit-trip'?(find('trip',id)||{}):{});
   if(action==='view-trip')return universalTripScreen(find('trip',id));
@@ -1598,39 +1639,53 @@ function partyForm(x={}){
 }
 function partyPaymentForm(x={},tripContext=null){
   x=x||{};
-  const d=state.data,edit=!!x.id,host=modal(edit?'Edit Party Payment':'Receive Party Payment',`<form class="form-grid" id="partyPayForm">
-    ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),x.party_name||'','party','required')}
+  const d=state.data,edit=!!x.id;
+  const tripInvoiceId=tripContext?.invoice_id||'';
+  const initialParty=norm(x.party_name||tripContext?.party_name||'');
+  const initialInvoice=x.invoice_id||tripInvoiceId||'';
+  const host=modal(edit?'Edit Party Payment':'Receive Party Payment',`<form class="form-grid" id="partyPayForm">
+    ${masterSelectField('Party','partyName',d.parties.map(p=>p.party_name),initialParty,'party','required')}
+    <label class="field"><span>Invoice Allocation</span><select name="invoiceId" data-party-invoice><option value="">Party Advance / Auto FIFO</option></select></label>
+    ${field('Trip ID','tripId',x.trip_id||tripContext?.id||'','text','readonly')}
     ${field('Payment Date','paymentDate',x.payment_date||today(),'date','required')}
     ${field('Amount','amount',x.amount||0,'number','step="0.01" min="0.01" required')}
     ${selectField('Mode','paymentMode',['CASH','BANK','UPI','CHEQUE'],x.payment_mode||'BANK')}
     ${field('Reference','reference',x.reference||'')}
     ${textarea('Notes','notes',x.notes||'','span2')}
+    <div class="span2 notice" data-party-payment-note>Invoice select karsho to payment exact e invoice sathe link thashe. Blank rakhsho to old pending invoices ma FIFO allocation thashe.</div>
     <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn green">Save Receipt</button></div></form>`,{small:true,onMount:host=>{
       wireMasterSelects(host);
+      const party=host.querySelector('[name=partyName]'),invoice=host.querySelector('[name=invoiceId]');
+      const amount=host.querySelector('[name=amount]'),note=host.querySelector('[data-party-payment-note]');
+      const refreshInvoices=(preferred='')=>{
+        const partyName=norm(party.value);
+        const rows=sortInvoicesSeries((d.invoices||[]).filter(i=>norm(i.party_name)===partyName),true);
+        invoice.innerHTML=`<option value="">Party Advance / Auto FIFO</option>${rows.map(i=>{
+          const received=invoiceReceivedAmount(i),pending=Math.max(0,Number(i.total||0)-received);
+          return `<option value="${esc(i.id)}">${esc(i.invoice_no)} · Pending ${money(pending)}</option>`;
+        }).join('')}`;
+        if(preferred&&rows.some(i=>String(i.id)===String(preferred)))invoice.value=preferred;
+        if(invoice.value){
+          const selected=rows.find(i=>String(i.id)===String(invoice.value));
+          if(selected&&!edit&&Number(amount.value||0)<=0)amount.value=Math.max(0,Number(selected.total||0)-invoiceReceivedAmount(selected)).toFixed(2);
+        }
+      };
+      party.addEventListener('change',()=>refreshInvoices(''));
+      invoice.addEventListener('change',()=>{
+        const selected=(d.invoices||[]).find(i=>String(i.id)===String(invoice.value));
+        if(selected&&!edit){
+          const pending=Math.max(0,Number(selected.total||0)-invoiceReceivedAmount(selected));
+          if(pending>0)amount.value=pending.toFixed(2);
+          note.textContent=`${selected.invoice_no} sathe aa receipt exact link thashe. Current pending ${money(pending)}.`;
+        }else note.textContent='Blank invoice = Party Advance / Auto FIFO allocation.';
+      });
+      refreshInvoices(initialInvoice);
       host.querySelector('[data-close-form]').onclick=()=>host.remove();
-      host.querySelector('#partyPayForm').onsubmit=async e=>{e.preventDefault();if(await mutate('/party-payments'+(edit?'/'+x.id:''),edit?'PUT':'POST',formDataObject(e.target),e.submitter))host.remove()};
-    }});
-}
-function truckEntryForm(x={}){
-  x=x||{};
-  const d=state.data,edit=!!x.id,host=modal(edit?'Edit Truck Entry':'New Truck / Supplier Entry',`<form class="form-grid" id="truckEntryForm">
-    ${field('Entry Date','entryDate',x.entry_date||today(),'date','required')}
-    ${selectField('Trip Link','tripId',['',...d.trips.map(t=>t.id)],x.trip_id||'')}
-    ${masterSelectField('Truck Number','truckNo',d.trucks.map(t=>t.truck_no),x.truck_no||'','truck','required')}
-    ${supplierSelectField('Owner / Supplier','ownerName',x.owner_name||'','required')}
-    ${field('Bank Details','bankDetails',x.bank_details||'')}
-    ${masterSelectField('Loading Point','loadingPoint',[...new Set(d.routes.map(r=>r.loading_point))],x.loading_point||'','route-loading','required')}
-    ${masterSelectField('Unloading Point','unloadingPoint',[...new Set(d.routes.map(r=>r.unloading_point))],x.unloading_point||'','route-unloading','required')}
-    ${field('Weight','weight',x.weight||0,'number','step="0.01" required')}
-    ${field('Rate','rate',x.rate||0,'number','step="0.01" required')}
-    ${field('Commission','commission',x.commission||0,'number','step="0.01"')}
-    ${textarea('Notes','notes',x.notes||'','span2')}
-    <div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">Save Entry</button></div></form>`,{onMount:host=>{
-      wireMasterSelects(host);
-      host.querySelector('[name=tripId]').onchange=e=>{const t=d.trips.find(t=>String(t.id)===String(e.target.value));if(!t)return;for(const [n,v] of Object.entries({truckNo:t.truck_no,loadingPoint:t.loading_point,unloadingPoint:t.unloading_point,weight:t.weight})){host.querySelector(`[name=${n}]`).value=v}const owner=tripSupplierName(t);if(owner)addOptionAndSelect(host.querySelector('[name=ownerName]'),owner);const tm=d.trucks.find(x=>norm(x.truck_no)===norm(t.truck_no));if(tm)host.querySelector('[name=bankDetails]').value=tm.bank_details||''};
-      host.querySelector('[name=truckNo]').onchange=e=>{const t=d.trucks.find(t=>t.truck_no===norm(e.target.value));if(t){addOptionAndSelect(host.querySelector('[name=ownerName]'),t.owner_name||'');host.querySelector('[name=bankDetails]').value=t.bank_details||''}};
-      host.querySelector('[data-close-form]').onclick=()=>host.remove();
-      host.querySelector('#truckEntryForm').onsubmit=async e=>{e.preventDefault();if(await mutate('/truck-entries'+(edit?'/'+x.id:''),edit?'PUT':'POST',formDataObject(e.target),e.submitter))host.remove()};
+      host.querySelector('#partyPayForm').onsubmit=async e=>{
+        e.preventDefault();
+        const body=formDataObject(e.target);
+        if(await mutate('/party-payments'+(edit?'/'+x.id:''),edit?'PUT':'POST',body,e.submitter))host.remove()
+      };
     }});
 }
 function supplierPaymentForm(x={},tripContext=null){
