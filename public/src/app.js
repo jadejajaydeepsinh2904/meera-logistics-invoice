@@ -27,7 +27,7 @@ function invoiceTypeLabel(i){return (i.invoice_type||'GST')==='NON_GST'?'NON-GST
 function invoiceStatus(total,received){
   const t=Number(total||0),r=Number(received||0);
   if(r<=0)return 'PENDING';
-  if(r+0.01>=t)return 'PAID';
+  if(r+1>=t)return 'PAID';
   return 'PARTIAL';
 }
 function invoiceReceivedAmount(invoice){
@@ -38,10 +38,16 @@ function invoiceReceivedAmount(invoice){
   );
   return linked.reduce((a,x)=>a+Number(x.amount||0),0);
 }
+function invoicePendingAmount(invoice){
+  if(invoice&&invoice.pending_amount!==undefined&&invoice.pending_amount!==null)return Math.max(0,Number(invoice.pending_amount||0));
+  const pending=Math.max(0,Number(invoice?.total||0)-invoiceReceivedAmount(invoice));
+  return pending<=1?0:pending;
+}
 
 const invoiceDate=s=>{if(!s)return '';const p=String(s).split('-');return p.length===3?`${p[2]}-${p[1]}-${p[0]}`:s};
 const number3=n=>Number(n||0).toFixed(3);
 const norm=s=>String(s||'').trim().toUpperCase();
+const accountKey=s=>norm(s).replace(/[^A-Z0-9]/g,'');
 const download=(name,text,type='application/json')=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)};
 const statusBadge=s=>`<span class="badge ${String(s||'').toLowerCase().replaceAll('_','')}">${esc(s||'-')}</span>`;
 const actionButtons=(type,id,extra='')=>`<div class="action-set"><button class="mini" data-action="edit-${type}" data-id="${esc(id)}">Edit</button>${extra}<button class="mini danger" data-action="delete-${type}" data-id="${esc(id)}">Delete</button></div>`;
@@ -256,9 +262,10 @@ function formDataObject(form){return Object.fromEntries(new FormData(form).entri
 
 function getPartyDetails(name){
   const partyName=norm(name);
-  const master=state.data.parties.find(p=>norm(p.party_name)===partyName)||{};
+  const partyAccountKey=accountKey(partyName);
+  const master=state.data.parties.find(p=>accountKey(p.party_name)===partyAccountKey)||{};
   const invoice=[...state.data.invoices]
-    .filter(i=>norm(i.party_name)===partyName)
+    .filter(i=>accountKey(i.party_name)===partyAccountKey)
     .sort((a,b)=>String(b.invoice_date||'').localeCompare(String(a.invoice_date||'')))[0]||{};
   return {
     party_name:partyName,
@@ -799,7 +806,7 @@ function partiesPanel(d){
               ['Invoice No.','Type','Date','Truck / Route','Bill','Received','Pending','Status','Action'],
               invoices.map(i=>{
                 const received=invoiceReceivedAmount(i);
-                const pending=Math.max(0,Number(i.total||0)-received);
+                const pending=invoicePendingAmount(i);
                 const trucks=(i.items||[]).map(x=>x.truck_no).filter(Boolean).join(', ')||'-';
                 const route=(i.items||[])[0]?.description||i.material||'-';
                 return [
@@ -865,34 +872,34 @@ function partyPaymentsPanel(d){
   ]),'950px')}</div></section>`;
 }
 function supplierTruckNumbers(d,ownerName){
-  const owner=norm(ownerName),numbers=new Set();
-  for(const t of d.trucks||[])if(norm(t.owner_name)===owner&&t.truck_no)numbers.add(norm(t.truck_no));
-  for(const e of d.truckEntries||[])if(norm(e.owner_name)===owner&&e.truck_no)numbers.add(norm(e.truck_no));
-  for(const p of d.supplierPayments||[])if(norm(p.owner_name)===owner&&p.truck_no)numbers.add(norm(p.truck_no));
-  for(const b of d.pmBills||[])if(norm(b.supplier_name)===owner)for(const item of b.items||[])if(item.truck_no)numbers.add(norm(item.truck_no));
+  const owner=accountKey(ownerName),numbers=new Set();
+  for(const t of d.trucks||[])if(accountKey(t.owner_name)===owner&&t.truck_no)numbers.add(norm(t.truck_no));
+  for(const e of d.truckEntries||[])if(accountKey(e.owner_name)===owner&&e.truck_no)numbers.add(norm(e.truck_no));
+  for(const p of d.supplierPayments||[])if(accountKey(p.owner_name)===owner&&p.truck_no)numbers.add(norm(p.truck_no));
+  for(const b of d.pmBills||[])if(accountKey(b.supplier_name)===owner)for(const item of b.items||[])if(item.truck_no)numbers.add(norm(item.truck_no));
   return [...numbers].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
 }
 function supplierTruckBalance(d,ownerName,truckNo){
-  const owner=norm(ownerName),truck=norm(truckNo);
-  const entryPayable=(d.truckEntries||[]).filter(e=>norm(e.owner_name)===owner&&norm(e.truck_no)===truck).reduce((a,x)=>a+Number(x.payable||0),0);
-  const pmPayable=(d.pmBills||[]).filter(b=>norm(b.supplier_name)===owner).reduce((sum,b)=>sum+(b.items||[]).filter(i=>norm(i.truck_no)===truck).reduce((a,i)=>a+Number(i.supplier_amount||0),0),0);
-  const paid=(d.supplierPayments||[]).filter(p=>norm(p.owner_name)===owner&&norm(p.truck_no)===truck).reduce((a,x)=>a+Number(x.amount||0),0);
+  const owner=accountKey(ownerName),truck=accountKey(truckNo);
+  const entryPayable=(d.truckEntries||[]).filter(e=>accountKey(e.owner_name)===owner&&accountKey(e.truck_no)===truck).reduce((a,x)=>a+Number(x.payable||0),0);
+  const pmPayable=(d.pmBills||[]).filter(b=>accountKey(b.supplier_name)===owner).reduce((sum,b)=>sum+(b.items||[]).filter(i=>accountKey(i.truck_no)===truck).reduce((a,i)=>a+Number(i.supplier_amount||0),0),0);
+  const paid=(d.supplierPayments||[]).filter(p=>accountKey(p.owner_name)===owner&&accountKey(p.truck_no)===truck).reduce((a,x)=>a+Number(x.amount||0),0);
   return {payable:entryPayable+pmPayable,paid,pending:entryPayable+pmPayable-paid};
 }
 function supplierPayActionId(ownerName,truckNo='',suggestedAmount=0){
   return encodeURIComponent(JSON.stringify({ownerName:norm(ownerName),truckNo:norm(truckNo),suggestedAmount:Math.max(0,Number(suggestedAmount||0))}));
 }
 function supplierLedgerLinesForCard(d,ownerName){
-  const owner=norm(ownerName);
-  const entries=(d.truckEntries||[]).filter(e=>norm(e.owner_name)===owner).map(e=>({
+  const owner=accountKey(ownerName);
+  const entries=(d.truckEntries||[]).filter(e=>accountKey(e.owner_name)===owner).map(e=>({
     date:e.entry_date||'',type:'FREIGHT',reference:e.trip_id||e.truck_no||'-',truck:e.truck_no||'-',
     detail:`${e.loading_point||'-'} → ${e.unloading_point||'-'}`,debit:Number(e.payable||0),credit:0,created:e.created_at||''
   }));
-  const payments=(d.supplierPayments||[]).filter(p=>norm(p.owner_name)===owner).map(p=>({
+  const payments=(d.supplierPayments||[]).filter(p=>accountKey(p.owner_name)===owner).map(p=>({
     date:p.payment_date||'',type:'PAYMENT',reference:p.receipt_no||p.reference||'-',truck:p.truck_no||'-',
     detail:p.reference||p.payment_mode||'-',debit:0,credit:Number(p.amount||0),created:p.created_at||''
   }));
-  const pmBills=(d.pmBills||[]).filter(b=>norm(b.supplier_name)===owner).map(b=>({
+  const pmBills=(d.pmBills||[]).filter(b=>accountKey(b.supplier_name)===owner).map(b=>({
     date:b.bill_date||'',type:'PM BILL',reference:b.bill_no||'-',truck:'-',
     detail:b.party_name||b.notes||'-',debit:Number(b.supplier_total||0),credit:0,created:b.created_at||''
   }));
@@ -1130,7 +1137,7 @@ function reportsPanel(d){
     ${metric('Party Outstanding',d.summary.partyOutstanding)}
   </div>
   <div class="v58-accounting-strip">
-    <div><b>Accounting Allocation V58</b><small>Exact invoice-linked receipts + one-time FIFO for old/unlinked receipts</small></div>
+    <div><b>Accounting Allocation V66.5</b><small>Exact invoice receipts + locked one-time allocation for old receipts</small></div>
     <div><span>Legacy FIFO: <b>${Number(a.fifoLegacyPayments||0)}</b></span><span>Unallocated Credit: <b>${money(a.unallocatedPartyCredit||0)}</b></span><span>Invoice Pending: <b>${money(a.invoicePending||0)}</b></span></div>
     <button class="btn primary" data-action="run-accounting-audit">Run Full Accounting Audit</button>
   </div>
@@ -1177,7 +1184,7 @@ async function runAccountingAuditV58(){
     const a=await api('/accounting-audit');
     const errorCount=(a.issues||[]).filter(x=>x.severity==='error').length;
     const warningCount=(a.issues||[]).filter(x=>x.severity==='warning').length;
-    modal('V58 Accounting & Data Isolation Audit',`
+    modal('V66.5 Accounting & Data Isolation Audit',`
       <div class="cards">
         ${metric('Billing',a.totals?.billing||0)}
         ${metric('Party Received',a.totals?.partyReceived||0)}
@@ -2128,9 +2135,9 @@ function partyPaymentForm(x={},tripContext=null){
       const amount=host.querySelector('[name=amount]'),note=host.querySelector('[data-party-payment-note]');
       const refreshInvoices=(preferred='')=>{
         const partyName=norm(party.value);
-        const rows=sortInvoicesSeries((d.invoices||[]).filter(i=>norm(i.party_name)===partyName),true);
+        const rows=sortInvoicesSeries((d.invoices||[]).filter(i=>accountKey(i.party_name)===accountKey(partyName)),true);
         invoice.innerHTML=`<option value="">Party Advance / Auto FIFO</option>${rows.map(i=>{
-          const received=invoiceReceivedAmount(i),pending=Math.max(0,Number(i.total||0)-received);
+          const received=invoiceReceivedAmount(i),pending=invoicePendingAmount(i);
           return `<option value="${esc(i.id)}">${esc(i.invoice_no)} · Pending ${money(pending)}</option>`;
         }).join('')}`;
         if(preferred&&rows.some(i=>String(i.id)===String(preferred)))invoice.value=preferred;
@@ -2143,7 +2150,7 @@ function partyPaymentForm(x={},tripContext=null){
       invoice.addEventListener('change',()=>{
         const selected=(d.invoices||[]).find(i=>String(i.id)===String(invoice.value));
         if(selected&&!edit){
-          const pending=Math.max(0,Number(selected.total||0)-invoiceReceivedAmount(selected));
+          const pending=invoicePendingAmount(selected);
           if(pending>0)amount.value=pending.toFixed(2);
           note.textContent=`${selected.invoice_no} sathe aa receipt exact link thashe. Current pending ${money(pending)}.`;
         }else note.textContent='Blank invoice = Party Advance / Auto FIFO allocation.';
@@ -2374,7 +2381,7 @@ async function viewPartyLedger(name){
 async function viewSupplierLedger(name){
   try{
     const x=await api('/supplier-ledger/'+encodeURIComponent(name));
-    const summary=state.data.supplierLedger.find(s=>s.owner_name===name)||{};
+    const summary=state.data.supplierLedger.find(s=>accountKey(s.owner_name)===accountKey(name))||{};
     const ledgerTitle=`${summary.ledger_no||'PML'} ${name} SUPPLIER LEDGER`;
     const rows=x.lines.map(l=>[l.date,l.type,l.reference,l.debit||'',l.credit||'',l.balance,l.notes||'']);
     const content=`<div class="ledger-print">
@@ -2423,7 +2430,7 @@ function downloadInvoice(i){
 }
 function invoicePrintHtml(i){
   return `<div class="print-sheet"><div class="invoice-header"><div class="invoice-company"><h1>MEERA LOGISTICS</h1><div>Transport & Logistics Services</div><div>Jamnagar, Gujarat</div></div><div class="invoice-meta"><b>${invoiceTypeLabel(i)==='NON-GST'?'NON-GST INVOICE':'TAX INVOICE'}</b><div>${esc(i.invoice_no)}</div><div>${esc(i.invoice_date)}</div></div></div>
-  <div class="invoice-party"><div><b>Bill To</b><div>${esc(i.party_name)}</div><div>${esc(i.party_address||'')}</div><div>GST: ${esc(i.party_gst||state.data?.parties?.find(p=>norm(p.party_name)===norm(i.party_name))?.gst_no||'-')}</div></div><div><b>Material:</b> ${esc(i.material||'-')}<br><b>Loading Date:</b> Trip-wise below</div></div>
+  <div class="invoice-party"><div><b>Bill To</b><div>${esc(i.party_name)}</div><div>${esc(i.party_address||'')}</div><div>GST: ${esc(i.party_gst||state.data?.parties?.find(p=>accountKey(p.party_name)===accountKey(i.party_name))?.gst_no||'-')}</div></div><div><b>Material:</b> ${esc(i.material||'-')}<br><b>Loading Date:</b> Trip-wise below</div></div>
   ${table(['Trip','Loading Date','LR No','Truck No','Description','Loading Wt.','Unloading Wt.','Difference','Billing Wt.','Rate','Amount'],(i.items||[]).map(x=>{
     const trip=state.data?.trips?.find(t=>String(t.id)===String(x.trip_id));
     return [esc(trip?.trip_no||'-'),esc(trip?.trip_date||i.loading_date||'-'),esc(x.lr_number||'-'),esc(x.truck_no),esc(x.description),number3(x.loading_weight??x.weight),number3(x.unloading_weight??x.weight),number3(x.shortage||0),number3(x.weight),money(x.rate),money(x.amount)];
@@ -2444,7 +2451,15 @@ function exportInvoices(){
 }
 function restoreBackup(){
   const input=document.createElement('input');input.type='file';input.accept='.json';
-  input.onchange=async()=>{try{const data=JSON.parse(await input.files[0].text());const mode=confirm('OK = Replace all current data. Cancel = Merge with current data.')?'replace':'merge';await api('/import',{method:'POST',body:JSON.stringify({data,mode})});await loadData();alert('Backup restored successfully.')}catch(e){alert(e.message)}};input.click();
+  input.onchange=async()=>{try{
+    const file=input.files?.[0];if(!file)return;
+    const data=JSON.parse(await file.text());
+    const mode=confirm('OK = Replace current business data safely. Cancel = Merge with current data.')?'replace':'merge';
+    const result=await api('/import',{method:'POST',body:JSON.stringify({data,mode}),timeoutMs:90000});
+    await loadData();
+    const warning=(result.warnings||[]).length?`\n\nWarnings:\n${result.warnings.slice(0,6).join('\n')}`:'';
+    alert(`Backup restored successfully.\nInvoices: ${result.actual?.invoices||0}\nTrips: ${result.actual?.trips||0}\nSupplier Entries: ${result.actual?.truckEntries||0}${warning}`);
+  }catch(e){alert(e.message)}};input.click();
 }
 function fileToDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
 async function compressImage(file){

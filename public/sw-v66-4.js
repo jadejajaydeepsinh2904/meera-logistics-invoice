@@ -1,6 +1,6 @@
-const CACHE='transport-v664-shell';
-const API_CACHE='transport-v664-api';
-const SHELL=['/','/index.html','/manifest.webmanifest','/src/styles.css?v=664','/src/invoice-v36.css?v=39','/src/party-ledger-v40.css?v=40','/src/supplier-ledger-v41.css?v=41','/src/advanced-v44.css?v=664','/src/app.js?v=664','/src/invoice-v36.js?v=39','/src/party-ledger-v40.js?v=40','/src/supplier-ledger-v41.js?v=41','/src/advanced-v44.js?v=664','/assets/meera-logo.png','/src/mobile-v64.css?v=664','/src/desktop-v66.css?v=664'];
+const CACHE='transport-v665-shell';
+const API_CACHE='transport-v665-api';
+const SHELL=['/','/index.html','/manifest.webmanifest','/src/styles.css?v=664','/src/invoice-v36.css?v=39','/src/party-ledger-v40.css?v=40','/src/supplier-ledger-v41.css?v=41','/src/advanced-v44.css?v=664','/src/app.js?v=665','/src/invoice-v36.js?v=39','/src/party-ledger-v40.js?v=40','/src/supplier-ledger-v41.js?v=41','/src/advanced-v44.js?v=665','/assets/meera-logo.png','/src/mobile-v64.css?v=664','/src/desktop-v66.css?v=664'];
 const DB='transport-offline-v664',STORE='queue';
 function openDb(){return new Promise((resolve,reject)=>{const r=indexedDB.open(DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(STORE))r.result.createObjectStore(STORE,{keyPath:'id',autoIncrement:true})};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 async function queueRequest(req){const db=await openDb();const headers={};req.headers.forEach((v,k)=>headers[k]=v);const body=await req.clone().text();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).add({url:req.url,method:req.method,headers,body,createdAt:Date.now()});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
