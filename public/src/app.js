@@ -550,6 +550,22 @@ function v64TripCard(d,t){
     </div>
   </article>`;
 }
+
+function v66DesktopTripCard(d,t){
+  const pay=v64TripPaymentState(d,t);
+  return `<article class="v66-trip-card" data-action="view-trip" data-id="${esc(t.id)}">
+    <div class="v66-trip-card-top">
+      <span class="v66-trip-plate">${esc(t.truck_no||'-')}</span>
+      <span class="v66-trip-route">${esc(t.loading_point||'-')} <b>→</b> ${esc(t.unloading_point||'-')}</span>
+      <span class="v66-trip-status ${pay.paid?'paid':'pending'}">${pay.label}</span>
+    </div>
+    <div class="v66-trip-cut"></div>
+    <div class="v66-trip-card-bottom">
+      <span><small>${esc(t.trip_no||'Trip')} · ${esc(t.trip_date||'')}</small><b>${esc(t.party_name||'-')}</b></span>
+      <strong>${money(v64TripAmount(t))}</strong>
+    </div>
+  </article>`;
+}
 function dashboardPanel(d){
   const recent=[...(d.trips||[])].sort((a,b)=>String(b.trip_date||'').localeCompare(String(a.trip_date||''))).slice(0,5);
   const partyDue=[...(d.partyLedger||[])].filter(x=>Number(x.outstanding||0)>0).sort((a,b)=>Number(b.outstanding||0)-Number(a.outstanding||0)).slice(0,4);
@@ -581,13 +597,18 @@ function dashboardPanel(d){
         <button type="button" class="quick" data-action="new-party-payment"><b>Receive Payment</b><small>Party collection entry</small></button>
         <button type="button" class="quick" data-action="new-supplier-payment"><b>Pay Supplier</b><small>Truck malik payment</small></button>
       </div>
-      <div class="grid2" style="margin-top:12px"><div class="card"><div class="section-title"><h2>Recent Trips</h2><button class="btn soft" data-panel="trips">View all</button></div>${table(['Date','Party','Truck','Route','Status'],d.trips.slice(0,8).map(t=>[esc(t.trip_date),`<b>${esc(t.party_name)}</b>`,esc(t.truck_no),`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,statusBadge(t.status)]),'700px')}</div>
-      <div class="card"><div class="section-title"><h2>Party Outstanding</h2></div><div class="row-list">${d.partyLedger.slice(0,8).map(p=>{
-        const lastInvoice=sortInvoicesSeries(d.invoices.filter(i=>i.party_name===p.party_name),true)[0];
-        return `<div class="ledger-row"><button style="all:unset;cursor:pointer;flex:1" data-action="view-party-ledger" data-id="${encodeURIComponent(p.party_name)}"><b>${esc((p.ledger_no?p.ledger_no+' · ':'')+p.party_name)}</b><small>${lastInvoice?`Last Invoice ${esc(lastInvoice.invoice_no)} · `:''}${p.invoices} invoices · ${p.payments} payments</small></button><div class="money-right"><b>${money(p.outstanding)}</b><small>Outstanding</small></div></div>`;
-      }).join('')}</div></div></div>
+      <div class="v66-dashboard-grid">
+        <div class="card">
+          <div class="section-title"><div><h2>Recent Trips <span class="v66-web-badge">BILTY VIEW</span></h2><small>Latest transport movements</small></div><button class="btn soft" data-panel="trips">View all</button></div>
+          <div class="v66-trip-board">${[...(d.trips||[])].sort((a,b)=>String(b.trip_date||'').localeCompare(String(a.trip_date||''))).slice(0,6).map(t=>v66DesktopTripCard(d,t)).join('')||'<div class="notice">No trips.</div>'}</div>
+        </div>
+        <div class="card">
+          <div class="section-title"><div><h2>Party Outstanding</h2><small>Highest pending accounts</small></div><button class="btn soft" data-panel="parties">Khata</button></div>
+          <div class="v66-party-due">${[...(d.partyLedger||[])].sort((a,b)=>Number(b.outstanding||0)-Number(a.outstanding||0)).slice(0,7).map(p=>`<div class="ledger-row"><button style="all:unset;cursor:pointer;flex:1" data-action="view-party-ledger" data-id="${encodeURIComponent(p.party_name)}"><b>${esc((p.ledger_no?p.ledger_no+' · ':'')+p.party_name)}</b><small>${p.invoices||0} invoices · ${p.payments||0} payments</small></button><div class="money-right"><b>${money(p.outstanding)}</b><small>Outstanding</small></div></div>`).join('')||'<div class="notice">No outstanding.</div>'}</div>
+        </div>
+      </div>
     </div>
-  </section>`;
+  </section>;
 }
 function tripsPanel(d){
   const rows=filterRows(d.trips,['trip_no','invoice_no','trip_date','party_name','truck_no','material','loading_point','unloading_point','status'])

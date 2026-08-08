@@ -1,9 +1,13 @@
-V65 ONLY CHANGED FILES FROM V64
+V66 ONLY CHANGED FILES FROM V65
 
-Upload/replace these 9 project files into the same GitHub main paths.
-Then Vercel deploy and open /?reset=v65.
+Actual changed/new files: 9
 
-For Android local V64 folder:
-replace the same files, then run:
-npm run android:sync
-and Run again in Android Studio.
+GitHub:
+Upload/replace these files in the same paths on main.
+Then let Vercel deploy.
+Open /?reset=v66 once.
+
+Android local:
+Replace these files in the local project.
+Run: npm run android:sync
+Then Run in Android Studio.

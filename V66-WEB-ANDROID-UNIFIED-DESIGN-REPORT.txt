@@ -1,0 +1,28 @@
+V66 WEB + ANDROID UNIFIED DESIGN
+
+Reason:
+V64/V65 GaadiKhata-style interface was primarily mobile-only (<=850px), so desktop web still looked like the old ERP.
+
+V66 fix:
+- Desktop web now uses the same navy / cream / amber transport design language.
+- Sidebar fully restyled.
+- Top header fully restyled.
+- Dashboard metrics and quick actions restyled.
+- Recent Trips now use Bilty-style cards on desktop too.
+- Yellow vehicle number plates and PAID/PENDING stamp style added on desktop.
+- Party Outstanding gets modern Khata card treatment.
+- Tables, forms, modals, buttons, badges and Khata cards use the same unified theme.
+- Android/mobile V64 design retained.
+- V65 Trip > More > Online Bilty / LR fix retained.
+- All accounting, invoice, supplier, party, documents, alerts and SaaS functionality retained.
+- Backend / Cloudflare Worker unchanged.
+
+WEB DEPLOY
+Upload V66 changed files to GitHub main.
+Vercel should deploy frontend.
+Open /?reset=v66 once.
+
+ANDROID
+Replace the V66 changed files in local project, run:
+npm run android:sync
+Then Run in Android Studio.

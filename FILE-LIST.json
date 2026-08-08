@@ -1,15 +1,18 @@
 {
-  "version": "V65-TRIP-LR-DETAILS",
-  "source": "V64 Mobile App Redesign",
+  "version": "V66-WEB-ANDROID-UNIFIED-DESIGN",
+  "source": "V65 Trip LR Details full project",
   "checks": {
-    "lr_action": "passed",
-    "no_document_on_lr": "passed",
-    "lr_details": "passed",
-    "print": "passed",
-    "reset": "passed",
-    "sw": "passed",
-    "syntax": "passed",
-    "build": "passed"
+    "desktop_css_loaded": "passed",
+    "desktop_palette": "passed",
+    "desktop_bilty": "passed",
+    "desktop_plate": "passed",
+    "mobile_retained": "passed",
+    "lr_retained": "passed",
+    "reset_v66": "passed",
+    "sw_v66": "passed",
+    "worker_unchanged": "passed",
+    "javascript_syntax": "passed",
+    "web_build": "passed"
   },
   "files": [
     {
@@ -153,6 +156,11 @@
       "sha256": "079eead078c071f719ad6e64dedcdd9657eb297f31d3ff085ee8cb06e60ff1bc"
     },
     {
+      "path": "V66-WEB-ANDROID-UNIFIED-DESIGN-REPORT.txt",
+      "size": 1071,
+      "sha256": "4b12e2d42d397d38bb70fd0324d5acd195f73fd0a7bd3c5cd226cd02166e2a4d"
+    },
+    {
       "path": "android/GENERATE-ANDROID-PROJECT.txt",
       "size": 754,
       "sha256": "0f98bd68b62641177fa67a5478465a39c748bb6df9d16b5b912ab81d54caadad"
@@ -165,7 +173,7 @@
     {
       "path": "package.json",
       "size": 1042,
-      "sha256": "ad484cb69827612cea10b5bb4af2d03e240b246b230595cd6a5b6b9faab15d8d"
+      "sha256": "edd40b144b45e7b1bdc246c94a722fc7a199c01ffad26ffea8bc27669933ab05"
     },
     {
       "path": "public/account-deletion-draft.html",
@@ -289,8 +297,8 @@
     },
     {
       "path": "public/index.html",
-      "size": 2191,
-      "sha256": "4f296be7693c5a7bcdffe565f070f7ed5d595606e285a62967faa58480844f7b"
+      "size": 2250,
+      "sha256": "d52ad3c7b2336c3712961d4e3ad9d46b4747253abf64922fc509f201817e4c5c"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -310,7 +318,7 @@
     {
       "path": "public/src/advanced-v44.js",
       "size": 63227,
-      "sha256": "6191d92cf84da997d1a91fee6140225a8d71472ae662efdd2ed54a4035f35462"
+      "sha256": "f2b519c08574b615bb5757f0359579566abcde67984a8d642ba8eda1845e795d"
     },
     {
       "path": "public/src/android-v63.js",
@@ -319,13 +327,18 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 151222,
-      "sha256": "23e4b03fd693edb9d8960c2e91bb6efdfffcfa811f97def532fad39057ab408b"
+      "size": 152169,
+      "sha256": "52ea6486dff2285bfbaac3ab0346b52ce900a4a435ccc3b307fe30dcad495dd4"
     },
     {
       "path": "public/src/core/api.js",
       "size": 1912,
       "sha256": "75c49259eee33d7df06bc89fef8c2b23b83613cf45d2521e3a0e2abc5a12031f"
+    },
+    {
+      "path": "public/src/desktop-v66.css",
+      "size": 8016,
+      "sha256": "68f6f85866539f2b88fe440538d0ff8e63904f37e6f42d1ab79a2969265ef832"
     },
     {
       "path": "public/src/invoice-pdf-v39.js",
@@ -413,6 +426,11 @@
       "sha256": "31e804f8eedebaf0ea99a16dc6aa5404c2e1d9ff97ca61135da302bda61f8d89"
     },
     {
+      "path": "public/sw-v66.js",
+      "size": 4971,
+      "sha256": "8dd050fd8365876bb18a9825f14b5bdb5d05edecf67c9ea736243ce64d0a215a"
+    },
+    {
       "path": "public/version-v53.txt",
       "size": 60,
       "sha256": "31a47762c7d756f85471381c7fd7fe7c2ab2d31bec542261bd4fd8cd42d09cfc"
@@ -476,6 +494,11 @@
       "path": "public/version-v65.txt",
       "size": 42,
       "sha256": "0f6f23f8f4672887345ced0ea884b5ef1bbfa675ae0df089a9f637c4f7eb1b37"
+    },
+    {
+      "path": "public/version-v66.txt",
+      "size": 53,
+      "sha256": "45a35a46131040a5a059665622bdbe3aa06ee0e214d720f184a810cc9a1166a9"
     },
     {
       "path": "scripts/android-preflight.mjs",
