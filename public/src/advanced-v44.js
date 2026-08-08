@@ -624,7 +624,7 @@ function decorate(){
 }
 new MutationObserver(()=>requestAnimationFrame(decorate)).observe(document.documentElement,{childList:true,subtree:true});applySettings(cachedSettings());decorate();hydrateSettings();
 window.addEventListener('online',()=>{decorate();navigator.serviceWorker?.controller?.postMessage({type:'SYNC_QUEUE'});toast('Online — offline changes syncing')});window.addEventListener('offline',decorate);
-if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw-v64.js?v=64').catch(()=>{});
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw-v65.js?v=65').catch(()=>{});
 
 document.addEventListener('ml-open-saas-v59',()=>openSaasCenter());
 

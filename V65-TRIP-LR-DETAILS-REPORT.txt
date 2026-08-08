@@ -1,0 +1,18 @@
+V65 TRIP LR DETAILS
+
+More > Trip > Online Bilty / LR fix:
+- Document update/upload no longer opens from LR.
+- LR now opens directly with the selected Trip's details.
+- Includes LR No, Trip No, Date, Status, Invoice, Party GST, Truck, Supplier, Driver, Material, route, weights, shortage, rate and freight amount.
+- Print / Save PDF added.
+- POD Challan remains unchanged.
+- Truck Documents remain in Truck & Document section.
+- V64 Android/mobile design retained.
+- Backend schema unchanged.
+
+Android local update:
+npm run android:sync
+Then Run in Android Studio.
+
+Web:
+Deploy frontend and open /?reset=v65 once.

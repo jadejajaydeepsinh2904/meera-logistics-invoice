@@ -1084,6 +1084,7 @@ function handleAction(action,id){
   if(action==='resolve-audit')return resolveAuditIssue(id);
   if(action==='new-trip'||action==='edit-trip')return tripForm(action==='edit-trip'?(find('trip',id)||{}):{});
   if(action==='view-trip')return universalTripScreen(find('trip',id));
+  if(action==='view-trip-lr')return tripLrView(find('trip',id));
   if(action==='view-linked-invoice')return viewInvoice(find('invoice',id));
   if(action==='trip-create-invoice'){const t=find('trip',id);return invoiceForm({},t||{});}
   if(action==='trip-party-payment'){const t=find('trip',id);return partyPaymentForm({},t||{});}
@@ -1367,8 +1368,8 @@ function universalTripScreen(trip){
 
       <section class="ut-pane" data-ut-pane="more">
         <div class="ut-list">
-          <button data-action="new-document" data-id="${encodeURIComponent(trip.truck_no)}">
-            <span>🧾</span><div><b>Online Bilty / LR</b><small>Add or view documents</small></div><i>›</i>
+          <button data-action="view-trip-lr" data-id="${esc(trip.id)}">
+            <span>🧾</span><div><b>Online Bilty / LR</b><small>View LR with complete trip details</small></div><i>›</i>
           </button>
           <button data-action="edit-trip" data-id="${esc(trip.id)}">
             <span>📝</span><div><b>POD Challan</b><small>${trip.pod_file_name?esc(trip.pod_file_name):'Add POD image'}</small></div><i>›</i>
@@ -1385,6 +1386,100 @@ function universalTripScreen(trip){
         handleAction(btn.dataset.action,btn.dataset.id);
       });
     }});
+}
+
+
+function tripLrDetails(trip){
+  const f=tripFinancials(trip);
+  const owner=tripSupplierName(trip);
+  const inv=f.invoice||null;
+  const item=(f.invoiceItems||[])[0]||{};
+  const party=state.data.parties.find(p=>norm(p.party_name)===norm(trip.party_name))||{};
+  const loadingWeight=Number(trip.loading_weight??item.loading_weight??trip.weight??0);
+  const unloadingWeight=Number(trip.unloading_weight??item.unloading_weight??trip.weight??0);
+  const billingWeight=Number(trip.billing_weight??item.weight??trip.weight??unloadingWeight);
+  return {
+    lrNo:item.lr_number||trip.lr_number||trip.trip_no||trip.id||'-',
+    tripNo:trip.trip_no||trip.id||'-',
+    date:trip.trip_date||'-',
+    party:trip.party_name||'-',
+    partyGst:inv?.party_gst||party.gst_no||'-',
+    truck:trip.truck_no||'-',
+    supplier:owner||'-',
+    driver:trip.driver_name||'-',
+    driverMobile:trip.driver_mobile||'-',
+    loading:trip.loading_point||'-',
+    unloading:trip.unloading_point||'-',
+    material:trip.material||'-',
+    loadingWeight,
+    unloadingWeight,
+    billingWeight,
+    shortage:Math.max(0,loadingWeight-unloadingWeight),
+    rate:Number(trip.rate||item.rate||0),
+    amount:Number(f.revenue||0),
+    invoiceNo:inv?.invoice_no||'-',
+    status:trip.status||'Booked'
+  };
+}
+function tripLrHtml(trip){
+  const x=tripLrDetails(trip);
+  return `<div class="v65-lr-sheet">
+    <div class="v65-lr-head">
+      <div>
+        <small>TRANSPORT CONSIGNMENT NOTE</small>
+        <h1>${esc(state.data.saas?.company?.company_name||'MEERA LOGISTICS')}</h1>
+        <p>Online Bilty / LR · Trip linked details</p>
+      </div>
+      <div class="v65-lr-no"><small>LR NO.</small><b>${esc(x.lrNo)}</b><span>${esc(x.date)}</span></div>
+    </div>
+    <div class="v65-lr-strip">
+      <div><small>TRIP NO.</small><b>${esc(x.tripNo)}</b></div>
+      <div><small>STATUS</small><b>${esc(x.status)}</b></div>
+      <div><small>INVOICE</small><b>${esc(x.invoiceNo)}</b></div>
+    </div>
+    <div class="v65-lr-grid">
+      <div class="v65-lr-box span2"><small>PARTY / CONSIGNEE</small><b>${esc(x.party)}</b><span>GST: ${esc(x.partyGst)}</span></div>
+      <div class="v65-lr-box"><small>TRUCK NUMBER</small><b class="v65-lr-plate">${esc(x.truck)}</b></div>
+      <div class="v65-lr-box"><small>SUPPLIER / TRUCK MALIK</small><b>${esc(x.supplier)}</b></div>
+      <div class="v65-lr-box"><small>DRIVER</small><b>${esc(x.driver)}</b><span>${esc(x.driverMobile)}</span></div>
+      <div class="v65-lr-box"><small>MATERIAL</small><b>${esc(x.material)}</b></div>
+    </div>
+    <div class="v65-lr-route">
+      <div><small>LOADING POINT</small><b>${esc(x.loading)}</b></div>
+      <span>→</span>
+      <div><small>UNLOADING POINT</small><b>${esc(x.unloading)}</b></div>
+    </div>
+    <div class="v65-lr-weight-grid">
+      <div><small>LOADING WT.</small><b>${esc(x.loadingWeight)}</b></div>
+      <div><small>UNLOADING WT.</small><b>${esc(x.unloadingWeight)}</b></div>
+      <div><small>SHORTAGE</small><b>${esc(x.shortage)}</b></div>
+      <div><small>BILLING WT.</small><b>${esc(x.billingWeight)}</b></div>
+    </div>
+    <div class="v65-lr-money">
+      <div><span>Rate</span><b>${money(x.rate)}</b></div>
+      <div class="total"><span>Trip Freight Amount</span><b>${money(x.amount)}</b></div>
+    </div>
+    <div class="v65-lr-sign">
+      <div><span></span><b>Driver / Receiver</b></div>
+      <div><span></span><b>Authorized Signatory</b></div>
+    </div>
+  </div>`;
+}
+function tripLrView(trip){
+  if(!trip)return alert('Trip not found.');
+  modal(`Online Bilty / LR · ${trip.trip_no||trip.id}`,`
+    ${tripLrHtml(trip)}
+    <div class="form-actions no-print v65-lr-actions">
+      <button type="button" class="btn primary" data-v65-lr-print>Print / Save PDF</button>
+    </div>
+  `,{onMount:host=>{
+    host.querySelector('[data-v65-lr-print]').onclick=()=>{
+      const w=window.open('','_blank');
+      if(!w)return alert('Please allow pop-ups to print LR.');
+      w.document.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>LR ${esc(tripLrDetails(trip).lrNo)}</title><link rel="stylesheet" href="/src/styles.css?v=65"></head><body class="v65-lr-print-body">${tripLrHtml(trip)}<script>setTimeout(()=>window.print(),400)<\/script></body></html>`);
+      w.document.close();
+    };
+  }});
 }
 
 function tripForm(x={},afterSave=null){

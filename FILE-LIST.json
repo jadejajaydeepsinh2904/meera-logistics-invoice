@@ -1,30 +1,16 @@
 {
-  "version": "V64-MOBILE-APP-REDESIGN",
-  "source": "V63 Android App Foundation full project",
-  "design_source": "user-owned gaadikhata-app-design.html",
-  "backend_schema": "unchanged from V62 / D1 schema_version 53",
+  "version": "V65-TRIP-LR-DETAILS",
+  "source": "V64 Mobile App Redesign",
   "checks": {
-    "user_design_palette": "passed",
-    "bilty_cards": "passed",
-    "yellow_plate": "passed",
-    "paid_pending_stamp": "passed",
-    "mobile_header": "passed",
-    "bottom_nav": "passed",
-    "khata_overview": "passed",
-    "mobile_trips": "passed",
-    "mobile_trucks": "passed",
-    "desktop_retained": "passed",
-    "notification_bell": "passed",
-    "v63_android_retained": "passed",
-    "v62_backend_retained": "passed",
-    "reset_v64": "passed",
-    "mobile_css_loaded": "passed",
-    "sw_v64": "passed",
-    "android_preflight": "passed",
-    "javascript_syntax": "passed",
-    "web_build": "passed"
+    "lr_action": "passed",
+    "no_document_on_lr": "passed",
+    "lr_details": "passed",
+    "print": "passed",
+    "reset": "passed",
+    "sw": "passed",
+    "syntax": "passed",
+    "build": "passed"
   },
-  "total_files": 107,
   "files": [
     {
       "path": ".vercelignore",
@@ -162,6 +148,11 @@
       "sha256": "79a1f9ff40b2c8bf49736b2177a0bab48eca31c4cfdc4db43da148d9fbdc2e75"
     },
     {
+      "path": "V65-TRIP-LR-DETAILS-REPORT.txt",
+      "size": 613,
+      "sha256": "079eead078c071f719ad6e64dedcdd9657eb297f31d3ff085ee8cb06e60ff1bc"
+    },
+    {
       "path": "android/GENERATE-ANDROID-PROJECT.txt",
       "size": 754,
       "sha256": "0f98bd68b62641177fa67a5478465a39c748bb6df9d16b5b912ab81d54caadad"
@@ -174,7 +165,7 @@
     {
       "path": "package.json",
       "size": 1042,
-      "sha256": "c216efc12788cb99ec56c9316dd040029cec262e1f9bbfef472c9e94f6f21e61"
+      "sha256": "ad484cb69827612cea10b5bb4af2d03e240b246b230595cd6a5b6b9faab15d8d"
     },
     {
       "path": "public/account-deletion-draft.html",
@@ -299,7 +290,7 @@
     {
       "path": "public/index.html",
       "size": 2191,
-      "sha256": "c3e8847377e78aa20967f0a3fe78b2c8f8ac3ce27282f43c2788ffeb0e99aab7"
+      "sha256": "4f296be7693c5a7bcdffe565f070f7ed5d595606e285a62967faa58480844f7b"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -319,7 +310,7 @@
     {
       "path": "public/src/advanced-v44.js",
       "size": 63227,
-      "sha256": "9f4603bbe480718baf17c41882645df6493a6fdd9da907af4ca5114498b48dd6"
+      "sha256": "6191d92cf84da997d1a91fee6140225a8d71472ae662efdd2ed54a4035f35462"
     },
     {
       "path": "public/src/android-v63.js",
@@ -328,8 +319,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 146824,
-      "sha256": "6c773d29dddc75e8863878c81e6608eba9ff53fec2fd5238d29dc4c5f89156b5"
+      "size": 151222,
+      "sha256": "23e4b03fd693edb9d8960c2e91bb6efdfffcfa811f97def532fad39057ab408b"
     },
     {
       "path": "public/src/core/api.js",
@@ -373,8 +364,8 @@
     },
     {
       "path": "public/src/styles.css",
-      "size": 38953,
-      "sha256": "551e77088472d5195f1d1d101804619ff5162373d46d491e9ceadaea3946f898"
+      "size": 42333,
+      "sha256": "a8def539aab70c55852b7937033fe9b02310dff2e2a4536aedfb3912d7ddaa6a"
     },
     {
       "path": "public/src/supplier-ledger-pdf-v41.js",
@@ -415,6 +406,11 @@
       "path": "public/sw-v64.js",
       "size": 4943,
       "sha256": "ac97cec0878b2104ae18145762b551d08350bad8f1b3002e607dab74e9cac468"
+    },
+    {
+      "path": "public/sw-v65.js",
+      "size": 4943,
+      "sha256": "31e804f8eedebaf0ea99a16dc6aa5404c2e1d9ff97ca61135da302bda61f8d89"
     },
     {
       "path": "public/version-v53.txt",
@@ -475,6 +471,11 @@
       "path": "public/version-v64.txt",
       "size": 46,
       "sha256": "96fe91f58a9f1ce48ddf615e085222285a82a621e67060ba3da8886ff99a214d"
+    },
+    {
+      "path": "public/version-v65.txt",
+      "size": 42,
+      "sha256": "0f6f23f8f4672887345ced0ea884b5ef1bbfa675ae0df089a9f637c4f7eb1b37"
     },
     {
       "path": "scripts/android-preflight.mjs",

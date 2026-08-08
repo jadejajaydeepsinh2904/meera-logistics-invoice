@@ -1,19 +1,9 @@
-V64 ONLY CHANGED/NEW FILES FROM V63
+V65 ONLY CHANGED FILES FROM V64
 
-Aa ZIP existing V63 GitHub repo ne V64 ma update karva mate chhe.
-V63 ane V64 ma je files same chhe e aa ZIP ma mukeli nathi.
+Upload/replace these 9 project files into the same GitHub main paths.
+Then Vercel deploy and open /?reset=v65.
 
-Modified files: 8
-New files: 5
-Deleted files: 0
-Project files to upload: 13
-
-UPLOAD:
-1. Aa ZIP extract karo.
-2. UPLOAD-INSTRUCTIONS.txt ane V64-DELTA-MANIFEST.json GitHub ma upload karvani jarur nathi.
-3. Baki badhi files/folders GitHub main ma same path par upload/replace karo.
-4. Vercel redeploy karo.
-5. Website ek vaar /?reset=v64 thi kholo.
-
-Deleted from V63:
-None
+For Android local V64 folder:
+replace the same files, then run:
+npm run android:sync
+and Run again in Android Studio.
