@@ -540,3 +540,16 @@ select option[value="__ADD_NEW__"]{font-weight:800;color:#2457d2}
   .v664-line-supplier-title{grid-column:1/-1}
   .v664-line-supplier .field:first-of-type{grid-column:1/-1}
 }
+
+/* V66.7 Invoice route dropdowns + searchable truck */
+.v667-invoice-line{
+  grid-template-columns:.7fr .85fr .8fr 1.2fr 1fr 1fr .72fr .72fr .65fr .72fr .65fr .75fr auto!important;
+  min-width:1940px!important;
+}
+.v667-search-master{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px;align-items:stretch}
+.v667-search-master input{min-width:0}
+.v667-search-master-add{white-space:nowrap;padding:6px 9px}
+@media(max-width:700px){
+  .v667-invoice-line{grid-template-columns:1fr 1fr!important;min-width:0!important}
+  .v667-search-master{grid-template-columns:1fr}
+}

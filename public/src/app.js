@@ -69,6 +69,50 @@ function datalistField(label,name,value,listId,items,opts=''){
   return `<label class="field"><span>${label}</span><input name="${name}" value="${esc(value)}" list="${listId}" ${opts}><datalist id="${listId}">${items.map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist></label>`;
 }
 
+function searchableMasterField(label,name,items,value='',listId='',masterType='',opts='',cls=''){
+  const cleanItems=[...new Set([value,...items].filter(Boolean).map(norm))];
+  const addText=masterType==='truck'?'+ New Truck':`+ New ${label}`;
+  return `<label class="field ${cls}"><span>${label}</span><div class="v667-search-master">
+    <input name="${name}" value="${esc(value)}" list="${esc(listId)}" data-searchable-master="${esc(masterType)}" placeholder="Search ${esc(label)}..." autocomplete="off" ${opts}>
+    <datalist id="${esc(listId)}">${cleanItems.map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist>
+    <button type="button" class="mini v667-search-master-add" data-searchable-master-add="${esc(masterType)}">${esc(addText)}</button>
+  </div></label>`;
+}
+
+function searchableMasterValueIsValid(input){
+  const value=norm(input?.value);
+  if(!value)return !input?.required;
+  const options=[...(input?.list?.options||[])];
+  return options.some(option=>norm(option.value)===value);
+}
+
+function validateSearchableMaster(input){
+  if(!input)return true;
+  const valid=searchableMasterValueIsValid(input);
+  input.setCustomValidity(valid?'':`Select ${input.name==='truckNo'?'a Truck Number':'a value'} from the list or use New Add.`);
+  return valid;
+}
+
+function wireSearchableMasterFields(host){
+  host.querySelectorAll('input[data-searchable-master]').forEach(input=>{
+    if(input.dataset.searchableMasterWired==='1')return;
+    input.dataset.searchableMasterWired='1';
+    input.addEventListener('input',()=>input.setCustomValidity(''));
+    input.addEventListener('change',()=>validateSearchableMaster(input));
+    input.addEventListener('blur',()=>validateSearchableMaster(input));
+  });
+  host.querySelectorAll('[data-searchable-master-add]').forEach(button=>{
+    if(button.dataset.searchableMasterWired==='1')return;
+    button.dataset.searchableMasterWired='1';
+    button.addEventListener('click',async()=>{
+      const input=button.parentElement?.querySelector('input[data-searchable-master]');
+      if(!input)return;
+      input.setCustomValidity('');
+      await quickAddMaster(button.dataset.searchableMasterAdd,input,host);
+    });
+  });
+}
+
 function masterSelectField(label,name,items,value='',masterType='',opts='',cls=''){
   const cleanItems=[...new Set([value,...items].filter(Boolean))];
   const addText=masterType==='truck'?'＋ New Truck Add':masterType==='supplier'?'＋ New Supplier Add':`＋ Add New ${label}`;
@@ -112,11 +156,23 @@ function wireNewValueSelects(host){
 function addOptionAndSelect(select,value){
   const cleanValue=norm(value);
   if(!cleanValue)return;
+  if(select instanceof HTMLInputElement){
+    const list=select.list;
+    if(list&&![...list.options].some(option=>norm(option.value)===cleanValue)){
+      const option=document.createElement('option');
+      option.value=cleanValue;
+      list.appendChild(option);
+    }
+    select.value=cleanValue;
+    select.setCustomValidity('');
+    select.dispatchEvent(new Event('change',{bubbles:true}));
+    return;
+  }
   let option=[...select.options].find(o=>norm(o.value)===cleanValue);
   if(!option){
     option=document.createElement('option');
     option.value=cleanValue;option.textContent=cleanValue;
-    select.insertBefore(option,select.querySelector('option[value="__ADD_NEW__"]'));
+    select.insertBefore(option,select.querySelector('option[value="__ADD_NEW__"],option[value="__ADD_VALUE__"]'));
   }
   select.value=cleanValue;
   select.dispatchEvent(new Event('change',{bubbles:true}));
@@ -1896,11 +1952,24 @@ function invoiceForm(x={},tripContext=null){
   const initialType=x.invoice_type||'GST';
   const items=(x.items&&x.items.length?x.items:(tripContext?[{
     trip_id:tripContext.id,tripId:tripContext.id,truck_no:tripContext.truck_no,truckNo:tripContext.truck_no,
+    loading_point:tripContext.loading_point,loadingPoint:tripContext.loading_point,
+    unloading_point:tripContext.unloading_point,unloadingPoint:tripContext.unloading_point,
     description:`${tripContext.loading_point} TO ${tripContext.unloading_point}`,
     lr_number:tripContext.lr_number||'',loading_weight:tripContext.loading_weight??tripContext.weight,
     unloading_weight:tripContext.unloading_weight??tripContext.weight,
     shortage:tripContext.shortage||0,weight:tripContext.billing_weight??tripContext.weight,rate:tripContext.rate
-  }]:[{trip_id:'',lr_number:'',truck_no:'',description:'',loading_weight:0,unloading_weight:0,shortage:0,weight:0,rate:0}]));
+  }]:[{trip_id:'',lr_number:'',truck_no:'',loadingPoint:'',unloadingPoint:'',description:'',loading_weight:0,unloading_weight:0,shortage:0,weight:0,rate:0}]));
+
+  const invoiceRouteParts=(item={},linkedTrip=null)=>{
+    let loadingPoint=norm(item.loading_point||item.loadingPoint||linkedTrip?.loading_point||'');
+    let unloadingPoint=norm(item.unloading_point||item.unloadingPoint||linkedTrip?.unloading_point||'');
+    if(!loadingPoint||!unloadingPoint){
+      const parts=String(item.description||'').trim().split(/\s+(?:TO|→|->)\s+/i);
+      if(!loadingPoint)loadingPoint=norm(parts[0]||'');
+      if(!unloadingPoint)unloadingPoint=norm(parts.slice(1).join(' TO '));
+    }
+    return {loadingPoint,unloadingPoint};
+  };
 
   const host=modal(edit?'Edit Invoice':'New Invoice',`<form class="form-grid" id="invoiceForm">
     <div class="span2 invoice-type-switch">
@@ -1939,18 +2008,21 @@ function invoiceForm(x={},tripContext=null){
     const lines=host.querySelector('#invoiceLines');
     const typeInput=host.querySelector('[name=invoiceType]');
     const numberInput=host.querySelector('[name=invoiceNo]');
+    let invoiceLineSequence=0;
 
     function addLine(item={}){
       const linkedTrip=d.trips.find(t=>String(t.id)===String(item.trip_id||item.tripId||''));
+      const route=invoiceRouteParts(item,linkedTrip);
       const linkedSupplierEntry=d.truckEntries.find(e=>String(e.trip_id||'')===String(linkedTrip?.id||item.trip_id||item.tripId||''))||null;
       const linkedTruck=d.trucks.find(t=>norm(t.truck_no)===norm(item.truck_no||item.truckNo||linkedTrip?.truck_no||''));
       const initialSupplier=norm(item.supplier_name||item.supplierName||linkedSupplierEntry?.owner_name||linkedTruck?.owner_name||linkedTrip?.supplier_name||'');
+      const truckListId=`v667-invoice-trucks-${Date.now()}-${++invoiceLineSequence}`;
       const existingAdvance=(d.supplierPayments||[])
         .filter(p=>String(p.trip_id||'')===String(linkedTrip?.id||item.trip_id||item.tripId||'')&&/ADVANCE/i.test(String(p.reference||p.notes||'')))
         .reduce((sum,p)=>sum+Number(p.amount||0),0);
 
       const row=document.createElement('div');
-      row.className='invoice-line v664-invoice-line';
+      row.className='invoice-line v664-invoice-line v667-invoice-line';
       row.innerHTML=`
         <label class="field"><span>Trip No.</span>
           <input name="tripNoDisplay" value="${esc(linkedTrip?.trip_no||'AUTO')}" readonly>
@@ -1958,8 +2030,9 @@ function invoiceForm(x={},tripContext=null){
         </label>
         ${field('Loading Date','loadingDate',item.loading_date||item.loadingDate||linkedTrip?.trip_date||x.loading_date||today(),'date','required')}
         ${field('LR Number','lrNumber',item.lr_number||item.lrNumber||linkedTrip?.lr_number||'','','required')}
-        ${masterSelectField('Truck No.','truckNo',d.trucks.map(t=>t.truck_no),item.truck_no||item.truckNo||linkedTrip?.truck_no||'','truck','required')}
-        ${field('Description / Route','description',item.description||(linkedTrip?`${linkedTrip.loading_point} TO ${linkedTrip.unloading_point}`:''),'','required')}
+        ${searchableMasterField('Truck No.','truckNo',d.trucks.map(t=>t.truck_no),item.truck_no||item.truckNo||linkedTrip?.truck_no||'',truckListId,'truck','required')}
+        ${masterSelectField('Loading Point','loadingPoint',[...new Set(d.routes.map(r=>r.loading_point))],route.loadingPoint,'route-loading','required')}
+        ${masterSelectField('Unloading Point','unloadingPoint',[...new Set(d.routes.map(r=>r.unloading_point))],route.unloadingPoint,'route-unloading','required')}
         ${field('Loading Weight','loadingWeight',item.loading_weight??item.loadingWeight??linkedTrip?.loading_weight??item.weight??0,'number','step="0.001" required')}
         ${field('Unloading Weight','unloadingWeight',item.unloading_weight??item.unloadingWeight??linkedTrip?.unloading_weight??item.weight??0,'number','step="0.001" required')}
         ${field('Difference','shortage',item.shortage??linkedTrip?.shortage??0,'number','step="0.001" readonly')}
@@ -2008,17 +2081,20 @@ function invoiceForm(x={},tripContext=null){
 
       lines.appendChild(row);
       wireMasterSelects(row);
+      wireSearchableMasterFields(row);
 
       const truckSelect=row.querySelector('[name=truckNo]');
       const supplierSelect=row.querySelector('[name=supplierName]');
       supplierSelect?.addEventListener('change',()=>supplierSelect.dataset.manual='1');
-      truckSelect?.addEventListener('change',()=>{
+      const applyTruckSupplier=()=>{
         const truck=d.trucks.find(t=>norm(t.truck_no)===norm(truckSelect.value));
         if(truck?.owner_name && (!supplierSelect.value || supplierSelect.dataset.manual!=='1')){
           addOptionAndSelect(supplierSelect,truck.owner_name);
           supplierSelect.dataset.manual='';
         }
-      });
+      };
+      truckSelect?.addEventListener('input',applyTruckSupplier);
+      truckSelect?.addEventListener('change',applyTruckSupplier);
 
       row.querySelector('.v664-remove-trip').onclick=()=>{row.remove();recalcInvoice()};
       row.querySelector('[name=loadingWeight]').addEventListener('input',autoBilling);
@@ -2063,7 +2139,7 @@ function invoiceForm(x={},tripContext=null){
     host.querySelector('#addTripFromInvoice').onclick=()=>tripForm({},(newTripId,fresh)=>{
       const trip=fresh.trips.find(t=>String(t.id)===String(newTripId));
       if(!trip)return;
-      addLine({tripId:trip.id,loadingDate:trip.trip_date,lrNumber:trip.lr_number||'',truckNo:trip.truck_no,description:`${trip.loading_point} TO ${trip.unloading_point}`,loadingWeight:trip.loading_weight??trip.weight,unloadingWeight:trip.unloading_weight??trip.weight,weight:trip.billing_weight??trip.weight,rate:trip.rate});
+      addLine({tripId:trip.id,loadingDate:trip.trip_date,lrNumber:trip.lr_number||'',truckNo:trip.truck_no,loadingPoint:trip.loading_point,unloadingPoint:trip.unloading_point,description:`${trip.loading_point} TO ${trip.unloading_point}`,loadingWeight:trip.loading_weight??trip.weight,unloadingWeight:trip.unloading_weight??trip.weight,weight:trip.billing_weight??trip.weight,rate:trip.rate});
     });
 
     host.querySelector('[name=partyName]').addEventListener('change',e=>{
@@ -2076,13 +2152,18 @@ function invoiceForm(x={},tripContext=null){
 
     host.querySelector('[data-close-form]').onclick=()=>host.remove();
     host.querySelector('#invoiceForm').onsubmit=async e=>{
-      e.preventDefault();const body=formDataObject(e.target);
+      e.preventDefault();
+      const searchableTruck=[...lines.querySelectorAll('input[name=truckNo][data-searchable-master]')].find(input=>!validateSearchableMaster(input));
+      if(searchableTruck){searchableTruck.reportValidity();searchableTruck.focus();return}
+      const body=formDataObject(e.target);
       body.items=[...lines.querySelectorAll('.invoice-line')].map(r=>({
         tripId:r.querySelector('[name=tripId]').value,
         loadingDate:r.querySelector('[name=loadingDate]').value,
         lrNumber:r.querySelector('[name=lrNumber]').value,
         truckNo:r.querySelector('[name=truckNo]').value,
-        description:r.querySelector('[name=description]').value,
+        loadingPoint:r.querySelector('[name=loadingPoint]').value,
+        unloadingPoint:r.querySelector('[name=unloadingPoint]').value,
+        description:`${norm(r.querySelector('[name=loadingPoint]').value)} TO ${norm(r.querySelector('[name=unloadingPoint]').value)}`,
         loadingWeight:r.querySelector('[name=loadingWeight]').value,
         unloadingWeight:r.querySelector('[name=unloadingWeight]').value,
         billingWeight:r.querySelector('[name=weight]').value,
