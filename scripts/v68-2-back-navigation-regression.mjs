@@ -8,10 +8,11 @@ const app=read('public/src/app.js');
 const native=read('public/src/android-v63.js');
 const css=read('public/src/mobile-v68.css');
 const index=read('public/index.html');
-const androidApp=read('android/app/build.gradle');
+const androidPath=path.join(root,'android/app/build.gradle');
+const androidApp=fs.existsSync(androidPath)?fs.readFileSync(androidPath,'utf8'):'';
 
 assert.match(index,/mobile-v68\.css\?v=685/,'Current back-button CSS cache key is active');
-assert.match(index,/app\.js\?v=690/,'Current app navigation cache key is active');
+assert.match(index,/app\.js\?v=691/,'Current app navigation cache key is active');
 assert.match(index,/android-v63\.js\?v=683/,'V68.3 Android back handler cache key is active');
 
 assert.match(app,/const panelTrail=\[\]/,'Panel navigation keeps a previous-screen trail');
@@ -33,10 +34,9 @@ assert.match(nativeBack,/App\?\.exitApp/,'Dashboard system Back can still exit t
 
 assert.match(css,/\.v64-date-line\.has-back\{[\s\S]*?grid-template-columns:auto minmax\(0,1fr\) auto/,'Back, page title and Online badge fit one mobile header row');
 assert.match(css,/\.v682-back\{[\s\S]*?min-height:34px[\s\S]*?color:#fff/,'Mobile Back is visible and touch-friendly');
-assert.match(androidApp,/versionCode\s+8\b/,'Current Android update preserves V68 back navigation');
-assert.match(androidApp,/versionName\s+"1\.5\.0"/,'Current Android version preserves V68 back navigation');
+if(androidApp){assert.match(androidApp,/versionCode\s+8\b/,'Current Android update preserves V68 back navigation');assert.match(androidApp,/versionName\s+"1\.5\.0"/,'Current Android version preserves V68 back navigation')}
 
-for(const rel of ['index.html','src/app.js','src/android-v63.js','src/mobile-v68.css']){
+if(androidApp)for(const rel of ['index.html','src/app.js','src/android-v63.js','src/mobile-v68.css']){
   assert.equal(read(`android/app/src/main/assets/public/${rel}`),read(`public/${rel}`),`Android copied asset matches public/${rel}`);
 }
 

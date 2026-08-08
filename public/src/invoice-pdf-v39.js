@@ -24,7 +24,7 @@ const formatDate=value=>{
   const parts=String(value).split('-');
   return parts.length===3?`${parts[2]}-${parts[1]}-${parts[0]}`:String(value);
 };
-const invoiceType=invoice=>(invoice.invoice_type||'GST')==='NON_GST'?'NON-GST':'GST';
+const invoiceType=invoice=>{const type=invoice.invoice_type||'GST';return type==='NON_GST'?'NON-GST':type==='IGST'?'IGST':'GST'};
 
 const DEFAULT_COMPANY_SETTINGS={
   companyName:'MEERA LOGISTICS',
@@ -176,7 +176,7 @@ function createInvoiceContent(invoice,data){
   const company=companySettings(data);
   const pdf=new CanvasPdf();
   const items=invoice.items||[];
-  const nonGst=invoiceType(invoice)==='NON-GST';
+  const type=invoiceType(invoice),nonGst=type==='NON-GST',igst=type==='IGST';
   const loadingTotal=items.reduce((sum,item)=>sum+Number(item.loading_weight??item.weight??0),0);
   const unloadingTotal=items.reduce((sum,item)=>sum+Number(item.unloading_weight??item.weight??0),0);
   const shortageTotal=items.reduce((sum,item)=>sum+Number(item.shortage??Math.max(0,Number(item.loading_weight||0)-Number(item.unloading_weight||0))),0);
@@ -196,7 +196,7 @@ function createInvoiceContent(invoice,data){
   if(isMeera)pdf.image('Logo',24,502,62,62);
   pdf.text(company.companyName,isMeera?104:24,536,isMeera?25:22,{font:'F2'});
   drawCell(pdf,{x:607,y:536,w:207,h:25,text:invoice.invoice_no||'-',font:'F2',size:12,color:[0.72,0.36,0.10]});
-  drawCell(pdf,{x:607,y:511,w:207,h:25,text:nonGst?'Non-GST Transport Invoice':'Transport Invoice',font:'F2',size:11,color:[0.72,0.36,0.10]});
+  drawCell(pdf,{x:607,y:511,w:207,h:25,text:nonGst?'Non-GST Transport Invoice':igst?'IGST Transport Invoice':'Transport Invoice',font:'F2',size:11,color:[0.72,0.36,0.10]});
 
   const infoX=24,infoY=434,infoW=390,infoH=58,infoRow=14.5,infoLabel=100;
   const infoRows=[
@@ -241,7 +241,7 @@ function createInvoiceContent(invoice,data){
   });
 
   const tableX=24,tableW=790,tableTop=314,headerH=18;
-  const totalsRows=nonGst?4:6;
+  const totalsRows=nonGst?4:igst?5:6;
   const totalsHeight=totalsRows*15;
   const bottomY=105;
   const bottomTop=bottomY+Math.max(63,totalsHeight);
@@ -277,7 +277,7 @@ function createInvoiceContent(invoice,data){
 
   const totalsX=590,totalsW=224,totalsLabel=120,totalRow=15;
   const totals=[['Total',freightTotal]];
-  if(!nonGst){totals.push([`SGST ${Number(invoice.sgst||0)}%`,sgstAmount],[`CGST ${Number(invoice.cgst||0)}%`,cgstAmount])}
+  if(!nonGst){if(igst)totals.push([`IGST ${Number(invoice.sgst||0)+Number(invoice.cgst||0)}%`,sgstAmount+cgstAmount]);else totals.push([`SGST ${Number(invoice.sgst||0)}%`,sgstAmount],[`CGST ${Number(invoice.cgst||0)}%`,cgstAmount])}
   totals.push(['Diesel',Number(invoice.diesel||0)],['Munshi Charges',Number(invoice.munshi||0)],['Total',Number(invoice.total||freightTotal+sgstAmount+cgstAmount+Number(invoice.diesel||0)+Number(invoice.munshi||0))]);
   totals.forEach((row,index)=>{
     const y=bottomY+totals.length*totalRow-(index+1)*totalRow;

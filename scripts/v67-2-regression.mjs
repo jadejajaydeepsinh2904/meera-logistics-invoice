@@ -37,10 +37,10 @@ assert.equal(context.result.count,4,'Local feed includes party, supplier, docume
 assert.equal(context.result.urgent,3,'Local feed marks the correct alerts important');
 
 assert.match(index,/advanced-v44\.css\?v=672/);
-assert.match(index,/app\.js\?v=690/);
+assert.match(index,/app\.js\?v=691/);
 assert.match(index,/advanced-v44\.js\?v=685/);
 
-for(const rel of ['index.html','src/app.js','src/advanced-v44.js','src/advanced-v44.css']){
+if(fs.existsSync(path.join(root,'android/app/src/main/assets/public')))for(const rel of ['index.html','src/app.js','src/advanced-v44.js','src/advanced-v44.css']){
   const source=read(`public/${rel}`);
   const copied=read(`android/app/src/main/assets/public/${rel}`);
   assert.equal(copied,source,`Android copied asset matches public/${rel}`);

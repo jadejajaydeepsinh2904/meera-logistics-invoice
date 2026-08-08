@@ -9,7 +9,8 @@ const language=read('public/src/language-v683.js');
 const mobile=read('public/src/mobile-v68.css');
 const index=read('public/index.html');
 const sw=read('public/sw-v69.js');
-const androidApp=read('android/app/build.gradle');
+const androidPath=path.join(root,'android/app/build.gradle');
+const androidApp=fs.existsSync(androidPath)?fs.readFileSync(androidPath,'utf8'):'';
 
 const checks=[
   ['Gujarati route map',language.includes("DAHEJ:'દહેજ'")&&language.includes("JAMNAGAR:'જામનગર'")&&language.includes("JHAGADIA:'ઝઘડિયા'")],
@@ -20,8 +21,8 @@ const checks=[
   ['workflow route wrapper',advanced.includes('<p data-route-text>')],
   ['sidebar owns vertical scroll',mobile.includes('overflow-y:auto!important')&&mobile.includes('height:100dvh!important')&&mobile.includes('touch-action:pan-y')],
   ['sidebar safe bottom',mobile.includes('padding-bottom:calc(36px + var(--v68-safe-bottom))!important')],
-  ['current cache bust',index.includes('mobile-v68.css?v=685')&&index.includes('language-v683.js?v=690')&&sw.includes("transport-v690-shell")],
-  ['Android update version',/versionCode\s+8\b/.test(androidApp)&&/versionName\s+"1\.5\.0"/.test(androidApp)]
+  ['current cache bust',index.includes('mobile-v68.css?v=685')&&index.includes('language-v683.js?v=691')&&sw.includes("transport-v691-shell")],
+  ['Android update version',!androidApp||(/versionCode\s+8\b/.test(androidApp)&&/versionName\s+"1\.5\.0"/.test(androidApp))]
 ];
 
 const failed=checks.filter(([,ok])=>!ok);

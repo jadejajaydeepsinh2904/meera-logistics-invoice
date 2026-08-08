@@ -1,12 +1,12 @@
 {
   "name": "transport-erp-app",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "private": true,
   "description": "Transport ERP web + Android app foundation",
   "scripts": {
     "build": "node -e \"console.log('Static site ready for Vercel and Capacitor')\"",
     "test:v68": "node scripts/v68-mobile-regression.mjs && node scripts/v68-1-scroll-regression.mjs && node scripts/v68-2-back-navigation-regression.mjs && node scripts/v68-3-language-regression.mjs && node scripts/v68-4-route-sidebar-regression.mjs && node scripts/v68-5-complete-language-regression.mjs",
-    "test:v69": "npm run test:v68 && node scripts/v69-integrated-regression.mjs",
+    "test:v69": "npm run test:v68 && node scripts/v69-integrated-regression.mjs && node scripts/v69-1-old-excel-import-regression.mjs",
     "test:v68-1": "node scripts/v68-1-scroll-regression.mjs",
     "test:v68-2": "node scripts/v68-2-back-navigation-regression.mjs",
     "test:v68-3": "node scripts/v68-3-language-regression.mjs",

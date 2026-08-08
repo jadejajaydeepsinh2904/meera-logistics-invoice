@@ -1,0 +1,36 @@
+MEERA LOGISTICS TRANSPORT ERP - V69.1 WEB UPDATE
+================================================
+
+આ ZIP છેલ્લી V69 Website repository ઉપર જ upload કરવાની છે.
+
+GitHubમાં upload કરવાની રીત:
+1. ZIP Extract કરો.
+2. Extract થયેલા V69-1-GITHUB-UPDATE-ONLY folderની અંદર જાઓ.
+3. GitHubમાં હાલની Website repository ખોલો.
+4. Add file -> Upload files દબાવો.
+5. આ folderની અંદરની બધી files અને folders પસંદ કરો.
+6. Commit changes દબાવો.
+
+મહત્વપૂર્ણ:
+- જૂની repository અથવા જૂની files delete કરવાની નથી.
+- Folder structure બદલવાની નથી.
+- Cloudflare Worker deploy કરવાની જરૂર નથી.
+- Vercel deploy પૂરું થયા પછી Website એક વખત /?reset=v691 સાથે ખોલો.
+  ઉદાહરણ: https://તમારી-website.vercel.app/?reset=v691
+
+Excel Invoice Import વાપરવાની રીત:
+1. App/Webમાં Old Excel Invoice Import ખોલો.
+2. .xlsx, .xls અથવા .csv file પસંદ કરો.
+3. App બધી sheets, Party/GST title rows અને headings આપમેળે ઓળખશે.
+4. Previewમાં READY invoices ચેક કરો.
+5. Create Invoices દબાવો.
+
+V69.1માં ઓળખાતા જૂના format:
+- BILL NO. / DATE / TRUCK NO. / AMOUNT / CGST / SGST / TOTAL
+- BILL NO. / BILL DATE / DATE / TRUCK NUMBER / LODING / UNLODING / TRANSPORTER / BHADU / GST / TOTAL
+- ઉપર Party Name અને GST No. લખેલી list
+- જૂનો formatted Transport Invoice sheet
+- CGST + SGST અને IGST બન્ને
+- એક Excelની અનેક sheets
+
+Duplicate Bill No. હોય તો જૂનું invoice બદલાશે નહીં અને duplicate row skip થશે.

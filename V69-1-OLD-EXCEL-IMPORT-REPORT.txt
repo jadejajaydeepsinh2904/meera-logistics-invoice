@@ -1,0 +1,26 @@
+V69.1 Old Excel Invoice Import
+==============================
+
+- Automatic header-row detection after title/GST rows
+- Multi-sheet and multiple-table scanning
+- Party and GST metadata detection
+- BILL DATE separated from loading DATE
+- LODING/UNLODING/BHADU and other old spelling aliases
+- Duplicate GST 9% columns mapped to SGST and CGST
+- Tax amount converted to the correct tax percentage
+- Formatted Transport Invoice sheet parsing
+- IGST invoice preview, editor and PDF output
+- Duplicate Bill No. protection
+- Preview, validation warnings and per-invoice import result
+- Gujarati, Hindi and English labels
+
+Regression coverage:
+- Three Jalaram simple-list invoices
+- Detailed ML-54/55 and ML-94/95/96 style lists
+- Party/GST title rows
+- Duplicate GST columns
+- Formatted ML-14 IGST invoice
+- Multi-sheet workbook
+- Duplicate existing Bill No.
+- V68 mobile, scroll, back, language, route and sidebar regressions
+- V69 Driver Khata, My Trucks, expenses and ledger regressions
