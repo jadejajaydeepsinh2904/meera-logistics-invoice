@@ -592,7 +592,22 @@ function wireCommon(){
   };
   document.getElementById('logoutBtn').onclick=async()=>{try{await api('/logout',{method:'POST'})}catch{}clearToken();clearCache();loginView()};
   document.getElementById('backupBtn').onclick=async()=>download(`meera-logistics-backup-${today()}.json`,JSON.stringify(await api('/export'),null,2));
-  document.querySelectorAll('[data-search]').forEach(input=>input.oninput=()=>{state.search=input.value.toLowerCase();render()});
+  document.querySelectorAll('[data-search]').forEach((input,index)=>input.oninput=()=>{
+    const typed=input.value;
+    const start=input.selectionStart??typed.length;
+    const end=input.selectionEnd??start;
+    state.search=typed.toLowerCase();
+    render();
+
+    // render() rebuilds the panel. Restore focus/caret immediately so the user
+    // can type the full search continuously (e.g. 5002) without clicking again.
+    const searches=[...document.querySelectorAll('[data-search]')];
+    const next=searches[index]||searches[0];
+    if(next){
+      try{next.focus({preventScroll:true})}catch{next.focus()}
+      try{next.setSelectionRange(start,end)}catch{}
+    }
+  });
 }
 function filterRows(items,fields){
   if(!state.search)return items;

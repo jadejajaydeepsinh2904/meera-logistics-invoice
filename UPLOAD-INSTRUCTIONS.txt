@@ -1,12 +1,12 @@
-V66.2 SUPPLIER PAID STATUS HOTFIX
+V66.3 SEARCH TYPING FIX
 
 Upload/replace these 8 files in GitHub main.
-Then after Vercel deploy open:
-https://meera-logistics-invoice.vercel.app/?reset=v662
+After Vercel deploy open:
+https://meera-logistics-invoice.vercel.app/?reset=v663
 
 Cloudflare Worker redeploy is NOT required.
 
-For Android later:
-replace these same files in the local project,
+Android later:
+replace these files in local project,
 run npm run android:sync,
 then Run in Android Studio.

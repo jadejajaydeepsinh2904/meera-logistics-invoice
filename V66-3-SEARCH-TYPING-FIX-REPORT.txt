@@ -1,0 +1,22 @@
+V66.3 SEARCH TYPING FIX
+
+Issue:
+Every key typed in a Search field called render(), which rebuilt the page and removed focus from the input.
+Example: typing 5002 required clicking Search again after typing 5, then 0, then 0, then 2.
+
+Fix:
+- Search still filters live on every keystroke.
+- After render, focus is restored to the same Search input.
+- Cursor/caret position is restored.
+- User can now type full words/numbers continuously without clicking again.
+- Fix applies to all existing [data-search] fields: Trips, Invoices, Party, Supplier, Payments, Trucks, Expenses, etc.
+- V66.2 Supplier PAID/PENDING fix retained.
+- V66 unified web design retained.
+- V65 LR fix retained.
+- Backend/Worker unchanged.
+
+Web after deploy:
+open /?reset=v663 once.
+
+Android:
+replace changed files locally, run npm run android:sync, then Run.
