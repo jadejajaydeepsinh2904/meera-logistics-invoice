@@ -401,11 +401,92 @@ function v64TodayTrips(d){
 function v64TripAmount(t){
   return Number(t.weight||0)*Number(t.rate||0);
 }
+let _supplierTripAllocCache={data:null,map:null};
+function supplierTripBasePayable(d,t){
+  const entries=(d.truckEntries||[]).filter(e=>
+    String(e.trip_id||'')===String(t.id) ||
+    (!e.trip_id && norm(e.truck_no)===norm(t.truck_no) && String(e.entry_date||'')===String(t.trip_date||''))
+  );
+  return entries.reduce((sum,e)=>sum+Number(e.payable||0),0);
+}
+function supplierTripPaymentAllocations(d){
+  if(_supplierTripAllocCache.data===d&&_supplierTripAllocCache.map)return _supplierTripAllocCache.map;
+
+  const rows=(d.trips||[]).map(t=>({
+    id:String(t.id),
+    trip:t,
+    owner:norm(tripSupplierName(t)),
+    truck:norm(t.truck_no),
+    date:String(t.trip_date||''),
+    created:String(t.created_at||''),
+    payable:Math.max(0,supplierTripBasePayable(d,t)),
+    paid:0
+  }));
+
+  const byId=new Map(rows.map(r=>[r.id,r]));
+
+  // Exact Trip-linked payments always belong to that Trip first.
+  for(const p of (d.supplierPayments||[])){
+    const tripId=String(p.trip_id||'');
+    if(!tripId)continue;
+    const row=byId.get(tripId);
+    if(row)row.paid+=Math.max(0,Number(p.amount||0));
+  }
+
+  // Older supplier payments without Trip ID are allocated FIFO to the
+  // matching Supplier / Truck pending Trips. This also keeps legacy entries correct.
+  const loose=(d.supplierPayments||[])
+    .filter(p=>!String(p.trip_id||''))
+    .slice()
+    .sort((a,b)=>{
+      const da=String(a.payment_date||''),db=String(b.payment_date||'');
+      if(da!==db)return da.localeCompare(db);
+      return String(a.created_at||'').localeCompare(String(b.created_at||''));
+    });
+
+  for(const p of loose){
+    const owner=norm(p.owner_name),truck=norm(p.truck_no);
+    let remaining=Math.max(0,Number(p.amount||0));
+    if(remaining<=0)continue;
+
+    const candidates=rows
+      .filter(r=>r.owner===owner&&(!truck||r.truck===truck)&&r.payable>0)
+      .sort((a,b)=>{
+        if(a.date!==b.date)return a.date.localeCompare(b.date);
+        if(a.created!==b.created)return a.created.localeCompare(b.created);
+        return a.id.localeCompare(b.id,undefined,{numeric:true});
+      });
+
+    for(const row of candidates){
+      if(remaining<=0.01)break;
+      const pending=Math.max(0,row.payable-row.paid);
+      if(pending<=0.01)continue;
+      const applied=Math.min(pending,remaining);
+      row.paid+=applied;
+      remaining-=applied;
+    }
+  }
+
+  const map={};
+  for(const row of rows){
+    map[row.id]={
+      payable:row.payable,
+      paid:Math.max(0,row.paid),
+      pending:Math.max(0,row.payable-row.paid)
+    };
+  }
+  _supplierTripAllocCache={data:d,map};
+  return map;
+}
+function supplierTripPaidAmount(d,t){
+  return Number(supplierTripPaymentAllocations(d)[String(t.id)]?.paid||0);
+}
 function v64TripPaymentState(d,t){
-  const inv=(d.invoices||[]).find(i=>String(i.id)===String(t.invoice_id));
-  if(!inv)return {label:'PENDING',paid:false};
-  const pending=Number(inv.pending_amount??Math.max(0,Number(inv.total||0)-invoiceReceivedAmount(inv)));
-  return pending<=0.01?{label:'PAID',paid:true}:{label:'PENDING',paid:false};
+  const x=supplierTripPaymentAllocations(d)[String(t.id)]||{payable:0,paid:0,pending:0};
+  if(Number(x.payable||0)<=0.01)return {label:'PENDING',paid:false,pending:Number(x.pending||0)};
+  return Number(x.pending||0)<=0.01
+    ?{label:'PAID',paid:true,pending:0}
+    :{label:'PENDING',paid:false,pending:Number(x.pending||0)};
 }
 function v64MobileHeader(d,title){
   const company=esc(d.saas?.company?.company_name||'TRANSPORT ERP');
@@ -1283,7 +1364,8 @@ function tripFinancials(trip){
   const ownerNames=[...new Set([trip.supplier_name,...supplierEntries.map(x=>x.owner_name)].filter(Boolean).map(norm))];
 
   const supplierPays=d.supplierPayments.filter(p=>String(p.trip_id||'')===String(trip.id));
-  const supplierPaid=supplierPays.reduce((a,x)=>a+Number(x.amount||0),0);
+  // Include exact Trip payments plus legacy/unlinked Supplier payments allocated FIFO.
+  const supplierPaid=supplierTripPaidAmount(d,trip);
 
   const expenses=d.expenses.filter(e=>String(e.trip_id||'')===String(trip.id));
   const expenseTotal=expenses.reduce((a,x)=>a+Number(x.amount||0),0);

@@ -1,9 +1,12 @@
 {
-  "version": "V66.1-WEB-BLANK-HOTFIX",
+  "version": "V66.2-SUPPLIER-PAID-STATUS-FIX",
+  "source": "V66.1 Web Blank Hotfix",
   "checks": {
-    "dashboard_template": "passed",
-    "syntax": "passed",
-    "build": "passed"
+    "supplier_status_logic": "passed",
+    "exact_trip_payment": "passed",
+    "legacy_fifo_allocation": "passed",
+    "javascript_syntax": "passed",
+    "web_build": "passed"
   },
   "files": [
     {
@@ -152,6 +155,11 @@
       "sha256": "2c14e156d336c535e0b0e5d0df42bfae3b9cf0a15d6207f019917407a5860174"
     },
     {
+      "path": "V66-2-SUPPLIER-PAID-STATUS-FIX-REPORT.txt",
+      "size": 823,
+      "sha256": "b40819baeeedaab50576518e96076ba96740a6805b631d3a6376fcd093ecb4a0"
+    },
+    {
       "path": "V66-WEB-ANDROID-UNIFIED-DESIGN-REPORT.txt",
       "size": 1071,
       "sha256": "4b12e2d42d397d38bb70fd0324d5acd195f73fd0a7bd3c5cd226cd02166e2a4d"
@@ -169,7 +177,7 @@
     {
       "path": "package.json",
       "size": 1042,
-      "sha256": "c4f433d13ef483be53d5de30391e022497cabf20b795d43a572764d40f1c6637"
+      "sha256": "6bdcb8fad30703bb99881ab64c01ec02942a7fe540be894b7e2e6c62ff1e9027"
     },
     {
       "path": "public/account-deletion-draft.html",
@@ -294,7 +302,7 @@
     {
       "path": "public/index.html",
       "size": 2258,
-      "sha256": "9e2e90ab6641898e6287209aae05df35e045762cd52e7f03a436f1da4e6f4286"
+      "sha256": "46499fe55728bcee1b8ae57e03880ce9d2e18de168a652e1021e5cd74d598f35"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -314,7 +322,7 @@
     {
       "path": "public/src/advanced-v44.js",
       "size": 63230,
-      "sha256": "562b6bc619b0265d53b0ed322dc286cdb7b6cf6918621c9f06b8db42d2d24c60"
+      "sha256": "050957ebce22feeecd2509ee881ba191a028e82218c89740230f3d096ed658be"
     },
     {
       "path": "public/src/android-v63.js",
@@ -323,8 +331,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 152170,
-      "sha256": "eeef4101d7acbc24f551af2128ba7a0d19c58843d81ec278125686aa3b73be6f"
+      "size": 154950,
+      "sha256": "4acf539684e8c1028b6c713a9947939e5215a98cb4570088972743eaadbfe213"
     },
     {
       "path": "public/src/core/api.js",
@@ -427,6 +435,11 @@
       "sha256": "018dc829cfc259706d7e6aa0e104433a73781eeebc03385b6ba8e8002c2e22c8"
     },
     {
+      "path": "public/sw-v66-2.js",
+      "size": 4982,
+      "sha256": "14cf0ae0ebec545c16053a161ec92526244a659be1703fa548e768dc583b6f8e"
+    },
+    {
       "path": "public/sw-v66.js",
       "size": 4971,
       "sha256": "8dd050fd8365876bb18a9825f14b5bdb5d05edecf67c9ea736243ce64d0a215a"
@@ -500,6 +513,11 @@
       "path": "public/version-v66-1.txt",
       "size": 45,
       "sha256": "40990309d0f978844fa4f256aeb6653bf154e26bc38f68ba1dfce23d081ab037"
+    },
+    {
+      "path": "public/version-v66-2.txt",
+      "size": 53,
+      "sha256": "00334e4065dc3fe1675672ac852410a320b66d4899f9f3885ee7f4583e2fd150"
     },
     {
       "path": "public/version-v66.txt",

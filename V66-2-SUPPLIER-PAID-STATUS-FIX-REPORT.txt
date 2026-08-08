@@ -1,0 +1,22 @@
+V66.2 SUPPLIER PAID STATUS FIX
+
+Issue:
+Recent Trip PAID/PENDING stamp was incorrectly checking Party Invoice payment status.
+So even after paying the Supplier, the Trip card could remain PENDING.
+
+Fix:
+- Trip card PAID/PENDING now checks Supplier payable vs Supplier payments.
+- Exact Trip-linked supplier payments update the Trip immediately.
+- Older/unlinked Supplier payments are allocated FIFO to matching Supplier/Truck Trips.
+- If Supplier payable is fully paid, card shows PAID.
+- If any Supplier balance remains, card shows PENDING.
+- Trip Details > Supplier tab uses the same allocated Supplier payment amount.
+- V66 desktop design retained.
+- V65 LR fix retained.
+- Backend/Worker schema unchanged.
+
+After web deploy open:
+/?reset=v662
+
+Android:
+Replace changed files locally, run npm run android:sync, then Run.

@@ -1,4 +1,12 @@
+V66.2 SUPPLIER PAID STATUS HOTFIX
+
 Upload/replace these 8 files in GitHub main.
-After Vercel deploy, open:
-https://meera-logistics-invoice.vercel.app/?reset=v661
-Worker redeploy is NOT required.
+Then after Vercel deploy open:
+https://meera-logistics-invoice.vercel.app/?reset=v662
+
+Cloudflare Worker redeploy is NOT required.
+
+For Android later:
+replace these same files in the local project,
+run npm run android:sync,
+then Run in Android Studio.
