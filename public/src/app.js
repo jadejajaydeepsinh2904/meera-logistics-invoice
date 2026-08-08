@@ -1793,16 +1793,29 @@ function tripForm(x={},afterSave=null){
             diesel:Number(body.diesel||0),
             munshi:Number(body.munshi||0),
             comments:body.comments||'',
-            items:existingItems.map(it=>({
-              tripId:it.trip_id||it.tripId||'',
-              lrNumber:it.lr_number||it.lrNumber||'',
-              truckNo:it.truck_no||it.truckNo||'',
-              description:it.description||'',
-              loadingWeight:it.loading_weight??it.loadingWeight??it.weight,
-              unloadingWeight:it.unloading_weight??it.unloadingWeight??it.weight,
-              weight:it.weight,
-              rate:it.rate
-            }))
+            items:existingItems.map(it=>{
+              const itemTrip=freshBeforeInvoice.trips.find(t=>String(t.id)===String(it.trip_id||it.tripId||''));
+              const itemSupplierEntry=freshBeforeInvoice.truckEntries.find(te=>String(te.trip_id||'')===String(it.trip_id||it.tripId||''))||null;
+              const itemAdvance=(freshBeforeInvoice.supplierPayments||[])
+                .filter(p=>String(p.trip_id||'')===String(it.trip_id||it.tripId||'')&&/ADVANCE/i.test(String(p.reference||p.notes||'')))
+                .reduce((sum,p)=>sum+Number(p.amount||0),0);
+              const current=String(it.trip_id||it.tripId||'')===String(tripId);
+              return {
+                tripId:it.trip_id||it.tripId||'',
+                loadingDate:current?body.tripDate:(itemTrip?.trip_date||targetInvoice?.loading_date||body.tripDate),
+                lrNumber:it.lr_number||it.lrNumber||'',
+                truckNo:it.truck_no||it.truckNo||'',
+                description:it.description||'',
+                loadingWeight:it.loading_weight??it.loadingWeight??it.weight,
+                unloadingWeight:it.unloading_weight??it.unloadingWeight??it.weight,
+                weight:it.weight,
+                rate:it.rate,
+                supplierName:current?body.supplierName:(itemSupplierEntry?.owner_name||freshBeforeInvoice.trucks.find(t=>norm(t.truck_no)===norm(it.truck_no||it.truckNo||''))?.owner_name||''),
+                supplierRate:current?Number(body.supplierRate||0):Number(itemSupplierEntry?.rate||0),
+                commission:current?Number(body.commission||0):Number(itemSupplierEntry?.commission||0),
+                supplierAdvance:current?Number(body.supplierAdvance||0):itemAdvance
+              };
+            })
           };
 
           await api('/invoices'+(targetInvoice?'/'+targetInvoice.id:''),{
@@ -1812,7 +1825,7 @@ function tripForm(x={},afterSave=null){
         }
 
         const supplierRate=Number(body.supplierRate||0);
-        if(supplierRate>0){
+        if(supplierRate>0 && !e.target.createInvoice.checked){
           const freshSupplier=await api('/bootstrap');
           const truck=freshSupplier.trucks.find(t=>t.truck_no===norm(body.truckNo))||{};
           const existingEntry=freshSupplier.truckEntries.find(te=>String(te.trip_id||'')===String(tripId));
@@ -1835,20 +1848,24 @@ function tripForm(x={},afterSave=null){
           });
 
           const advance=Number(body.supplierAdvance||0);
-          if(advance>0 && !edit){
-            await api('/supplier-payments',{
-              method:'POST',
-              body:JSON.stringify({
-                tripId,
-                ownerName:entryBody.ownerName,
-                truckNo:body.truckNo,
-                paymentDate:body.tripDate,
-                amount:advance,
-                paymentMode:'BANK',
-                reference:'TRIP ADVANCE',
-                notes:`Advance for ${tripId}`
-              })
+          const oldAdvance=(freshSupplier.supplierPayments||[]).find(p=>String(p.trip_id||'')===String(tripId)&&/ADVANCE/i.test(String(p.reference||p.notes||'')))||null;
+          if(advance>0){
+            const advanceBody={
+              tripId,
+              ownerName:entryBody.ownerName,
+              truckNo:body.truckNo,
+              paymentDate:body.tripDate,
+              amount:advance,
+              paymentMode:'BANK',
+              reference:'TRIP ADVANCE',
+              notes:`Advance for ${tripId}`
+            };
+            await api('/supplier-payments'+(oldAdvance?'/'+oldAdvance.id:''),{
+              method:oldAdvance?'PUT':'POST',
+              body:JSON.stringify(advanceBody)
             });
+          }else if(oldAdvance){
+            await api('/supplier-payments/'+oldAdvance.id,{method:'DELETE'});
           }
         }
 
@@ -1894,7 +1911,7 @@ function invoiceForm(x={},tripContext=null){
     <div class="party-gst-field">${field('Party GST','partyGst',x.party_gst||getPartyDetails(tripContext?.party_name||x.party_name).gst_no||'','text','readonly')}</div>
     <label class="field span2"><span>Party Address</span><textarea name="partyAddress" readonly>${esc(x.party_address||getPartyDetails(tripContext?.party_name||x.party_name).address||'')}</textarea></label>
     ${masterSelectField('Material','material',d.materials.map(m=>m.material_name),x.material||tripContext?.material||'','material')}
-    ${field('Loading Date','loadingDate',x.loading_date||today(),'date')}
+    <input type="hidden" name="loadingDate" value="${esc(x.loading_date||tripContext?.trip_date||today())}">
     ${field('Diesel','diesel',x.diesel||0,'number','step="0.01"')}
     ${field('Munshi','munshi',x.munshi||0,'number','step="0.01"')}
     <div class="gst-field">${field('SGST %','sgst',x.sgst??Number(window.ML_SETTINGS?.defaultSgst??9),'number','step="0.01"')}</div>
@@ -1918,13 +1935,21 @@ function invoiceForm(x={},tripContext=null){
 
     function addLine(item={}){
       const linkedTrip=d.trips.find(t=>String(t.id)===String(item.trip_id||item.tripId||''));
+      const linkedSupplierEntry=d.truckEntries.find(e=>String(e.trip_id||'')===String(linkedTrip?.id||item.trip_id||item.tripId||''))||null;
+      const linkedTruck=d.trucks.find(t=>norm(t.truck_no)===norm(item.truck_no||item.truckNo||linkedTrip?.truck_no||''));
+      const initialSupplier=norm(item.supplier_name||item.supplierName||linkedSupplierEntry?.owner_name||linkedTruck?.owner_name||linkedTrip?.supplier_name||'');
+      const existingAdvance=(d.supplierPayments||[])
+        .filter(p=>String(p.trip_id||'')===String(linkedTrip?.id||item.trip_id||item.tripId||'')&&/ADVANCE/i.test(String(p.reference||p.notes||'')))
+        .reduce((sum,p)=>sum+Number(p.amount||0),0);
+
       const row=document.createElement('div');
-      row.className='invoice-line';
+      row.className='invoice-line v664-invoice-line';
       row.innerHTML=`
         <label class="field"><span>Trip No.</span>
           <input name="tripNoDisplay" value="${esc(linkedTrip?.trip_no||'AUTO')}" readonly>
           <input name="tripId" type="hidden" value="${esc(item.trip_id||item.tripId||'')}">
         </label>
+        ${field('Loading Date','loadingDate',item.loading_date||item.loadingDate||linkedTrip?.trip_date||x.loading_date||today(),'date','required')}
         ${field('LR Number','lrNumber',item.lr_number||item.lrNumber||linkedTrip?.lr_number||'','','required')}
         ${masterSelectField('Truck No.','truckNo',d.trucks.map(t=>t.truck_no),item.truck_no||item.truckNo||linkedTrip?.truck_no||'','truck','required')}
         ${field('Description / Route','description',item.description||(linkedTrip?`${linkedTrip.loading_point} TO ${linkedTrip.unloading_point}`:''),'','required')}
@@ -1932,10 +1957,27 @@ function invoiceForm(x={},tripContext=null){
         ${field('Unloading Weight','unloadingWeight',item.unloading_weight??item.unloadingWeight??linkedTrip?.unloading_weight??item.weight??0,'number','step="0.001" required')}
         ${field('Difference','shortage',item.shortage??linkedTrip?.shortage??0,'number','step="0.001" readonly')}
         ${field('Billing Weight','weight',item.weight??item.billingWeight??linkedTrip?.billing_weight??0,'number','step="0.001" required')}
-        ${field('Rate','rate',item.rate||linkedTrip?.rate||0,'number','step="0.01" required')}
-        ${field('Amount','amount',Number(item.amount||0).toFixed(2),'number','step="0.01" readonly')}
-        <button type="button" class="mini danger">Remove</button>`;
+        ${field('Party Rate','rate',item.rate||linkedTrip?.rate||0,'number','step="0.01" required')}
+        ${field('Party Amount','amount',Number(item.amount||0).toFixed(2),'number','step="0.01" readonly')}
+        <button type="button" class="mini danger v664-remove-trip">Remove</button>
 
+        <div class="v664-line-supplier">
+          <div class="v664-line-supplier-title"><b>SUPPLIER / TRUCK MALIK</b><small>આ Truck / Trip માટે અલગ supplier payment details</small></div>
+          ${supplierSelectField('Supplier / Truck Malik Name','supplierName',initialSupplier,'required')}
+          ${field('Supplier Rate','supplierRate',item.supplier_rate??item.supplierRate??linkedSupplierEntry?.rate??0,'number','step="0.01" required')}
+          ${field('Commission','commission',item.commission??linkedSupplierEntry?.commission??0,'number','step="0.01"')}
+          ${field('Supplier Advance','supplierAdvance',item.supplier_advance??item.supplierAdvance??existingAdvance,'number','step="0.01"')}
+          ${field('Supplier Payable','supplierPayable',0,'number','step="0.01" readonly')}
+        </div>`;
+
+      const updateSupplierPayable=()=>{
+        const loading=Number(row.querySelector('[name=loadingWeight]').value||0);
+        const unloading=Number(row.querySelector('[name=unloadingWeight]').value||0);
+        const supplierWeight=unloading||loading;
+        const supplierRate=Number(row.querySelector('[name=supplierRate]').value||0);
+        const commission=Number(row.querySelector('[name=commission]').value||0);
+        row.querySelector('[name=supplierPayable]').value=Math.max(0,supplierWeight*supplierRate-commission).toFixed(2);
+      };
       const updateLine=()=>{
         const loading=Number(row.querySelector('[name=loadingWeight]').value||0);
         const unloading=Number(row.querySelector('[name=unloadingWeight]').value||0);
@@ -1944,6 +1986,7 @@ function invoiceForm(x={},tripContext=null){
         const weight=Number(row.querySelector('[name=weight]').value||0);
         const rate=Number(row.querySelector('[name=rate]').value||0);
         row.querySelector('[name=amount]').value=(weight*rate).toFixed(2);
+        updateSupplierPayable();
         recalcInvoice();
       };
       const autoBilling=()=>{
@@ -1956,13 +1999,27 @@ function invoiceForm(x={},tripContext=null){
         updateLine();
       };
 
-      row.querySelector('button.mini').onclick=()=>{row.remove();recalcInvoice()};
+      lines.appendChild(row);
+      wireMasterSelects(row);
+
+      const truckSelect=row.querySelector('[name=truckNo]');
+      const supplierSelect=row.querySelector('[name=supplierName]');
+      supplierSelect?.addEventListener('change',()=>supplierSelect.dataset.manual='1');
+      truckSelect?.addEventListener('change',()=>{
+        const truck=d.trucks.find(t=>norm(t.truck_no)===norm(truckSelect.value));
+        if(truck?.owner_name && (!supplierSelect.value || supplierSelect.dataset.manual!=='1')){
+          addOptionAndSelect(supplierSelect,truck.owner_name);
+          supplierSelect.dataset.manual='';
+        }
+      });
+
+      row.querySelector('.v664-remove-trip').onclick=()=>{row.remove();recalcInvoice()};
       row.querySelector('[name=loadingWeight]').addEventListener('input',autoBilling);
       row.querySelector('[name=unloadingWeight]').addEventListener('input',autoBilling);
       row.querySelector('[name=weight]').addEventListener('input',e=>{e.target.dataset.edited='1';updateLine()});
       row.querySelector('[name=rate]').addEventListener('input',updateLine);
-      lines.appendChild(row);
-      wireMasterSelects(row);
+      row.querySelector('[name=supplierRate]').addEventListener('input',updateSupplierPayable);
+      row.querySelector('[name=commission]').addEventListener('input',updateSupplierPayable);
       updateLine();
     }
 
@@ -1999,7 +2056,7 @@ function invoiceForm(x={},tripContext=null){
     host.querySelector('#addTripFromInvoice').onclick=()=>tripForm({},(newTripId,fresh)=>{
       const trip=fresh.trips.find(t=>String(t.id)===String(newTripId));
       if(!trip)return;
-      addLine({tripId:trip.id,lrNumber:trip.lr_number||'',truckNo:trip.truck_no,description:`${trip.loading_point} TO ${trip.unloading_point}`,loadingWeight:trip.loading_weight??trip.weight,unloadingWeight:trip.unloading_weight??trip.weight,weight:trip.billing_weight??trip.weight,rate:trip.rate});
+      addLine({tripId:trip.id,loadingDate:trip.trip_date,lrNumber:trip.lr_number||'',truckNo:trip.truck_no,description:`${trip.loading_point} TO ${trip.unloading_point}`,loadingWeight:trip.loading_weight??trip.weight,unloadingWeight:trip.unloading_weight??trip.weight,weight:trip.billing_weight??trip.weight,rate:trip.rate});
     });
 
     host.querySelector('[name=partyName]').addEventListener('change',e=>{
@@ -2015,6 +2072,7 @@ function invoiceForm(x={},tripContext=null){
       e.preventDefault();const body=formDataObject(e.target);
       body.items=[...lines.querySelectorAll('.invoice-line')].map(r=>({
         tripId:r.querySelector('[name=tripId]').value,
+        loadingDate:r.querySelector('[name=loadingDate]').value,
         lrNumber:r.querySelector('[name=lrNumber]').value,
         truckNo:r.querySelector('[name=truckNo]').value,
         description:r.querySelector('[name=description]').value,
@@ -2022,8 +2080,13 @@ function invoiceForm(x={},tripContext=null){
         unloadingWeight:r.querySelector('[name=unloadingWeight]').value,
         billingWeight:r.querySelector('[name=weight]').value,
         weight:r.querySelector('[name=weight]').value,
-        rate:r.querySelector('[name=rate]').value
+        rate:r.querySelector('[name=rate]').value,
+        supplierName:r.querySelector('[name=supplierName]').value,
+        supplierRate:r.querySelector('[name=supplierRate]').value,
+        commission:r.querySelector('[name=commission]').value,
+        supplierAdvance:r.querySelector('[name=supplierAdvance]').value
       }));
+      body.loadingDate=body.items[0]?.loadingDate||body.invoiceDate;
       if(await mutate('/invoices'+(edit?'/'+x.id:''),edit?'PUT':'POST',body,e.submitter))host.remove();
     };
   }});
@@ -2360,11 +2423,11 @@ function downloadInvoice(i){
 }
 function invoicePrintHtml(i){
   return `<div class="print-sheet"><div class="invoice-header"><div class="invoice-company"><h1>MEERA LOGISTICS</h1><div>Transport & Logistics Services</div><div>Jamnagar, Gujarat</div></div><div class="invoice-meta"><b>${invoiceTypeLabel(i)==='NON-GST'?'NON-GST INVOICE':'TAX INVOICE'}</b><div>${esc(i.invoice_no)}</div><div>${esc(i.invoice_date)}</div></div></div>
-  <div class="invoice-party"><div><b>Bill To</b><div>${esc(i.party_name)}</div><div>${esc(i.party_address||'')}</div><div>GST: ${esc(i.party_gst||state.data?.parties?.find(p=>norm(p.party_name)===norm(i.party_name))?.gst_no||'-')}</div></div><div><b>Material:</b> ${esc(i.material||'-')}<br><b>Loading Date:</b> ${esc(i.loading_date||'-')}</div></div>
-  ${table(['Trip','LR No','Truck No','Description','Loading Wt.','Unloading Wt.','Difference','Billing Wt.','Rate','Amount'],(i.items||[]).map(x=>{
+  <div class="invoice-party"><div><b>Bill To</b><div>${esc(i.party_name)}</div><div>${esc(i.party_address||'')}</div><div>GST: ${esc(i.party_gst||state.data?.parties?.find(p=>norm(p.party_name)===norm(i.party_name))?.gst_no||'-')}</div></div><div><b>Material:</b> ${esc(i.material||'-')}<br><b>Loading Date:</b> Trip-wise below</div></div>
+  ${table(['Trip','Loading Date','LR No','Truck No','Description','Loading Wt.','Unloading Wt.','Difference','Billing Wt.','Rate','Amount'],(i.items||[]).map(x=>{
     const trip=state.data?.trips?.find(t=>String(t.id)===String(x.trip_id));
-    return [esc(trip?.trip_no||'-'),esc(x.lr_number||'-'),esc(x.truck_no),esc(x.description),number3(x.loading_weight??x.weight),number3(x.unloading_weight??x.weight),number3(x.shortage||0),number3(x.weight),money(x.rate),money(x.amount)];
-  }),'1050px')}
+    return [esc(trip?.trip_no||'-'),esc(trip?.trip_date||i.loading_date||'-'),esc(x.lr_number||'-'),esc(x.truck_no),esc(x.description),number3(x.loading_weight??x.weight),number3(x.unloading_weight??x.weight),number3(x.shortage||0),number3(x.weight),money(x.rate),money(x.amount)];
+  }),'1180px')}
   <div class="invoice-total"><div><span>Subtotal</span><b>${money(i.subtotal)}</b></div><div><span>Diesel</span><b>${money(i.diesel)}</b></div><div><span>Munshi</span><b>${money(i.munshi)}</b></div><div><span>SGST ${i.sgst}%</span><b>${money(i.subtotal*i.sgst/100)}</b></div><div><span>CGST ${i.cgst}%</span><b>${money(i.subtotal*i.cgst/100)}</b></div><div class="grand"><span>Total</span><span>${money(i.total)}</span></div></div><p style="white-space:pre-line">${esc(i.comments||'')}</p></div>`;
 }
 

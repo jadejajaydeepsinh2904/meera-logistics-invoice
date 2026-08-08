@@ -1,0 +1,25 @@
+V66.4 TRIP-WISE DATE + SUPPLIER
+
+Requested:
+1. Invoice-level Loading Date removed from the top.
+2. Every Truck/Trip line has its own Loading Date.
+3. One invoice can contain multiple trucks/trips with different loading dates.
+4. Supplier / Truck Malik details are now available separately on EVERY invoice Trip/Truck line:
+   - Supplier / Truck Malik Name
+   - Supplier Rate
+   - Commission
+   - Supplier Advance
+   - Supplier Payable (auto calculated)
+5. New Invoice-created Trips save their own Trip Date from that line.
+6. Supplier payable entry is saved/updated against that exact Trip ID + Truck.
+7. Supplier Advance is saved/updated against that exact Trip; setting it to 0 removes the Trip Advance.
+8. Universal Trip form retains the same Supplier fields.
+9. Invoice print shows Loading Date per Trip row instead of one global Loading Date.
+10. V66.3 Search fix, V66.2 PAID/PENDING fix, V65 LR and unified design retained.
+
+IMPORTANT:
+Worker backend logic changed in V66.4.
+After GitHub/Vercel frontend deployment, Cloudflare Worker must also be deployed from V66.4 worker/src/index.js.
+
+Reset URL: /?reset=v664
+Android after files are updated locally: npm run android:sync then Run.

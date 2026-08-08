@@ -2735,8 +2735,11 @@ export default {
               billingWeight,round2(b.rate),amount,old.invoice_item_id,companyId
             );
             if(old.invoice_id){
-              await run(env,`UPDATE invoices SET party_name=?,material=?,loading_date=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,
-                upper(b.partyName),upper(b.material),b.tripDate,old.invoice_id,companyId);
+              await run(env,`UPDATE invoices SET party_name=?,material=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,
+                upper(b.partyName),upper(b.material),old.invoice_id,companyId);
+              await run(env,`UPDATE invoices SET loading_date=COALESCE(
+                (SELECT MIN(trip_date) FROM trips WHERE invoice_id=? AND company_id=?),loading_date
+              ) WHERE id=? AND company_id=?`,old.invoice_id,companyId,old.invoice_id,companyId);
               await recalcInvoiceById(env,old.invoice_id,companyId);
             }
           }
@@ -2777,9 +2780,23 @@ export default {
             const unloading=round2(x.unloadingWeight ?? x.unloading_weight ?? x.weight);
             const shortage=round2(Math.max(0,loading-unloading));
             const billing=round2(x.weight ?? x.billingWeight ?? unloading);
-            return {...x,lrNumber:clean(x.lrNumber||x.lr_number),loadingWeight:loading,unloadingWeight:unloading,shortage,weight:billing,rate:round2(x.rate)};
+            return {
+              ...x,
+              loadingDate:clean(x.loadingDate||x.loading_date||b.loadingDate||b.invoiceDate),
+              lrNumber:clean(x.lrNumber||x.lr_number),
+              loadingWeight:loading,
+              unloadingWeight:unloading,
+              shortage,
+              weight:billing,
+              rate:round2(x.rate),
+              supplierName:upper(x.supplierName||x.supplier_name||''),
+              supplierRate:round2(x.supplierRate??x.supplier_rate),
+              commission:round2(x.commission),
+              supplierAdvance:round2(x.supplierAdvance??x.supplier_advance)
+            };
           }).filter(x=>num(x.weight)>0 && clean(x.truckNo));
           if(!items.length)return json({error:'At least one truck line is required'},400);
+          const invoiceLoadingDate=items[0]?.loadingDate||b.loadingDate||b.invoiceDate;
 
           const freightSubtotal=round2(items.reduce((a,x)=>a+num(x.weight)*num(x.rate),0));
           const subtotal=round2(freightSubtotal+num(b.diesel)+num(b.munshi));
@@ -2795,7 +2812,7 @@ export default {
                 lr_no,material,loading_date,sgst,cgst,diesel,munshi,subtotal,gst_amount,total,comments
               ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
                 invoiceId,companyId,clean(b.invoiceNo),invoiceType,b.invoiceDate,upper(b.partyName),b.partyAddress||'',
-                upper(b.partyGst),b.lrNo||'',upper(b.material),b.loadingDate||'',
+                upper(b.partyGst),b.lrNo||'',upper(b.material),invoiceLoadingDate||'',
                 sgst,cgst,num(b.diesel),num(b.munshi),subtotal,gstAmount,total,b.comments||''
               );
             }catch(e){
@@ -2808,7 +2825,7 @@ export default {
               lr_no=?,material=?,loading_date=?,sgst=?,cgst=?,diesel=?,munshi=?,subtotal=?,
               gst_amount=?,total=?,comments=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,
               clean(b.invoiceNo),invoiceType,b.invoiceDate,upper(b.partyName),b.partyAddress||'',
-              upper(b.partyGst),b.lrNo||'',upper(b.material),b.loadingDate||'',
+              upper(b.partyGst),b.lrNo||'',upper(b.material),invoiceLoadingDate||'',
               sgst,cgst,num(b.diesel),num(b.munshi),subtotal,gstAmount,total,b.comments||'',invoiceId,companyId
             );
           }
@@ -2831,7 +2848,7 @@ export default {
                 driver_mobile,material,loading_point,unloading_point,lr_number,loading_weight,
                 unloading_weight,shortage,billing_weight,weight,rate,status,notes
               ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                tripId,companyId,tripNo,invoiceId,itemId,b.loadingDate||b.invoiceDate,upper(b.partyName),
+                tripId,companyId,tripNo,invoiceId,itemId,x.loadingDate||b.invoiceDate,upper(b.partyName),
                 upper(x.truckNo),'','',upper(b.material),route.loading,route.unloading,
                 x.lrNumber,x.loadingWeight,x.unloadingWeight,x.shortage,x.weight,x.weight,x.rate,
                 'BOOKED',`Created from invoice ${clean(b.invoiceNo)}`
@@ -2840,10 +2857,10 @@ export default {
               await run(env,`UPDATE trips SET
                 invoice_id=?,invoice_item_id=?,trip_date=?,party_name=?,truck_no=?,material=?,
                 loading_point=?,unloading_point=?,lr_number=?,loading_weight=?,unloading_weight=?,
-                shortage=?,billing_weight=?,weight=?,rate=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-                invoiceId,itemId,b.loadingDate||b.invoiceDate,upper(b.partyName),upper(x.truckNo),
+                shortage=?,billing_weight=?,weight=?,rate=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,
+                invoiceId,itemId,x.loadingDate||b.invoiceDate,upper(b.partyName),upper(x.truckNo),
                 upper(b.material),route.loading,route.unloading,x.lrNumber,x.loadingWeight,
-                x.unloadingWeight,x.shortage,x.weight,x.weight,x.rate,tripId
+                x.unloadingWeight,x.shortage,x.weight,x.weight,x.rate,tripId,companyId
               );
             }
             usedTripIds.add(String(tripId));
@@ -2855,12 +2872,79 @@ export default {
               itemId,companyId,invoiceId,tripId,x.lrNumber,upper(x.truckNo),upper(x.description),x.loadingWeight,
               x.unloadingWeight,x.shortage,x.weight,x.rate,round2(x.weight*x.rate)
             );
+
+            // V66.4: Supplier / Truck Malik is Trip-wise even inside one multi-truck invoice.
+            if(x.supplierName){
+              await ensureSupplierAccountForName(env,x.supplierName,companyId);
+
+              let truckMaster=await first(env,`SELECT * FROM trucks WHERE company_id=? AND truck_no=?`,companyId,upper(x.truckNo));
+              if(!truckMaster){
+                const truckId=uid('TRK');
+                await run(env,`INSERT INTO trucks(id,company_id,truck_no,owner_name,owner_mobile,bank_details) VALUES(?,?,?,?,?,?)`,
+                  truckId,companyId,upper(x.truckNo),upper(x.supplierName),'',''
+                );
+                truckMaster={id:truckId,bank_details:''};
+              }else if(upper(truckMaster.owner_name)!==upper(x.supplierName)){
+                await run(env,`UPDATE trucks SET owner_name=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,
+                  upper(x.supplierName),truckMaster.id,companyId
+                );
+              }
+
+              const supplierWeight=round2(num(x.unloadingWeight)||num(x.loadingWeight)||num(x.weight));
+              const supplierPayable=round2(supplierWeight*num(x.supplierRate)-num(x.commission));
+              const oldEntry=await first(env,`SELECT * FROM truck_payments WHERE company_id=? AND trip_id=? ORDER BY created_at LIMIT 1`,companyId,tripId);
+              if(oldEntry){
+                await run(env,`UPDATE truck_payments SET
+                  entry_date=?,truck_no=?,owner_name=?,bank_details=?,loading_point=?,unloading_point=?,
+                  weight=?,rate=?,commission=?,payable=?,notes=?,updated_at=CURRENT_TIMESTAMP
+                  WHERE id=? AND company_id=?`,
+                  x.loadingDate||b.invoiceDate,upper(x.truckNo),upper(x.supplierName),truckMaster.bank_details||'',
+                  route.loading,route.unloading,supplierWeight,x.supplierRate,x.commission,supplierPayable,
+                  `Invoice ${clean(b.invoiceNo)} · Trip ${tripId}`,oldEntry.id,companyId
+                );
+              }else{
+                const entryId=uid('TE');
+                await run(env,`INSERT INTO truck_payments(
+                  id,company_id,trip_id,entry_date,truck_no,owner_name,bank_details,loading_point,unloading_point,
+                  weight,rate,commission,payable,notes
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                  entryId,companyId,tripId,x.loadingDate||b.invoiceDate,upper(x.truckNo),upper(x.supplierName),
+                  truckMaster.bank_details||'',route.loading,route.unloading,supplierWeight,x.supplierRate,
+                  x.commission,supplierPayable,`Invoice ${clean(b.invoiceNo)} · Trip ${tripId}`
+                );
+              }
+
+              const oldAdvance=await first(env,`SELECT * FROM supplier_payments
+                WHERE company_id=? AND trip_id=? AND (UPPER(reference)='TRIP ADVANCE' OR UPPER(notes) LIKE 'ADVANCE FOR %')
+                ORDER BY created_at LIMIT 1`,companyId,tripId);
+              if(num(x.supplierAdvance)>0){
+                if(oldAdvance){
+                  await run(env,`UPDATE supplier_payments SET owner_name=?,truck_no=?,payment_date=?,amount=?,
+                    payment_mode='BANK',reference='TRIP ADVANCE',notes=?,updated_at=CURRENT_TIMESTAMP
+                    WHERE id=? AND company_id=?`,
+                    upper(x.supplierName),upper(x.truckNo),x.loadingDate||b.invoiceDate,x.supplierAdvance,
+                    `Advance for ${tripId}`,oldAdvance.id,companyId
+                  );
+                }else{
+                  const advanceId=uid('SP'),receipt=`SP-${Date.now().toString().slice(-8)}`;
+                  await run(env,`INSERT INTO supplier_payments(
+                    id,company_id,receipt_no,trip_id,owner_name,truck_no,payment_date,amount,payment_mode,reference,notes
+                  ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
+                    advanceId,companyId,receipt,tripId,upper(x.supplierName),upper(x.truckNo),
+                    x.loadingDate||b.invoiceDate,x.supplierAdvance,'BANK','TRIP ADVANCE',`Advance for ${tripId}`
+                  );
+                }
+              }else if(oldAdvance){
+                await run(env,`DELETE FROM supplier_payments WHERE id=? AND company_id=?`,oldAdvance.id,companyId);
+              }
+            }
           }
 
           // Remove trips whose truck lines were removed from the invoice.
           for(const old of oldItems){
             if(old.trip_id && !usedTripIds.has(String(old.trip_id))){
               await run(env,`DELETE FROM truck_payments WHERE trip_id=? AND company_id=?`,old.trip_id,companyId);
+              await run(env,`DELETE FROM supplier_payments WHERE trip_id=? AND company_id=?`,old.trip_id,companyId);
               await run(env,`DELETE FROM trips WHERE id=? AND company_id=?`,old.trip_id,companyId);
             }
           }

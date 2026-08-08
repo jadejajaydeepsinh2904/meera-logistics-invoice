@@ -502,3 +502,41 @@ select option[value="__ADD_NEW__"]{font-weight:800;color:#2457d2}
   .v65-lr-print-body{padding:0}.v65-lr-print-body .v65-lr-sheet{border:0;max-width:none;padding:0}.v65-lr-actions{display:none!important}
   .v65-lr-sheet *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+
+
+/* V66.4 Trip-wise invoice date + supplier details */
+.v664-invoice-line{
+  grid-template-columns:.7fr .85fr .8fr .9fr 1.25fr .72fr .72fr .65fr .72fr .65fr .75fr auto!important;
+  min-width:1720px!important;
+}
+.v664-line-supplier{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:1.5fr .8fr .8fr .8fr .9fr;
+  gap:8px;
+  align-items:end;
+  border-top:1px dashed var(--line);
+  background:#f7faf8;
+  padding:10px;
+  margin:4px -2px -2px;
+  border-radius:9px;
+}
+.v664-line-supplier-title{
+  grid-column:1/-1;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  background:#138a50;
+  color:#fff;
+  padding:7px 10px;
+  border-radius:7px;
+}
+.v664-line-supplier-title small{color:#d8f5e5;font-size:9px}
+.v664-line-supplier input[readonly]{background:#eef5f0!important}
+@media(max-width:700px){
+  .v664-invoice-line{grid-template-columns:1fr 1fr!important;min-width:0!important}
+  .v664-line-supplier{grid-template-columns:1fr 1fr!important}
+  .v664-line-supplier-title{grid-column:1/-1}
+  .v664-line-supplier .field:first-of-type{grid-column:1/-1}
+}

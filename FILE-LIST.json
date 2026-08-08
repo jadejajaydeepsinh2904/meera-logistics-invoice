@@ -1,10 +1,23 @@
 {
-  "version": "V66.3-SEARCH-TYPING-FIX",
-  "source": "V66.2 Supplier Paid Status Fix",
+  "version": "V66.4-TRIPWISE-DATE-SUPPLIER",
+  "source": "V66.3 Search Typing Fix",
+  "backend": "Worker changed; D1 stored schema version remains 53",
   "checks": {
-    "search_focus_restore": "passed",
-    "search_caret_restore": "passed",
-    "supplier_status_fix_retained": "passed",
+    "global_loading_date_removed": "passed",
+    "line_loading_date": "passed",
+    "line_supplier_name": "passed",
+    "line_supplier_rate": "passed",
+    "line_commission": "passed",
+    "line_supplier_advance": "passed",
+    "line_supplier_payable": "passed",
+    "submit_line_date": "passed",
+    "submit_supplier": "passed",
+    "print_trip_date": "passed",
+    "worker_per_trip_date": "passed",
+    "worker_supplier_entry": "passed",
+    "worker_supplier_advance": "passed",
+    "search_fix_retained": "passed",
+    "paid_fix_retained": "passed",
     "lr_fix_retained": "passed",
     "javascript_syntax": "passed",
     "web_build": "passed"
@@ -166,6 +179,11 @@
       "sha256": "7e350bbb39aa84109b474459c08cb4c58e003b067e26df6e4f4f395808a5c823"
     },
     {
+      "path": "V66-4-TRIPWISE-DATE-SUPPLIER-REPORT.txt",
+      "size": 1191,
+      "sha256": "8d7a94e09db5c474b08d885d77e399c007ce6663237635f633a8fbd76ba4519b"
+    },
+    {
       "path": "V66-WEB-ANDROID-UNIFIED-DESIGN-REPORT.txt",
       "size": 1071,
       "sha256": "4b12e2d42d397d38bb70fd0324d5acd195f73fd0a7bd3c5cd226cd02166e2a4d"
@@ -183,7 +201,7 @@
     {
       "path": "package.json",
       "size": 1042,
-      "sha256": "7fc9d195aff6f5bdc39e970e02d4b367f720b7db8d77baf7b7963a0a177df00c"
+      "sha256": "dfe6dc4a912d11557f41ea1aef3e1cc68aa838f20351e0d2b5d3e4fc681f7d9a"
     },
     {
       "path": "public/account-deletion-draft.html",
@@ -308,7 +326,7 @@
     {
       "path": "public/index.html",
       "size": 2258,
-      "sha256": "c6cb2227c82db535bb867c393a7b2286b6e56f13755f379014a84757ca842c40"
+      "sha256": "872437c96ed6ae1b9ac3aa7d68b6922ba2a9e864fe2783b5bd6fda295dad9fcf"
     },
     {
       "path": "public/manifest.webmanifest",
@@ -328,7 +346,7 @@
     {
       "path": "public/src/advanced-v44.js",
       "size": 63230,
-      "sha256": "2ee8549535b8fd8066f631f522d39af4306476b7f8fa9e33dd1000ef5010c857"
+      "sha256": "2cb17921f1cf67a660204ac89ad024f638208cc88b765dbfd5fc29f38e2fe6c2"
     },
     {
       "path": "public/src/android-v63.js",
@@ -337,8 +355,8 @@
     },
     {
       "path": "public/src/app.js",
-      "size": 155498,
-      "sha256": "0be87420d1482d40b46b2a54a1010edd4f182ed151d9ae283e5b157863e3b05d"
+      "size": 160725,
+      "sha256": "dc0ac8598f50240e11097c3e51f62506d00c843d46da04bfe795e1bb536430f6"
     },
     {
       "path": "public/src/core/api.js",
@@ -387,8 +405,8 @@
     },
     {
       "path": "public/src/styles.css",
-      "size": 42333,
-      "sha256": "a8def539aab70c55852b7937033fe9b02310dff2e2a4536aedfb3912d7ddaa6a"
+      "size": 43422,
+      "sha256": "80397000862bd99eb551fbd2d35a156967de4b0daa56dbe075be7e1b4e4efc77"
     },
     {
       "path": "public/src/supplier-ledger-pdf-v41.js",
@@ -449,6 +467,11 @@
       "path": "public/sw-v66-3.js",
       "size": 4982,
       "sha256": "a3fd2d5d67850c1dfe202c44a7ee6d8d387bc4fb588c53762cc71b38e62d868b"
+    },
+    {
+      "path": "public/sw-v66-4.js",
+      "size": 4982,
+      "sha256": "e1de1c8b0ee866df6ce6335d8907ca085023337218c692f66f26dd4dbe987140"
     },
     {
       "path": "public/sw-v66.js",
@@ -536,6 +559,11 @@
       "sha256": "7631c87e7d9f029429f33344bf40c8fc4f5f7e1f82399ff963de18beeec83aa6"
     },
     {
+      "path": "public/version-v66-4.txt",
+      "size": 51,
+      "sha256": "49c1fb1bcce080b3a64558898a7eff0978e7ccb2cb59a781e89545c11c79c5e3"
+    },
+    {
       "path": "public/version-v66.txt",
       "size": 53,
       "sha256": "45a35a46131040a5a059665622bdbe3aa06ee0e214d720f184a810cc9a1166a9"
@@ -612,8 +640,8 @@
     },
     {
       "path": "worker/src/index.js",
-      "size": 201578,
-      "sha256": "b27bfbef89ccf6ff8b925b0f4dd9e30ed49cae0fc4bb0366871618db47998a2a"
+      "size": 206854,
+      "sha256": "2e234a221922099794895e10898ba97f602ef3d62dd001a282bea6744325392d"
     },
     {
       "path": "worker/src/seed-data.js",

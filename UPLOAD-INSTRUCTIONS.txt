@@ -1,12 +1,16 @@
-V66.3 SEARCH TYPING FIX
+V66.4 TRIP-WISE DATE + SUPPLIER
 
-Upload/replace these 8 files in GitHub main.
-After Vercel deploy open:
-https://meera-logistics-invoice.vercel.app/?reset=v663
+Upload/replace these 10 changed/new project files in GitHub main.
 
-Cloudflare Worker redeploy is NOT required.
+WEB:
+After Vercel deploy, open:
+https://meera-logistics-invoice.vercel.app/?reset=v664
 
-Android later:
-replace these files in local project,
-run npm run android:sync,
-then Run in Android Studio.
+BACKEND:
+This version DOES change worker/src/index.js.
+Deploy the V66.4 Cloudflare Worker after GitHub upload.
+
+ANDROID:
+Replace same files in local project, run:
+npm run android:sync
+Then Run in Android Studio.
