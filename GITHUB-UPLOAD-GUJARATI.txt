@@ -1,0 +1,21 @@
+TRANSPORT ERP V69 — GITHUB UPDATE ONLY
+
+આ package V68.5 Web project ઉપર V69 add કરવા માટે છે.
+આમાં માત્ર નવી અથવા બદલાયેલી files છે; Full Project ફરી upload કરવાની જરૂર નથી.
+
+GITHUBમાં UPLOAD કરવાની રીત:
+
+1. ZIP Extract કરો.
+2. GitHubમાં હાલની Website Repository ખોલો.
+3. Add file > Upload files દબાવો.
+4. Extract થયેલા "Transport-ERP-V69-GITHUB-UPDATE-ONLY" folderની અંદરની બધી files અને folders પસંદ કરો.
+5. બહારનું "Transport-ERP-V69-GITHUB-UPDATE-ONLY" folder repositoryમાં upload ન કરશો.
+6. Commit changes દબાવો.
+
+મહત્વનું:
+
+- આ packageમાં કુલ 29 files છે, એટલે GitHubની 100-file upload limit નહીં આવે.
+- Existing files એ જ path પર replace થશે અને V69ની નવી files add થશે.
+- જૂનો data delete નહીં થાય.
+- Vercel GitHub સાથે connected હોય તો commit પછી Web આપમેળે deploy થશે.
+- Driver Khata અને Truck Expense online sync માટે worker folderનું update Cloudflare Workerમાં deploy કરવું પડશે.

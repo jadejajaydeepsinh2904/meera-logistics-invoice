@@ -1,0 +1,39 @@
+MEERA LOGISTICS TRANSPORT ERP V69
+================================
+
+WHAT IS NEW
+- Complete Gujarati/Hindi/English UI with display-only Route transliteration.
+- Driver Khata: Add Driver, Driver Gave, Driver Got, balance and Excel download.
+- My Trucks: truck-wise expense ledger and report.
+- Truck expense categories from the supplied reference screens plus Custom Expense Type.
+- Old Excel (.xlsx/.xls/.csv) column mapping, preview, duplicate Bill No. check and invoice creation.
+- Party and Supplier Ledger download confirmation/fallback repair.
+
+ANDROID UPDATE
+1. Extract the Android Full Project ZIP.
+2. Open the extracted project folder in VS Code.
+3. Run:
+   npm install
+   npm run android:sync
+   npm run android:open
+4. In Android Studio select the mobile and press Run.
+
+The existing App does not need to be uninstalled. V69 uses versionCode 8.
+
+WEB UPDATE
+1. Extract the Web Full Project ZIP.
+2. Upload the extracted files to the GitHub repository main root / deploy to Vercel.
+
+ONE-TIME WORKER UPDATE (REQUIRED FOR NEW ONLINE MODULES)
+1. Open the project worker folder.
+2. Run:
+   npm install
+   npx wrangler deploy
+
+The Worker creates the V69 Driver Khata and Truck Expense tables automatically.
+Language/Route display does not change stored Party, Truck, Route, invoice, PDF, Excel or backup values.
+
+OLD BILL EXCEL
+Open: More > Old Excel Invoice Import
+Select the Excel file, verify column mapping and preview, then press Create Invoices.
+Existing duplicate Bill Numbers are skipped.

@@ -1,0 +1,10 @@
+V69 WEB FULL PROJECT
+
+1. Upload the extracted contents to the GitHub repository main root.
+2. Deploy the repository to Vercel.
+3. Deploy the included Worker once for online Driver Khata and Truck Expenses:
+   cd worker
+   npm install
+   npx wrangler deploy
+
+The existing Worker database is upgraded automatically after deployment.

@@ -1,0 +1,73 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+
+const root=path.resolve(import.meta.dirname,'..');
+const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
+const app=read('public/src/app.js');
+const fleet=read('public/src/fleet-v69.js');
+const fleetCss=read('public/src/fleet-v69.css');
+const language=read('public/src/language-v683.js');
+const worker=read('worker/src/index.js');
+const index=read('public/index.html');
+const serviceWorker=read('public/sw-v69.js');
+const partyLedger=read('public/src/party-ledger-v40.js');
+const supplierLedger=read('public/src/supplier-ledger-v41.js');
+const pkg=JSON.parse(read('package.json'));
+const android=read('android/app/build.gradle');
+
+function languageRuntime(code){
+  const documentElement={dataset:{},style:{setProperty(){}}};
+  const document={documentElement,body:null,querySelectorAll:()=>[],querySelector:()=>null,addEventListener(){},dispatchEvent(){}};
+  const window={alert(){},confirm(){return true},prompt(){return ''}};
+  vm.runInNewContext(language,{window,document,localStorage:{getItem:()=>code,setItem(){}},MutationObserver:class{observe(){}},requestAnimationFrame:callback=>callback(),CustomEvent:class{}},{filename:'language-v683.js'});
+  return window.TransportLanguage;
+}
+
+assert.equal(pkg.version,'1.5.0');
+assert.equal(pkg.dependencies.xlsx,'^0.18.5');
+assert.match(android,/versionCode\s+8\b/);
+assert.match(android,/versionName\s+"1\.5\.0"/);
+
+for(const panel of ['drivers','myTrucks','truckExpenses','invoiceImport']){
+  assert.match(app,new RegExp(`['"]${panel}['"]`),`${panel} is wired into main navigation`);
+}
+for(const action of ['add-driver','driver-entry','add-truck-expense','download-truck-expenses','run-invoice-import']){
+  assert.match(fleet,new RegExp(action),`${action} action exists`);
+}
+assert.match(fleet,/XLSX\.read\(/,'XLSX files are parsed locally');
+assert.match(fleet,/Column Mapping/,'Import includes a column mapping step');
+assert.match(fleet,/duplicate Bill Numbers/i,'Import protects existing invoice numbers');
+assert.match(fleet,/api\('\/invoices'/,'Mapped rows create real invoices through the existing invoice workflow');
+assert.match(fleetCss,/\.v69-driver-list/);
+assert.match(fleetCss,/\.v69-truck-grid/);
+assert.match(fleetCss,/\.v69-mapping/);
+
+for(const token of ['CREATE TABLE IF NOT EXISTS drivers','CREATE TABLE IF NOT EXISTS driver_ledger_entries','CREATE TABLE IF NOT EXISTS truck_expenses',"resource==='drivers'","resource==='driver-entries'","resource==='truck-expenses'",'drivers,driverEntries,truckExpenses']){
+  assert.ok(worker.includes(token),`Worker includes ${token}`);
+}
+for(const sheet of ['Drivers','DriverEntries','TruckExpenses'])assert.match(worker,new RegExp(`${sheet}:\\{table:`),`${sheet} is included in export/backup`);
+
+const gu=languageRuntime('gu');
+assert.equal(gu.route('BHOJABEDI → RELIANCE'),'ભોજાબેડી → રિલાયન્સ');
+assert.notEqual(gu.route('BAREJA'),'BAREJA','Unknown Roman route names receive Gujarati display transliteration');
+assert.equal(gu.text('Driver Khata'),'ડ્રાઇવર ખાતું');
+assert.equal(gu.text('Truck Expenses'),'ટ્રક ખર્ચ');
+const hi=languageRuntime('hi');
+assert.equal(hi.route('BHOJABEDI → RELIANCE'),'भोजाबेड़ी → रिलायंस');
+
+assert.match(index,/vendor\/xlsx\.full\.min\.js\?v=690/);
+assert.match(index,/fleet-v69\.css\?v=690/);
+assert.match(index,/app\.js\?v=690/);
+assert.match(serviceWorker,/transport-v690-shell/);
+assert.match(serviceWorker,/fleet-v69\.js\?v=690/);
+assert.match(serviceWorker,/xlsx\.full\.min\.js\?v=690/);
+assert.match(partyLedger,/Ledger downloaded successfully/);
+assert.match(supplierLedger,/Ledger downloaded successfully/);
+
+for(const relative of ['index.html','vendor/xlsx.full.min.js','src/app.js','src/fleet-v69.js','src/fleet-v69.css','src/language-v683.js','src/party-ledger-v40.js','src/supplier-ledger-v41.js']){
+  assert.equal(read(`android/app/src/main/assets/public/${relative}`),read(`public/${relative}`),`Android asset matches ${relative}`);
+}
+
+console.log('V69 routes, Driver Khata, My Trucks, expenses, ledger downloads and Excel invoice import regression passed.');

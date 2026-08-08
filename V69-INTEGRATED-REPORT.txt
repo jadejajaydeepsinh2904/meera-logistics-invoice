@@ -1,0 +1,30 @@
+MEERA LOGISTICS TRANSPORT ERP V69 - INTEGRATED RELEASE
+
+Release version: 1.5.0
+Android versionCode: 8
+Android target SDK: 36
+
+Included and verified:
+- V68 mobile compatibility, whole-App scrolling and safe bottom spacing.
+- Visible Back buttons and Android system Back navigation.
+- Gujarati, Hindi and English language selection.
+- Gujarati/Hindi Route display for known names plus Roman-name transliteration fallback.
+- Sidebar independent scrolling with all menu options reachable.
+- Driver master and Driver Gave / Driver Got ledger.
+- My Trucks and online-synced truck expense register.
+- Driver and Truck Expense XLSX downloads.
+- Party/Supplier Ledger PDF download success/fallback handling.
+- Old Excel XLSX/XLS/CSV invoice importer with mapping, preview and duplicate protection.
+- Driver/expense data in full export, monthly export and backup/restore.
+- Web and Android source use the same public application files.
+
+Validation:
+- JavaScript syntax checks passed for app, language, V69 fleet/import module and Worker.
+- V68 through V68.5 regression suite passed.
+- V69 integrated regression passed.
+- Capacitor Android asset sync passed.
+- Android API 36 preflight passed.
+- Worker source syntax check passed.
+
+Note:
+The V69 Worker source must be deployed once for online Driver Khata and Truck Expenses.

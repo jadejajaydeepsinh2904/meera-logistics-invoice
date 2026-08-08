@@ -340,7 +340,8 @@ function calendarHtml(data,month){
   const events=calendarEvents(data,month);const byDay={};for(const e of events)(byDay[Number(e.date.slice(-2))]??=[]).push(e);
   const cells=[];for(let i=0;i<lead;i++)cells.push('<div class="a43-day muted"></div>');
   for(let day=1;day<=days;day++)cells.push(`<div class="a43-day ${new Date().toISOString().slice(0,10)===`${month}-${String(day).padStart(2,'0')}`?'today':''}"><b>${day}</b><div>${(byDay[day]||[]).slice(0,5).map(e=>`<button class="a43-event ${e.type.toLowerCase()}" title="${esc(e.sub)}"><span>${esc(e.type)}</span>${esc(e.title)}</button>`).join('')}</div>${(byDay[day]||[]).length>5?`<small>+${(byDay[day]||[]).length-5} more</small>`:''}</div>`);
-  return `<div class="a43-calendar-head"><button data-cal-prev>‹</button><h2>${first.toLocaleString('en-IN',{month:'long',year:'numeric'})}</h2><button data-cal-next>›</button></div><div class="a43-week">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>`<b>${x}</b>`).join('')}</div><div class="a43-calendar">${cells.join('')}</div><div class="a43-legend"><span class="booking">Booking</span><span class="trip">Trip</span><span class="invoice">Invoice</span><span class="expiry">Expiry</span></div>`;
+  const locale=window.TransportLanguage?.dateLocale?.()||'en-IN';
+  return `<div class="a43-calendar-head"><button data-cal-prev>‹</button><h2>${first.toLocaleString(locale,{month:'long',year:'numeric'})}</h2><button data-cal-next>›</button></div><div class="a43-week">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>`<b>${x}</b>`).join('')}</div><div class="a43-calendar">${cells.join('')}</div><div class="a43-legend"><span class="booking">Booking</span><span class="trip">Trip</span><span class="invoice">Invoice</span><span class="expiry">Expiry</span></div>`;
 }
 async function openCalendar(){
   const host=loading('Professional Calendar');
@@ -385,7 +386,7 @@ async function openWorkflow(){
   try{
     const data=await loadAdvanced(true);const bookings=data.bookings||[];
     host.querySelector('.a43-head-actions').insertAdjacentHTML('afterbegin','<button class="primary" data-new-booking>+ New Booking</button>');
-    host.querySelector('main').innerHTML=`<div class="a43-flow"><span>1. Booking</span><i>→</i><span>2. Approval</span><i>→</i><span>3. Dispatch</span><i>→</i><span>4. Trip</span></div><div class="a43-bookings">${bookings.length?bookings.map(b=>`<article><div><b>${esc(b.booking_no)}</b>${statusBadge(b.status)}${statusBadge(b.approval_status)}</div><h3>${esc(b.party_name)}</h3><p><b>${esc(b.truck_no||'-')}</b> · ${esc(b.material||'-')}</p><p>${esc(b.loading_point)} → ${esc(b.unloading_point)}</p><small>${fmtDate(b.booking_date)}${b.expected_date?' · Expected '+fmtDate(b.expected_date):''}${b.trip_id?' · Trip linked':''}</small><footer>${bookingActions(b)}</footer></article>`).join(''):'<div class="a43-empty">No bookings. Create the first booking.</div>'}</div>`;
+    host.querySelector('main').innerHTML=`<div class="a43-flow"><span>1. Booking</span><i>→</i><span>2. Approval</span><i>→</i><span>3. Dispatch</span><i>→</i><span>4. Trip</span></div><div class="a43-bookings">${bookings.length?bookings.map(b=>`<article><div><b>${esc(b.booking_no)}</b>${statusBadge(b.status)}${statusBadge(b.approval_status)}</div><h3>${esc(b.party_name)}</h3><p><b>${esc(b.truck_no||'-')}</b> · ${esc(b.material||'-')}</p><p data-route-text>${esc(b.loading_point)} → ${esc(b.unloading_point)}</p><small>${fmtDate(b.booking_date)}${b.expected_date?' · Expected '+fmtDate(b.expected_date):''}${b.trip_id?' · Trip linked':''}</small><footer>${bookingActions(b)}</footer></article>`).join(''):'<div class="a43-empty">No bookings. Create the first booking.</div>'}</div>`;
     host.querySelector('[data-new-booking]').onclick=()=>bookingForm();
     host.querySelectorAll('[data-edit-booking]').forEach(x=>x.onclick=()=>bookingForm(bookings.find(b=>b.id===x.dataset.editBooking)));
     host.querySelectorAll('[data-trash-booking]').forEach(x=>x.onclick=()=>moveToRecycle('booking',x.dataset.trashBooking,openWorkflow));
@@ -520,6 +521,73 @@ function v62OpenNotification(item){
   const panel=document.querySelector(`[data-panel="${item.action}"]`);
   if(panel)panel.click();
 }
+function localNotificationFeedV672(){
+  // Always return a renderable feed. On a very early click the bootstrap
+  // snapshot may not be exposed yet; an empty feed is still better than a
+  // modal that remains on Loading while the network request is pending.
+  const data=window.ML_APP_DATA||A43.bootstrap||{};
+  const items=[];
+  for(const party of data.partyLedger||[]){
+    const pending=Number(party.outstanding||0);
+    if(pending>.01)items.push({
+      id:`PARTY:${party.party_name}`,kind:'PARTY_OUTSTANDING',severity:'warning',title:party.party_name,
+      text:`Party outstanding ${pending.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}`,amount:pending,action:'parties'
+    });
+  }
+  for(const supplier of data.supplierLedger||[]){
+    const pending=Number(supplier.pending||0);
+    if(pending>.01)items.push({
+      id:`SUPPLIER:${supplier.owner_name}`,kind:'SUPPLIER_PENDING',severity:'info',title:supplier.owner_name,
+      text:`Supplier payment pending ${pending.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}`,amount:pending,action:'suppliers'
+    });
+  }
+  const today=new Date().toISOString().slice(0,10);
+  const limit=new Date(Date.now()+30*86400000).toISOString().slice(0,10);
+  for(const doc of data.documents||[]){
+    const due=String(doc.expiry_date||'').slice(0,10);
+    if(!due||due>limit)continue;
+    const expired=due<today;
+    items.push({
+      id:`DOC:${doc.id}`,kind:'DOCUMENT_EXPIRY',severity:expired?'critical':'warning',
+      title:`${doc.truck_no} · ${doc.kind}`,text:`${expired?'Expired':'Expiry'} ${due} · ${doc.file_name||'Document'}`,
+      dueDate:due,action:'gallery',entityId:doc.id
+    });
+  }
+  const access=data.saas||{},subscription=access.subscription||{};
+  if(subscription.status==='TRIAL'&&Number(access.daysRemaining)<=7){
+    items.push({id:'SUBSCRIPTION:TRIAL',kind:'SUBSCRIPTION',severity:Number(access.daysRemaining)<=2?'critical':'warning',title:'Free Trial',text:`${access.daysRemaining??0} day(s) remaining`,action:'saas'});
+  }else if(access.readOnly){
+    items.push({id:'SUBSCRIPTION:EXPIRED',kind:'SUBSCRIPTION',severity:'critical',title:'Subscription Expired',text:access.accessMessage||'Read Only Mode',action:'saas'});
+  }
+  const rank={critical:0,warning:1,info:2};
+  items.sort((a,b)=>(rank[a.severity]??9)-(rank[b.severity]??9)||String(a.dueDate||'9999').localeCompare(String(b.dueDate||'9999'))||Number(b.amount||0)-Number(a.amount||0));
+  return {count:items.length,urgent:items.filter(x=>x.severity==='critical'||x.severity==='warning').length,items:items.slice(0,100),storage:{mode:'D1',r2Configured:false},cached:true};
+}
+function renderNotificationsV672(host,feed,{refreshing=false}={}){
+  if(!host)return;
+  const rows=Array.isArray(feed?.items)?feed.items:[];
+  const actions=host.querySelector('.a43-head-actions');
+  if(actions&&!actions.querySelector('[data-v62-enable-alerts]'))actions.insertAdjacentHTML('afterbegin','<button data-v62-enable-alerts>Enable Browser Alerts</button>');
+  const main=host.querySelector('main');
+  if(!main)return;
+  main.innerHTML=`
+    ${refreshing?'<div class="v672-alert-refresh">Showing current app data · refreshing online…</div>':''}
+    <div class="v62-notification-summary">
+      <div><small>ALL ALERTS</small><b>${Number(feed?.count||0)}</b></div><div><small>IMPORTANT</small><b>${Number(feed?.urgent||0)}</b></div>
+      <div><small>FILE STORAGE</small><b>${esc(feed?.storage?.mode||'D1')}</b></div>
+    </div>
+    <div class="v62-storage-status ${feed?.storage?.r2Configured?'cloud':'fallback'}">
+      <b>${feed?.storage?.r2Configured?'☁️ R2 Cloud Storage Ready':'💾 D1 File Fallback'}</b>
+      <span>${feed?.storage?.r2Configured?'Documents are stored outside D1 in Cloudflare R2.':'ERP works normally; add DOCS R2 binding before commercial scale.'}</span>
+    </div>
+    <div class="v62-notification-list">${rows.length?rows.map((x,i)=>`
+      <button type="button" class="v62-notification ${esc(x.severity||'info')}" data-v62-notification="${i}">
+        <span class="v62-notification-icon">${v62NotificationIcon(x)}</span>
+        <span><b>${esc(x.title)}</b><small>${esc(x.text)}</small></span><em>Open ›</em>
+      </button>`).join(''):'<div class="a43-empty">No current alerts.</div>'}</div>`;
+  const enable=host.querySelector('[data-v62-enable-alerts]');if(enable)enable.onclick=enableBrowserAlertsV62;
+  host.querySelectorAll('[data-v62-notification]').forEach(btn=>btn.onclick=()=>v62OpenNotification(rows[Number(btn.dataset.v62Notification)]));
+}
 async function enableBrowserAlertsV62(){
   if(!('Notification'in window))return alert('Browser notification support available nathi.');
   const permission=await Notification.requestPermission();
@@ -541,35 +609,29 @@ async function showUrgentBrowserAlertV62(feed){
 }
 async function openNotificationsV62(){
   const host=loading('Notifications & App Alerts');
+  const cached=localNotificationFeedV672();
+  if(cached)renderNotificationsV672(host,cached,{refreshing:navigator.onLine});
   try{
-    const feed=await api('/notifications');
-    const rows=feed.items||[];
-    host.querySelector('.a43-head-actions').insertAdjacentHTML('afterbegin','<button data-v62-enable-alerts>Enable Browser Alerts</button>');
-    host.querySelector('main').innerHTML=`
-      <div class="v62-notification-summary">
-        <div><small>ALL ALERTS</small><b>${feed.count||0}</b></div><div><small>IMPORTANT</small><b>${feed.urgent||0}</b></div>
-        <div><small>FILE STORAGE</small><b>${esc(feed.storage?.mode||'D1')}</b></div>
-      </div>
-      <div class="v62-storage-status ${feed.storage?.r2Configured?'cloud':'fallback'}">
-        <b>${feed.storage?.r2Configured?'☁️ R2 Cloud Storage Ready':'💾 D1 File Fallback'}</b>
-        <span>${feed.storage?.r2Configured?'Documents are stored outside D1 in Cloudflare R2.':'ERP works normally; add DOCS R2 binding before commercial scale.'}</span>
-      </div>
-      <div class="v62-notification-list">${rows.length?rows.map((x,i)=>`
-        <button type="button" class="v62-notification ${esc(x.severity||'info')}" data-v62-notification="${i}">
-          <span class="v62-notification-icon">${v62NotificationIcon(x)}</span>
-          <span><b>${esc(x.title)}</b><small>${esc(x.text)}</small></span><em>Open ›</em>
-        </button>`).join(''):'<div class="a43-empty">No current alerts.</div>'}</div>`;
-    host.querySelector('[data-v62-enable-alerts]').onclick=enableBrowserAlertsV62;
-    host.querySelectorAll('[data-v62-notification]').forEach(btn=>btn.onclick=()=>v62OpenNotification(rows[Number(btn.dataset.v62Notification)]));
+    const feed=await api('/notifications',{timeoutMs:8000});
+    if(document.body.contains(host))renderNotificationsV672(host,feed);
     showUrgentBrowserAlertV62(feed);
-  }catch(e){host.querySelector('main').innerHTML=`<div class="a43-error">${esc(e.message)}</div>`}
+  }catch(e){
+    if(!cached&&document.body.contains(host))host.querySelector('main').innerHTML=`<div class="a43-error">${esc(e.message)}</div>`;
+    else if(document.body.contains(host))host.querySelector('.v672-alert-refresh')?.remove();
+  }
 }
 let v62NotificationCache={at:0,count:0,urgent:0};
 async function refreshNotificationBadgeV62(force=false){
   if(!document.querySelector('.erp'))return;
   if(!force&&Date.now()-v62NotificationCache.at<60000)return v62NotificationCache;
+  const cached=localNotificationFeedV672();
+  if(cached){
+    v62NotificationCache={at:Date.now(),count:Number(cached.count||0),urgent:Number(cached.urgent||0)};
+    const button=document.querySelector('[data-v62-notifications-top]');
+    if(button)button.innerHTML=`🔔 Alerts${cached.urgent?` <span class="v62-badge">${cached.urgent}</span>`:''}`;
+  }
   try{
-    const feed=await api('/notifications');
+    const feed=await api('/notifications',{timeoutMs:8000});
     v62NotificationCache={at:Date.now(),count:Number(feed.count||0),urgent:Number(feed.urgent||0)};
     const b=document.querySelector('[data-v62-notifications-top]');
     if(b)b.innerHTML=`🔔 Alerts${feed.urgent?` <span class="v62-badge">${feed.urgent}</span>`:''}`;
@@ -621,10 +683,14 @@ function decorate(){
   const dashSettings=document.querySelector('[data-a44-settings-dashboard]');if(dashSettings&&!dashSettings.dataset.a44Bound){dashSettings.dataset.a44Bound='1';dashSettings.addEventListener('click',openSettings)}
   if(!document.querySelector('.a43-online')){const s=document.createElement('button');s.className='a43-online';s.onclick=()=>navigator.serviceWorker?.controller?.postMessage({type:'SYNC_QUEUE'});document.body.appendChild(s)}
   const s=document.querySelector('.a43-online');if(s){s.textContent=navigator.onLine?'● Online':'● Offline · Changes queued';s.classList.toggle('offline',!navigator.onLine)}
+  document.querySelectorAll('[data-v68-network]').forEach(status=>{
+    status.textContent=navigator.onLine?'● Online':'● Offline';
+    status.classList.toggle('offline',!navigator.onLine);
+  });
 }
 new MutationObserver(()=>requestAnimationFrame(decorate)).observe(document.documentElement,{childList:true,subtree:true});applySettings(cachedSettings());decorate();hydrateSettings();
 window.addEventListener('online',()=>{decorate();navigator.serviceWorker?.controller?.postMessage({type:'SYNC_QUEUE'});toast('Online — offline changes syncing')});window.addEventListener('offline',decorate);
-if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())navigator.serviceWorker.register('/sw-v66-4.js?v=670').catch(()=>{});
+if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())navigator.serviceWorker.register('/sw-v69.js?v=690').catch(()=>{});
 
 document.addEventListener('ml-open-saas-v59',()=>openSaasCenter());
 

@@ -23,6 +23,7 @@ let initPromise;
 let tenantColumnPromise=null;
 let saasFoundationPromise=null;
 let tenantUpgradePromise=null;
+let fleetV69Promise=null;
 
 async function sha256(text){
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(text)));
@@ -61,6 +62,7 @@ function resourceWritePermission(resource=''){
     'pm-bills':'pm-bills.write','truck-entries':'truck-entries.write','supplier-payments':'supplier-payments.write',
     'expenses':'expenses.write','suppliers':'suppliers.write','settings':'settings.write','trips':'trips.write','trucks':'trucks.write',
     'routes':'routes.write','materials':'materials.write','documents':'documents.write',
+    'drivers':'trucks.write','driver-entries':'expenses.write','truck-expenses':'expenses.write',
     'workflow-bookings':'workflow.write','approvals':'workflow.write','recycle-bin':'settings.write',
     'backups':'settings.write','monthly-exports':'excel.write','excel-import':'excel.write','import':'excel.write'
   };
@@ -69,6 +71,48 @@ function resourceWritePermission(resource=''){
 function canWriteResource(user,resource){
   if(['OWNER','ADMIN'].includes(upper(user?.role)))return true;
   return hasPermission(user,resourceWritePermission(resource));
+}
+
+async function ensureFleetV69(env){
+  if(fleetV69Promise)return fleetV69Promise;
+  fleetV69Promise=(async()=>{
+    const creates=[
+      `CREATE TABLE IF NOT EXISTS drivers(
+        id TEXT PRIMARY KEY,company_id TEXT NOT NULL DEFAULT '${DEFAULT_COMPANY_ID}',
+        driver_name TEXT NOT NULL,mobile TEXT DEFAULT '',license_no TEXT DEFAULT '',notes TEXT DEFAULT '',
+        active INTEGER NOT NULL DEFAULT 1,created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,UNIQUE(company_id,driver_name)
+      )`,
+      `CREATE TABLE IF NOT EXISTS driver_ledger_entries(
+        id TEXT PRIMARY KEY,company_id TEXT NOT NULL DEFAULT '${DEFAULT_COMPANY_ID}',
+        driver_id TEXT NOT NULL,entry_date TEXT NOT NULL,direction TEXT NOT NULL DEFAULT 'GAVE',
+        amount REAL NOT NULL DEFAULT 0,payment_mode TEXT DEFAULT 'CASH',reference TEXT DEFAULT '',
+        notes TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS truck_expenses(
+        id TEXT PRIMARY KEY,company_id TEXT NOT NULL DEFAULT '${DEFAULT_COMPANY_ID}',
+        truck_no TEXT NOT NULL,trip_id TEXT DEFAULT '',expense_date TEXT NOT NULL,
+        category TEXT NOT NULL,amount REAL NOT NULL DEFAULT 0,payment_mode TEXT DEFAULT 'CASH',
+        reference TEXT DEFAULT '',notes TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`
+    ];
+    for(const sql of creates)await env.DB.prepare(sql).run();
+    const indexes=[
+      `CREATE INDEX IF NOT EXISTS idx_driver_company_v69 ON drivers(company_id,driver_name)`,
+      `CREATE INDEX IF NOT EXISTS idx_driver_ledger_v69 ON driver_ledger_entries(company_id,driver_id,entry_date)`,
+      `CREATE INDEX IF NOT EXISTS idx_truck_expense_v69 ON truck_expenses(company_id,truck_no,expense_date)`
+    ];
+    for(const sql of indexes)await safe(env,sql);
+
+    // Existing Trip drivers become available automatically without changing
+    // any Trip record. Later edits continue through the Driver master.
+    await safe(env,`INSERT OR IGNORE INTO drivers(id,company_id,driver_name,mobile,notes)
+      SELECT 'DRV-'||lower(hex(randomblob(16))),company_id,UPPER(TRIM(driver_name)),MAX(COALESCE(driver_mobile,'')),'Imported from existing Trips'
+      FROM trips WHERE COALESCE(TRIM(driver_name),'')<>'' GROUP BY company_id,UPPER(TRIM(driver_name))`);
+    return true;
+  })().catch(error=>{fleetV69Promise=null;throw error});
+  return fleetV69Promise;
 }
 
 async function ensureUserTenantColumns(env){
@@ -367,14 +411,15 @@ const TENANT_TABLES=[
   'party_accounts','party_payments','trucks','routes','materials','trips','invoices','invoice_items',
   'pm_bills','pm_bill_items','truck_payments','supplier_payments','supplier_accounts','expenses',
   'truck_documents','audit_logs','workflow_bookings','approval_requests','recycle_bin',
-  'backup_snapshots','monthly_exports','app_settings'
+  'backup_snapshots','monthly_exports','app_settings','drivers','driver_ledger_entries','truck_expenses'
 ];
 const TENANT_RESOURCE_TABLE={
   parties:'party_accounts','party-payments':'party_payments',trucks:'trucks',trips:'trips',
   invoices:'invoices','pm-bills':'pm_bills','truck-entries':'truck_payments',suppliers:'supplier_accounts',
   'supplier-payments':'supplier_payments',expenses:'expenses',documents:'truck_documents',
   'workflow-bookings':'workflow_bookings',approvals:'approval_requests','recycle-bin':'recycle_bin',
-  backups:'backup_snapshots','monthly-exports':'monthly_exports'
+  backups:'backup_snapshots','monthly-exports':'monthly_exports',drivers:'drivers',
+  'driver-entries':'driver_ledger_entries','truck-expenses':'truck_expenses'
 };
 function companyIdOf(user){return clean(user?.company_id)||DEFAULT_COMPANY_ID}
 async function tenantOwns(env,user,resource,id){
@@ -1643,7 +1688,8 @@ async function bootstrap(env,user){
   await ensureAllPartyLedgerNumbers(env,companyId);
   const [
     parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
-    pmBills,pmBillItems,truckEntries,supplierPayments,supplierAccounts,expenses,documents,audits
+    pmBills,pmBillItems,truckEntries,supplierPayments,supplierAccounts,expenses,documents,audits,
+    drivers,driverEntries,truckExpenses
   ]=await Promise.all([
     all(env,`SELECT * FROM party_accounts WHERE company_id=? ORDER BY COALESCE(ledger_no,''),party_name`,companyId),
     all(env,`SELECT * FROM party_payments WHERE company_id=? ORDER BY payment_date DESC,created_at DESC`,companyId),
@@ -1660,7 +1706,10 @@ async function bootstrap(env,user){
     all(env,`SELECT * FROM supplier_accounts WHERE company_id=? ORDER BY CAST(REPLACE(ledger_no,'PML ','') AS INTEGER)`,companyId),
     all(env,`SELECT * FROM expenses WHERE company_id=? ORDER BY expense_date DESC,created_at DESC`,companyId),
     all(env,`SELECT id,company_id,truck_no,kind,file_name,file_type,expiry_date,notes,created_at FROM truck_documents WHERE company_id=? ORDER BY created_at DESC`,companyId),
-    all(env,`SELECT * FROM audit_logs WHERE company_id=? ORDER BY created_at DESC LIMIT 150`,companyId)
+    all(env,`SELECT * FROM audit_logs WHERE company_id=? ORDER BY created_at DESC LIMIT 150`,companyId),
+    all(env,`SELECT * FROM drivers WHERE company_id=? AND active=1 ORDER BY driver_name`,companyId),
+    all(env,`SELECT * FROM driver_ledger_entries WHERE company_id=? ORDER BY entry_date DESC,created_at DESC`,companyId),
+    all(env,`SELECT * FROM truck_expenses WHERE company_id=? ORDER BY expense_date DESC,created_at DESC`,companyId)
   ]);
 
   const itemsByInvoice={};
@@ -1749,6 +1798,8 @@ async function bootstrap(env,user){
   );
   const supplierPaid=round2(supplierPayments.reduce((a,x)=>a+num(x.amount),0));
   const expenseTotal=round2(expenses.reduce((a,x)=>a+num(x.amount),0));
+  const truckExpenseTotal=round2(truckExpenses.reduce((a,x)=>a+num(x.amount),0));
+  const driverBalance=round2(driverEntries.reduce((a,x)=>a+(upper(x.direction)==='GOT'?-num(x.amount):num(x.amount)),0));
   const partyOutstanding=round2(partyLedger.reduce((a,x)=>a+num(x.outstanding),0));
 
   const issues=[];
@@ -1779,9 +1830,10 @@ async function bootstrap(env,user){
   const gstPrefix=company.invoice_prefix||'ML';
   const nonGstPrefix=company.non_gst_prefix||'JAY';
   return {
-    version:'V66.5-Accounting-Restore',
+    version:'V69-Fleet-Driver-Excel',
     user:{...user,permissions:permissionsForRole(user.role),platform_admin:platformAdmin},saas,parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
     pmBills,pmBillItems,truckEntries,supplierPayments,supplierAccounts,expenses,documents,audits,partyLedger,supplierLedger,issues,accountingAudit,
+    drivers,driverEntries,truckExpenses,
     nextInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='GST').map(x=>x.invoice_no),`${gstPrefix} - `),
     nextNonGstInvoiceNo:nextNumber(invoices.filter(x=>(x.invoice_type||'GST')==='NON_GST').map(x=>x.invoice_no),`${nonGstPrefix} `),
     nextTripNo:await reserveNextTripNumber(env,companyId),
@@ -1789,7 +1841,8 @@ async function bootstrap(env,user){
     summary:{
       totalBilling,invoiceSubtotal,partyReceived,partyOutstanding,
       supplierPayable,supplierPaid,supplierPending:round2(supplierPayable-supplierPaid),
-      expenses:expenseTotal,estimatedProfit:round2(invoiceSubtotal-supplierPayable-expenseTotal),
+      expenses:expenseTotal,truckExpenses:truckExpenseTotal,driverBalance,
+      estimatedProfit:round2(invoiceSubtotal-supplierPayable-expenseTotal-truckExpenseTotal),
       trips:trips.length,invoices:invoices.length
     }
   };
@@ -1914,6 +1967,9 @@ const ADVANCED_EXPORT_TABLES={
   TruckEntries:{table:'truck_payments',columns:['id','trip_id','entry_date','truck_no','owner_name','bank_details','loading_point','unloading_point','weight','rate','commission','payable','notes','created_at','updated_at']},
   SupplierPayments:{table:'supplier_payments',columns:['id','receipt_no','trip_id','owner_name','truck_no','payment_date','amount','payment_mode','reference','notes','created_at','updated_at']},
   Expenses:{table:'expenses',columns:['id','trip_id','expense_date','category','amount','notes','created_at','updated_at']},
+  Drivers:{table:'drivers',columns:['id','driver_name','mobile','license_no','notes','active','created_at','updated_at']},
+  DriverEntries:{table:'driver_ledger_entries',columns:['id','driver_id','entry_date','direction','amount','payment_mode','reference','notes','created_at','updated_at']},
+  TruckExpenses:{table:'truck_expenses',columns:['id','truck_no','trip_id','expense_date','category','amount','payment_mode','reference','notes','created_at','updated_at']},
   Documents:{table:'truck_documents',columns:['id','truck_no','kind','file_name','file_type','expiry_date','notes','storage_key','storage_mode','file_size','created_at']},
   Bookings:{table:'workflow_bookings',columns:['id','booking_no','booking_date','party_name','truck_no','material','loading_point','unloading_point','expected_date','status','approval_status','approved_by','approved_at','dispatch_date','trip_id','notes','created_by','created_at','updated_at']},
   Settings:{table:'app_settings',columns:['setting_key','setting_value','updated_by','updated_at']}
@@ -1933,7 +1989,7 @@ async function advancedExportPayload(env,companyId=DEFAULT_COMPANY_ID){
   for(const [name,config] of Object.entries(ADVANCED_EXPORT_TABLES)){
     try{sheets[name]=await advancedRows(env,config,companyId)}catch(_){sheets[name]=[]}
   }
-  return {version:'V66.5',format:'MEERA_BACKUP_V2',companyId,exportedAt:new Date().toISOString(),capabilities:{atomicRestore:true,lockedPartyAllocations:true,documentMetadata:true,documentContentComplete:false},sheets};
+  return {version:'V69',format:'MEERA_BACKUP_V2',companyId,exportedAt:new Date().toISOString(),capabilities:{atomicRestore:true,lockedPartyAllocations:true,driverKhata:true,truckExpenses:true,documentMetadata:true,documentContentComplete:false},sheets};
 }
 async function createBackupSnapshot(env,type='SCHEDULED',periodKey='',companyId=DEFAULT_COMPANY_ID){
   const payload=await advancedExportPayload(env,companyId);
@@ -1966,6 +2022,8 @@ async function createMonthlyExport(env,monthKey,companyId=DEFAULT_COMPANY_ID){
   payload.sheets.SupplierPayments=filter(payload.sheets.SupplierPayments||[],'payment_date');
   payload.sheets.TruckEntries=filter(payload.sheets.TruckEntries||[],'entry_date');
   payload.sheets.Expenses=filter(payload.sheets.Expenses||[],'expense_date');
+  payload.sheets.DriverEntries=filter(payload.sheets.DriverEntries||[],'entry_date');
+  payload.sheets.TruckExpenses=filter(payload.sheets.TruckExpenses||[],'expense_date');
   payload.sheets.Bookings=filter(payload.sheets.Bookings||[],'booking_date');
   const summary={
     invoices:payload.sheets.Invoices.length,
@@ -1973,7 +2031,8 @@ async function createMonthlyExport(env,monthKey,companyId=DEFAULT_COMPANY_ID){
     billing:round2(payload.sheets.Invoices.reduce((a,x)=>a+num(x.total),0)),
     received:round2(payload.sheets.PartyPayments.reduce((a,x)=>a+num(x.amount),0)),
     supplierPaid:round2(payload.sheets.SupplierPayments.reduce((a,x)=>a+num(x.amount),0)),
-    expenses:round2(payload.sheets.Expenses.reduce((a,x)=>a+num(x.amount),0))
+    expenses:round2(payload.sheets.Expenses.reduce((a,x)=>a+num(x.amount),0)),
+    truckExpenses:round2((payload.sheets.TruckExpenses||[]).reduce((a,x)=>a+num(x.amount),0))
   };
   await run(env,`INSERT INTO monthly_exports(id,company_id,month_key,summary,payload,created_at) VALUES(COALESCE((SELECT id FROM monthly_exports WHERE company_id=? AND month_key=?),?),?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(company_id,month_key) DO UPDATE SET summary=excluded.summary,payload=excluded.payload,created_at=CURRENT_TIMESTAMP`,companyId,monthKey,uid('MON'),companyId,monthKey,JSON.stringify(summary),JSON.stringify(payload));
   return {monthKey,summary};
@@ -2289,8 +2348,8 @@ const LEGACY_BACKUP_KEYS_V665={
   SupplierAccounts:'supplierAccounts',TruckEntries:'truckEntries',SupplierPayments:'supplierPayments',
   Expenses:'expenses',Documents:'documents'
 };
-const RESTORE_DELETE_ORDER_V665=['PartyPaymentAllocations','PMBillItems','InvoiceItems','SupplierPayments','TruckEntries','Expenses','PMBills','Invoices','Trips','Documents','SupplierAccounts','Materials','Routes','Trucks','PartyPayments','Parties','Bookings','Settings'];
-const RESTORE_INSERT_ORDER_V665=['Parties','Trucks','Routes','Materials','SupplierAccounts','Invoices','Trips','InvoiceItems','PartyPayments','PartyPaymentAllocations','PMBills','PMBillItems','TruckEntries','SupplierPayments','Expenses','Documents','Bookings','Settings'];
+const RESTORE_DELETE_ORDER_V665=['PartyPaymentAllocations','PMBillItems','InvoiceItems','SupplierPayments','TruckEntries','DriverEntries','TruckExpenses','Expenses','PMBills','Invoices','Trips','Documents','Drivers','SupplierAccounts','Materials','Routes','Trucks','PartyPayments','Parties','Bookings','Settings'];
+const RESTORE_INSERT_ORDER_V665=['Parties','Trucks','Routes','Materials','Drivers','SupplierAccounts','Invoices','Trips','InvoiceItems','PartyPayments','PartyPaymentAllocations','PMBills','PMBillItems','TruckEntries','SupplierPayments','Expenses','DriverEntries','TruckExpenses','Documents','Bookings','Settings'];
 
 function backupSheetsV665(input={}){
   const root=input?.payload||input?.data||input||{};
@@ -2509,7 +2568,7 @@ export default {
       const resource=parts[0]||'';
       const id=decodeURIComponent(parts[1]||'');
 
-      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'V62-Cloud-Docs-Notifications'}),{headers:{...HEADERS,'cache-control':'public,max-age=15'}});
+      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'V69-Fleet-Driver-Excel'}),{headers:{...HEADERS,'cache-control':'public,max-age=15'}});
       if(resource==='saas-plans'&&req.method==='GET'){
         await ensureDatabase(env);
         await ensureSubscriptionRequestsV61(env);
@@ -2584,6 +2643,7 @@ export default {
       }
 
       await ensureDatabase(env);
+      await ensureFleetV69(env);
       if(ctx?.waitUntil)ctx.waitUntil(progressTenantUpgradeV52(env,1).catch(()=>{}));
       const user=await auth(req,env);
       if(!user)return json({error:'Unauthorized'},401);
@@ -3437,6 +3497,71 @@ export default {
           await audit(env,user,'UPDATE','supplier_payment',id,b);return json({ok:true});
         }
         if(req.method==='DELETE'&&id){await run(env,`DELETE FROM supplier_payments WHERE id=? AND company_id=?`,id,companyId);await audit(env,user,'DELETE','supplier_payment',id,{});return json({ok:true})}
+      }
+
+      // V69 DRIVER MASTER & KHATA
+      if(resource==='drivers'){
+        if(req.method==='POST'||(req.method==='PUT'&&id)){
+          const b=await requestBody(req),name=upper(b.driverName);
+          if(!name)return json({error:'Driver name required'},400);
+          if(req.method==='POST'){
+            const existing=await first(env,`SELECT id FROM drivers WHERE company_id=? AND driver_name=?`,companyId,name);
+            if(existing)return json({error:'Driver name already exists'},409);
+            const newId=uid('DRV');
+            await run(env,`INSERT INTO drivers(id,company_id,driver_name,mobile,license_no,notes,active) VALUES(?,?,?,?,?,?,1)`,
+              newId,companyId,name,clean(b.mobile),upper(b.licenseNo),b.notes||'');
+            await audit(env,user,'CREATE','driver',newId,b);return json({ok:true,id:newId});
+          }
+          await run(env,`UPDATE drivers SET driver_name=?,mobile=?,license_no=?,notes=?,active=1,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,
+            name,clean(b.mobile),upper(b.licenseNo),b.notes||'',id,companyId);
+          await audit(env,user,'UPDATE','driver',id,b);return json({ok:true});
+        }
+        if(req.method==='DELETE'&&id){
+          const used=num((await first(env,`SELECT COUNT(*) count FROM driver_ledger_entries WHERE driver_id=? AND company_id=?`,id,companyId))?.count);
+          if(used)await run(env,`UPDATE drivers SET active=0,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,id,companyId);
+          else await run(env,`DELETE FROM drivers WHERE id=? AND company_id=?`,id,companyId);
+          await audit(env,user,'DELETE','driver',id,{archived:used>0});return json({ok:true,archived:used>0});
+        }
+      }
+
+      if(resource==='driver-entries'){
+        if(req.method==='POST'||(req.method==='PUT'&&id)){
+          const b=await requestBody(req),driverId=clean(b.driverId),direction=upper(b.direction);
+          if(!['GAVE','GOT'].includes(direction))return json({error:'Driver entry must be GAVE or GOT'},400);
+          if(num(b.amount)<=0)return json({error:'Amount must be greater than zero'},400);
+          const driver=await first(env,`SELECT id FROM drivers WHERE id=? AND company_id=? AND active=1`,driverId,companyId);
+          if(!driver)return json({error:'Driver not found'},404);
+          if(req.method==='POST'){
+            const newId=uid('DLE');
+            await run(env,`INSERT INTO driver_ledger_entries(id,company_id,driver_id,entry_date,direction,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?)`,
+              newId,companyId,driverId,b.entryDate,direction,round2(b.amount),upper(b.paymentMode||'CASH'),b.reference||'',b.notes||'');
+            await audit(env,user,'CREATE','driver_entry',newId,b);return json({ok:true,id:newId});
+          }
+          await run(env,`UPDATE driver_ledger_entries SET driver_id=?,entry_date=?,direction=?,amount=?,payment_mode=?,reference=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,
+            driverId,b.entryDate,direction,round2(b.amount),upper(b.paymentMode||'CASH'),b.reference||'',b.notes||'',id,companyId);
+          await audit(env,user,'UPDATE','driver_entry',id,b);return json({ok:true});
+        }
+        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM driver_ledger_entries WHERE id=? AND company_id=?`,id,companyId);await audit(env,user,'DELETE','driver_entry',id,{});return json({ok:true})}
+      }
+
+      // V69 OWN-TRUCK EXPENSE REGISTER
+      if(resource==='truck-expenses'){
+        if(req.method==='POST'||(req.method==='PUT'&&id)){
+          const b=await requestBody(req),truckNo=upper(b.truckNo),category=upper(b.category);
+          if(!truckNo||!category)return json({error:'Truck Number and Expense Type required'},400);
+          if(num(b.amount)<=0)return json({error:'Expense Amount must be greater than zero'},400);
+          if(!await first(env,`SELECT id FROM trucks WHERE company_id=? AND truck_no=?`,companyId,truckNo))return json({error:'Selected Truck was not found'},404);
+          if(req.method==='POST'){
+            const newId=uid('TXP');
+            await run(env,`INSERT INTO truck_expenses(id,company_id,truck_no,trip_id,expense_date,category,amount,payment_mode,reference,notes) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+              newId,companyId,truckNo,clean(b.tripId),b.expenseDate,category,round2(b.amount),upper(b.paymentMode||'CASH'),b.reference||'',b.notes||'');
+            await audit(env,user,'CREATE','truck_expense',newId,b);return json({ok:true,id:newId});
+          }
+          await run(env,`UPDATE truck_expenses SET truck_no=?,trip_id=?,expense_date=?,category=?,amount=?,payment_mode=?,reference=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,
+            truckNo,clean(b.tripId),b.expenseDate,category,round2(b.amount),upper(b.paymentMode||'CASH'),b.reference||'',b.notes||'',id,companyId);
+          await audit(env,user,'UPDATE','truck_expense',id,b);return json({ok:true});
+        }
+        if(req.method==='DELETE'&&id){await run(env,`DELETE FROM truck_expenses WHERE id=? AND company_id=?`,id,companyId);await audit(env,user,'DELETE','truck_expense',id,{});return json({ok:true})}
       }
 
       // ROUTES & MATERIALS

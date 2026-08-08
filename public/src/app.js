@@ -1,8 +1,11 @@
 
 import {api,apiBlob,token,setToken,clearToken} from './core/api.js';
+import {renderV69Panel} from './fleet-v69.js?v=690';
 
 const app=document.getElementById('app');
 let state={panel:'dashboard',data:null,search:'',loading:false,activeTrip:null};
+const panelTrail=[];
+const validPanels=new Set(['dashboard','khata','trips','invoices','parties','partyPayments','suppliers','truckEntries','supplierPayments','trucks','drivers','myTrucks','truckExpenses','invoiceImport','masters','forms','expenses','reports']);
 const CACHE_KEY='ml_bootstrap_cache_v6';
 const readCache=()=>{try{return JSON.parse(localStorage.getItem(CACHE_KEY)||'null')}catch{return null}};
 const writeCache=data=>{try{localStorage.setItem(CACHE_KEY,JSON.stringify({savedAt:Date.now(),data}))}catch{}};
@@ -355,6 +358,9 @@ async function mutate(path,method,body,button){
   finally{setBusy(button,false)}
 }
 function loginView(message=''){
+  state.panel='dashboard';
+  state.search='';
+  panelTrail.length=0;
   app.innerHTML=`<div class="login-shell">
     <div class="login-art"><h1>Transport<br>made simple.</h1><p>Trips, invoices, party khata, supplier khata, payments, documents અને profit — ek secure Transport ERP ma.</p>
       <div class="v59-login-points"><span>✓ 14-day Free Trial</span><span>✓ Your company data stays isolated</span><span>✓ No card required for trial</span></div>
@@ -403,6 +409,40 @@ async function loadData({background=false}={}){
   }finally{state.loading=false}
 }
 function navButton(id,label){return `<button class="${state.panel===id?'active':''}" data-panel="${id}"><span class="dot"></span>${label}</button>`}
+
+function navigatePanel(panel,{search=''}={}){
+  const target=validPanels.has(panel)?panel:'dashboard';
+  if(target===state.panel){
+    document.getElementById('sidebar')?.classList.remove('open');
+    return false;
+  }
+  if(target==='dashboard')panelTrail.length=0;
+  else{
+    const previous=validPanels.has(state.panel)?state.panel:'dashboard';
+    if(panelTrail.at(-1)!==previous)panelTrail.push(previous);
+    if(panelTrail.length>30)panelTrail.shift();
+  }
+  state.panel=target;
+  state.search=search;
+  render();
+  document.getElementById('sidebar')?.classList.remove('open');
+  return true;
+}
+
+function appGoBack(){
+  const sidebar=document.getElementById('sidebar');
+  if(sidebar?.classList.contains('open')){
+    sidebar.classList.remove('open');
+    return true;
+  }
+  if(state.panel==='dashboard')return false;
+  const previous=panelTrail.pop();
+  state.panel=validPanels.has(previous)&&previous!==state.panel?previous:'dashboard';
+  state.search='';
+  render();
+  return true;
+}
+window.TransportERPBack=appGoBack;
 
 function openCompanyRegistration(){
   document.querySelector('.v59-register-bg')?.remove();
@@ -455,7 +495,7 @@ function subscriptionBannerV59(d){
   return `<div class="v59-sub-banner ${cls}"><div><b>${esc(main)}</b><span>${esc(usage)}</span></div><button type="button" class="btn ${expired?'primary':'soft'}" data-v59-open-plan>View Plan</button></div>`;
 }
 function v64TodayText(){
-  return new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'});
+  return new Date().toLocaleDateString(window.TransportLanguage?.dateLocale?.()||'en-IN',{weekday:'long',day:'numeric',month:'short'});
 }
 function v64TodayTrips(d){
   const day=today();
@@ -559,9 +599,13 @@ function v64MobileHeader(d,title){
   return `<header class="v64-mobile-header no-print">
     <div class="v64-brand-row">
       <div class="v64-mobile-brand"><b>${company}</b><small>TRANSPORT ERP</small></div>
-      <button type="button" class="v64-bell" data-v64-alerts aria-label="Alerts">🔔<span></span></button>
+      <div class="v683-header-actions"><button type="button" class="v683-language-button v683-mobile-language" data-language-open data-language-label aria-label="Choose App Language">${window.TransportLanguage?.buttonLabel?.()||'🌐 EN'}</button><button type="button" class="v64-bell" data-v64-alerts aria-label="Alerts">🔔<span></span></button></div>
     </div>
-    <div class="v64-date-line">${esc(v64TodayText())} · ${esc(title||'Dashboard')}</div>
+    <div class="v64-date-line ${isHome?'':'has-back'}">
+      ${isHome?'':`<button type="button" class="v682-back" data-nav-back aria-label="Go back"><span aria-hidden="true">←</span> Back</button>`}
+      <span class="v682-date-title">${esc(v64TodayText())} · ${esc(title||'Dashboard')}</span>
+      <span class="v68-network-status" data-v68-network>● Online</span>
+    </div>
     ${isHome?`<div class="v64-summary-strip">
       <div class="v64-sum-card"><small>Today Freight</small><b>${money(todayFreight)} <em>${todayTrips.length} Trips</em></b></div>
       <div class="v64-sum-card due"><small>Party Due</small><b>${money(d.summary.partyOutstanding)} <em>${d.partyLedger.filter(x=>Number(x.outstanding||0)>0).length} Parties</em></b></div>
@@ -574,42 +618,57 @@ function v64BottomNav(){
   return `<nav class="v64-tabbar no-print">
     ${tab('dashboard','⌂','Home')}
     ${tab('trips','🚛','Trips',['trips','invoices'])}
-    ${tab('khata','▤','Khata',['khata','parties','suppliers'])}
+    ${tab('khata','▤','Khata',['khata','parties','suppliers','drivers'])}
     <button type="button" class="v64-tab" id="v64MoreBtn"><i>☰</i><span>More</span></button>
   </nav>`;
 }
 function render(){
   const d=state.data;
+  // Share the already-loaded dashboard snapshot with lightweight app features.
+  // Notifications can render from this immediately instead of blocking on a
+  // second network request.
+  window.ML_APP_DATA=d;
   window.ML_PLATFORM_ADMIN=!!d.user?.platform_admin;
-  const titles={dashboard:'Dashboard',trips:'Trip History',invoices:'Invoice History',parties:'Party Khata',partyPayments:'Party Payments',suppliers:'Supplier Khata',truckEntries:'Truck / Supplier Entries',supplierPayments:'Supplier Payments',trucks:'Truck & Document',masters:'Master',forms:'Forms',expenses:'Office Expenses',reports:'Reports & Audit',khata:'Khata'};
+  const titles={dashboard:'Dashboard',trips:'Trip History',invoices:'Invoice History',parties:'Party Khata',partyPayments:'Party Payments',suppliers:'Supplier Khata',truckEntries:'Truck / Supplier Entries',supplierPayments:'Supplier Payments',trucks:'Truck & Document',drivers:'Driver Khata',myTrucks:'My Trucks',truckExpenses:'Truck Expenses',invoiceImport:'Excel Invoice Import',masters:'Master',forms:'Forms',expenses:'Office Expenses',reports:'Reports & Audit',khata:'Khata'};
   app.innerHTML=`<div class="erp">
     <aside class="sidebar" id="sidebar">
       <div class="brand"><div class="brand-mark">ML</div><div><b>MEERA LOGISTICS</b><small>TRANSPORT ERP</small></div></div>
       <div class="nav-group-title">Dashboard</div><div class="nav">${navButton('dashboard','Dashboard')}${navButton('trips','Trip History')}${navButton('invoices','Invoice History')}</div>
-      <div class="nav-group-title">Account</div><div class="nav">${navButton('parties','Party Khata')}${navButton('suppliers','Supplier Khata')}</div>
-      <div class="nav-group-title">Office</div><div class="nav">${navButton('trucks','Truck & Document')}${navButton('masters','Master')}${navButton('forms','Forms')}${navButton('reports','Reports & Audit')}</div>
+      <div class="nav-group-title">Account</div><div class="nav">${navButton('parties','Party Khata')}${navButton('suppliers','Supplier Khata')}${navButton('drivers','Driver Khata')}</div>
+      <div class="nav-group-title">Fleet & Office</div><div class="nav">${navButton('myTrucks','My Trucks')}${navButton('truckExpenses','Truck Expenses')}${navButton('trucks','Truck & Document')}${navButton('invoiceImport','Old Excel Invoice Import')}${navButton('masters','Master')}${navButton('forms','Forms')}${navButton('reports','Reports & Audit')}</div>
     </aside>
     <main class="main">
       ${v64MobileHeader(d,titles[state.panel])}
       ${subscriptionBannerV59(d)}
-      <div class="topbar no-print"><div style="display:flex;gap:9px;align-items:center"><button class="btn light mobile-menu" id="menuBtn">☰</button><div class="top-title"><h1>${titles[state.panel]}</h1><p>Live online data · ${esc(d.saas?.company?.company_name||'MEERA LOGISTICS')} · ${esc(d.user.username)} (${esc(d.saas?.role||d.user.role||'')}) · ${esc(d.saas?.subscription?.plan_name||'')}</p></div></div>
-      <div class="top-actions"><button class="btn light" id="refreshBtn">Refresh</button><button class="btn soft" id="backupBtn">Backup</button><button class="btn light" id="logoutBtn">Logout</button></div></div>
+      <div class="topbar no-print"><div style="display:flex;gap:9px;align-items:center"><button class="btn light mobile-menu" id="menuBtn">☰</button>${state.panel==='dashboard'?'':`<button type="button" class="btn light v682-desktop-back" data-nav-back>← Back</button>`}<div class="top-title"><h1>${titles[state.panel]}</h1><p>Live online data · ${esc(d.saas?.company?.company_name||'MEERA LOGISTICS')} · ${esc(d.user.username)} (${esc(d.saas?.role||d.user.role||'')}) · ${esc(d.saas?.subscription?.plan_name||'')}</p></div></div>
+      <div class="top-actions"><button type="button" class="v683-language-button" data-language-open data-language-label aria-label="Choose App Language">🌐 Language</button><button class="btn light" id="refreshBtn">Refresh</button><button class="btn soft" id="backupBtn">Backup</button><button class="btn light" id="logoutBtn">Logout</button></div></div>
       ${panelHtml()}
       ${v64BottomNav()}
     </main>
   </div>`;
   wireCommon();
+  window.TransportLanguage?.apply?.();
 }
+
+document.addEventListener('ml-language-changed',()=>{
+  if(state.data)render();
+  else if(document.querySelector('.login-shell'))loginView();
+});
+document.addEventListener('ml-v69-data-changed',()=>loadData());
 function wireCommon(){
   // One delegated click handler makes dashboard cards, table buttons and
   // dynamically-created controls reliable on desktop and mobile.
   app.onclick=async event=>{
+    const backButton=event.target.closest('[data-nav-back]');
+    if(backButton){
+      event.preventDefault();
+      appGoBack();
+      return;
+    }
     const panelButton=event.target.closest('[data-panel]');
     if(panelButton){
       event.preventDefault();
-      state.panel=panelButton.dataset.panel;
-      render();
-      document.getElementById('sidebar')?.classList.remove('open');
+      navigatePanel(panelButton.dataset.panel);
       return;
     }
     const actionButton=event.target.closest('[data-action]');
@@ -650,7 +709,7 @@ function wireCommon(){
     const party=state.data.parties.find(x=>norm(x.party_name).includes(q));
     if(party)return viewPartyLedger(party.party_name);
     const truck=state.data.trucks.find(x=>norm(x.truck_no).includes(q));
-    if(truck){state.panel='trucks';state.search=truck.truck_no.toLowerCase();return render()}
+    if(truck)return navigatePanel('trucks',{search:truck.truck_no.toLowerCase()});
     alert('No matching invoice, trip, party, supplier or truck found.');
   };
   document.getElementById('logoutBtn').onclick=async()=>{try{await api('/logout',{method:'POST'})}catch{}clearToken();clearCache();loginView()};
@@ -678,6 +737,8 @@ function filterRows(items,fields){
 }
 function panelHtml(){
   const d=state.data;
+  const v69Panel=renderV69Panel(state.panel,d);
+  if(v69Panel)return v69Panel;
   if(state.panel==='dashboard')return dashboardPanel(d);
   if(state.panel==='khata')return khataPanelV64(d);
   if(state.panel==='trips')return tripsPanel(d);
@@ -699,7 +760,7 @@ function v64TripCard(d,t){
   return `<article class="v64-bilty" data-action="view-trip" data-id="${esc(t.id)}">
     <div class="v64-bilty-top">
       <span class="v64-plate">${esc(t.truck_no||'-')}</span>
-      <span class="v64-route">${esc(t.loading_point||'-')} <b>→</b> ${esc(t.unloading_point||'-')}</span>
+      <span class="v64-route" data-route-text>${esc(t.loading_point||'-')} <b>→</b> ${esc(t.unloading_point||'-')}</span>
       <span class="v64-stamp ${pay.paid?'paid':'pending'}">${pay.label}</span>
     </div>
     <div class="v64-perforation"></div>
@@ -715,7 +776,7 @@ function v66DesktopTripCard(d,t){
   return `<article class="v66-trip-card" data-action="view-trip" data-id="${esc(t.id)}">
     <div class="v66-trip-card-top">
       <span class="v66-trip-plate">${esc(t.truck_no||'-')}</span>
-      <span class="v66-trip-route">${esc(t.loading_point||'-')} <b>→</b> ${esc(t.unloading_point||'-')}</span>
+      <span class="v66-trip-route" data-route-text>${esc(t.loading_point||'-')} <b>→</b> ${esc(t.unloading_point||'-')}</span>
       <span class="v66-trip-status ${pay.paid?'paid':'pending'}">${pay.label}</span>
     </div>
     <div class="v66-trip-cut"></div>
@@ -785,7 +846,7 @@ function tripsPanel(d){
       <div class="card"><div class="section-title"><div><h2>Trip History</h2><small>Trip booking, status and POD</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search trips…"><button class="btn primary" data-action="new-trip">New Trip</button></div></div>${table(['Trip No.','Invoice','Date','Party','Truck / Supplier','Route','Material','Weight × Rate','Status','POD','Action'],rows.map(t=>[
         `<button class="link-btn" data-action="view-trip" data-id="${esc(t.id)}"><b>${esc(t.trip_no||t.id)}</b></button>`,
         t.invoice_no?`<button class="link-btn" data-action="view-linked-invoice" data-id="${esc(t.invoice_id)}">${esc(t.invoice_no)}</button>`:'-',
-        esc(t.trip_date),esc(t.party_name),`<b>${esc(t.truck_no)}</b><br><small><b>Supplier:</b> ${esc(tripSupplierName(t))}</small>${t.driver_name?`<br><small>Driver: ${esc(t.driver_name)}</small>`:''}`,`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,esc(t.material),`${esc(t.weight)} × ${money(t.rate)}`,statusBadge(t.status),t.pod_file_name?`<span class="badge info">${esc(t.pod_file_name)}</span>`:'-',`<div class="action-set"><button class="mini green" data-action="view-trip" data-id="${esc(t.id)}">Open Trip</button><button class="mini" data-action="edit-trip" data-id="${esc(t.id)}">Edit</button><button class="mini danger" data-action="delete-trip" data-id="${esc(t.id)}">Delete</button></div>`
+        esc(t.trip_date),esc(t.party_name),`<b>${esc(t.truck_no)}</b><br><small><b>Supplier:</b> ${esc(tripSupplierName(t))}</small>${t.driver_name?`<br><small>Driver: ${esc(t.driver_name)}</small>`:''}`,`<span data-route-text>${esc(t.loading_point)} → ${esc(t.unloading_point)}</span>`,esc(t.material),`${esc(t.weight)} × ${money(t.rate)}`,statusBadge(t.status),t.pod_file_name?`<span class="badge info">${esc(t.pod_file_name)}</span>`:'-',`<div class="action-set"><button class="mini green" data-action="view-trip" data-id="${esc(t.id)}">Open Trip</button><button class="mini" data-action="edit-trip" data-id="${esc(t.id)}">Edit</button><button class="mini danger" data-action="delete-trip" data-id="${esc(t.id)}">Delete</button></div>`
       ]),'1250px')}</div>
     </div>
   </section>`;
@@ -819,7 +880,7 @@ function pmBillsPanel(d){
         esc(b.bill_date),
         esc(b.party_name),
         esc(b.supplier_name||'-'),
-        (b.items||[]).map(i=>`<b>${esc(i.truck_no)}</b><br><small>${esc(i.loading_point)} → ${esc(i.unloading_point)}</small>`).join('<hr>')||'-',
+        (b.items||[]).map(i=>`<b>${esc(i.truck_no)}</b><br><small data-route-text>${esc(i.loading_point)} → ${esc(i.unloading_point)}</small>`).join('<hr>')||'-',
         `<b>${money(b.subtotal)}</b>`,
         money(b.supplier_total),
         `<b>${money(b.profit)}</b>`,
@@ -907,6 +968,8 @@ function khataPanelV64(d){
       <div class="v64-khata-switch">
         <button data-panel="parties"><i>₹</i><span><b>Party Khata</b><small>Receive & invoice ledger</small></span><strong>${money(d.summary.partyOutstanding)}</strong></button>
         <button data-panel="suppliers"><i>🚛</i><span><b>Supplier Khata</b><small>Payable & truck ledger</small></span><strong>${money(d.summary.supplierPending)}</strong></button>
+        <button data-panel="drivers"><i>🧑‍✈️</i><span><b>Driver Khata</b><small>Driver Gave / Driver Got</small></span><strong>${money(d.summary.driverBalance||0)}</strong></button>
+        <button data-panel="myTrucks"><i>🚚</i><span><b>My Trucks</b><small>Documents & truck expenses</small></span><strong>${money(d.summary.truckExpenses||0)}</strong></button>
       </div>
       <div class="v64-section-title"><h3>Recent Entries</h3><button data-panel="reports">Reports ›</button></div>
       <div class="v64-list">${transactions.length?transactions.map(x=>`<div class="v64-simple-row">
@@ -917,7 +980,7 @@ function khataPanelV64(d){
     </div>
     <div class="v64-desktop-khata">
       <div class="cards">${metric('Party Receivable',d.summary.partyOutstanding)}${metric('Supplier Pending',d.summary.supplierPending)}${metric('Party Received',d.summary.partyReceived)}${metric('Supplier Paid',d.summary.supplierPaid)}${metric('Office Expenses',d.summary.expenses)}${metric('Estimated Profit',d.summary.estimatedProfit)}</div>
-      <div class="grid2"><button class="card" data-panel="parties"><h2>Party Khata</h2><p>Invoice, receipt and outstanding ledger</p></button><button class="card" data-panel="suppliers"><h2>Supplier Khata</h2><p>Supplier payable, payments and truck ledger</p></button></div>
+      <div class="grid2"><button class="card" data-panel="parties"><h2>Party Khata</h2><p>Invoice, receipt and outstanding ledger</p></button><button class="card" data-panel="suppliers"><h2>Supplier Khata</h2><p>Supplier payable, payments and truck ledger</p></button><button class="card" data-panel="drivers"><h2>Driver Khata</h2><p>Driver Gave / Driver Got balance</p></button><button class="card" data-panel="myTrucks"><h2>My Trucks & Expenses</h2><p>Own-truck expense register and reports</p></button></div>
     </div>
   </section>`;
 }
@@ -1025,7 +1088,7 @@ function suppliersPanel(d){
 function truckEntriesPanel(d){
   const rows=filterRows(d.truckEntries,['entry_date','truck_no','owner_name','loading_point','unloading_point']);
   return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Truck / Supplier Entries</h2><small>Freight payable per truck trip</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search entries…"><button class="btn primary" data-action="new-truck-entry">New Entry</button></div></div>${table(['Date','Trip','Truck','Owner','Route','Weight × Rate','Commission','Payable','Action'],rows.map(e=>[
-    esc(e.entry_date),esc(e.trip_id||'-'),`<b>${esc(e.truck_no)}</b>`,esc(e.owner_name),`${esc(e.loading_point)} → ${esc(e.unloading_point)}`,`${esc(e.weight)} × ${money(e.rate)}`,money(e.commission),`<b>${money(e.payable)}</b>`,actionButtons('truck-entry',e.id)
+    esc(e.entry_date),esc(e.trip_id||'-'),`<b>${esc(e.truck_no)}</b>`,esc(e.owner_name),`<span data-route-text>${esc(e.loading_point)} → ${esc(e.unloading_point)}</span>`,`${esc(e.weight)} × ${money(e.rate)}`,money(e.commission),`<b>${money(e.payable)}</b>`,actionButtons('truck-entry',e.id)
   ]),'1100px')}</div></section>`;
 }
 function supplierPaymentsPanel(d){
@@ -1059,7 +1122,7 @@ function trucksPanel(d){
 }
 function mastersPanel(d){
   return `<section class="panel active"><div class="grid3"><div class="card"><div class="section-title"><h3>Party Master</h3><button class="btn soft" data-action="new-party">Add</button></div>${d.parties.slice(0,30).map(p=>`<div class="ledger-row"><div><b>${esc(p.party_name)}</b><small>${esc(p.ledger_no||'No ledger number')} · ${esc(p.gst_no||'No GST')}</small></div><div class="action-set"><button class="mini" data-action="edit-party" data-id="${esc(p.id)}">Edit</button><button class="mini danger" data-action="delete-party" data-id="${esc(p.id)}">Delete</button></div></div>`).join('')}</div>
-  <div class="card"><div class="section-title"><h3>Route Master</h3><button class="btn soft" data-action="new-route">Add</button></div>${d.routes.map(r=>`<div class="ledger-row"><div><b>${esc(r.loading_point)}</b><small>→ ${esc(r.unloading_point)}</small></div><div class="action-set"><button class="mini" data-action="edit-route" data-id="${esc(r.id)}">Edit</button><button class="mini danger" data-action="delete-route" data-id="${esc(r.id)}">Delete</button></div></div>`).join('')}</div>
+  <div class="card"><div class="section-title"><h3>Route Master</h3><button class="btn soft" data-action="new-route">Add</button></div>${d.routes.map(r=>`<div class="ledger-row"><div data-route-text><b>${esc(r.loading_point)}</b><small>→ ${esc(r.unloading_point)}</small></div><div class="action-set"><button class="mini" data-action="edit-route" data-id="${esc(r.id)}">Edit</button><button class="mini danger" data-action="delete-route" data-id="${esc(r.id)}">Delete</button></div></div>`).join('')}</div>
   <div class="card"><div class="section-title"><h3>Material Master</h3><button class="btn soft" data-action="new-material">Add</button></div>${d.materials.map(m=>`<div class="ledger-row"><b>${esc(m.material_name)}</b><button class="mini danger" data-action="delete-material" data-id="${esc(m.id)}">Delete</button></div>`).join('')}</div></div></section>`;
 }
 
@@ -1481,7 +1544,7 @@ function universalTripScreen(trip){
         <div>
           <small>PARTY</small>
           <h2>${esc(trip.party_name)}</h2>
-          <div class="ut-route"><b>${esc(trip.loading_point)}</b><span>→</span><b>${esc(trip.unloading_point)}</b></div>
+          <div class="ut-route" data-route-text><b>${esc(trip.loading_point)}</b><span>→</span><b>${esc(trip.unloading_point)}</b></div>
           <p>${esc(trip.trip_date)} · ${esc(trip.trip_no||trip.id)}</p>
         </div>
         <strong>${money(f.revenue)}</strong>
@@ -2407,7 +2470,7 @@ async function viewDocument(id){
 function safeFileName(value){return String(value||'LEDGER').replace(/[\\/:*?"<>|]+/g,' ').trim()}
 function downloadTextFile(name,text,type='text/csv;charset=utf-8'){
   const blob=new Blob([text],{type});const a=document.createElement('a');
-  if(window.TransportNative?.saveBlob){window.TransportNative.saveBlob(blob,name).catch(error=>alert(error.message||'Unable to save file.'));return}
+  if(window.TransportNative?.saveBlob){window.TransportNative.saveBlob(blob,name).then(saved=>alert(`Ledger downloaded successfully: ${saved.location}`)).catch(error=>alert(error.message||'Unable to save file.'));return}
   a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
 }

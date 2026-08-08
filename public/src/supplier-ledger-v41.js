@@ -13,9 +13,9 @@ let activeOverlay=null;
 let bootstrapPromise=null;
 function closeLedger(){activeOverlay?.remove();activeOverlay=null}
 async function downloadBlob(blob,name){
-  if(window.TransportNative?.saveBlob){await window.TransportNative.saveBlob(blob,name);return}
+  if(window.TransportNative?.saveBlob){const saved=await window.TransportNative.saveBlob(blob,name);alert(`Ledger downloaded successfully: ${saved.location}`);return}
   const url=URL.createObjectURL(blob),link=document.createElement('a');
-  link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
 }
 async function getBootstrap(){
   try{const cached=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');if(cached?.data?.supplierLedger)return cached.data}catch{}
