@@ -21,8 +21,8 @@ const checks=[
   ['workflow route wrapper',advanced.includes('<p data-route-text>')],
   ['sidebar owns vertical scroll',mobile.includes('overflow-y:auto!important')&&mobile.includes('height:100dvh!important')&&mobile.includes('touch-action:pan-y')],
   ['sidebar safe bottom',mobile.includes('padding-bottom:calc(36px + var(--v68-safe-bottom))!important')],
-  ['current cache bust',index.includes('mobile-v68.css?v=685')&&index.includes('language-v683.js?v=691')&&sw.includes("transport-v691-shell")],
-  ['Android update version',!androidApp||(/versionCode\s+8\b/.test(androidApp)&&/versionName\s+"1\.5\.0"/.test(androidApp))]
+  ['current cache bust',index.includes('mobile-v68.css?v=685')&&index.includes('language-v683.js?v=692')&&sw.includes("transport-v692-shell")],
+  ['Android update version',!androidApp||(/versionCode\s+9\b/.test(androidApp)&&/versionName\s+"1\.6\.0"/.test(androidApp))]
 ];
 
 const failed=checks.filter(([,ok])=>!ok);

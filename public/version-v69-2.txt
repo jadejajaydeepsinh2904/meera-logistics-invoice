@@ -1,0 +1,4 @@
+Transport ERP V69.2
+Web language selector + cache-safe runtime
+Android download notification with tap-to-open
+Build: 2026-08-08

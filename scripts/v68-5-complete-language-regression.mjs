@@ -74,11 +74,11 @@ assert.match(languageSource,/installDialogTranslation/,'Alerts, confirms and pro
 assert.match(languageSource,/schedule\(document\.body\)/,'Every dynamically rendered UI branch is audited');
 assert.match(languageSource,/\.transport-invoice,[\s\S]*?\.tds-sheet/,'Business document output remains unmodified');
 assert.match(advanced,/TransportLanguage\?\.dateLocale\?\.\(\)/,'Calendar month follows the selected language');
-assert.match(index,/language-v683\.js\?v=691/);
+assert.match(index,/language-v683\.js\?v=692/);
 assert.match(index,/app\.js\?v=691/);
-assert.match(index,/advanced-v44\.js\?v=685/);
-assert.match(sw,/transport-v691-shell/);
-if(androidApp){assert.match(androidApp,/versionCode\s+8\b/);assert.match(androidApp,/versionName\s+"1\.5\.0"/)}
+assert.match(index,/advanced-v44\.js\?v=692/);
+assert.match(sw,/transport-v692-shell/);
+if(androidApp){assert.match(androidApp,/versionCode\s+9\b/);assert.match(androidApp,/versionName\s+"1\.6\.0"/)}
 
 if(androidApp)for(const rel of ['index.html','src/app.js','src/advanced-v44.js','src/language-v683.js','src/language-v683.css']){
   assert.equal(read(`android/app/src/main/assets/public/${rel}`),read(`public/${rel}`),`Android copied asset matches public/${rel}`);

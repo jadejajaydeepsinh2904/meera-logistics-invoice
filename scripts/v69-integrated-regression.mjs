@@ -28,9 +28,9 @@ function languageRuntime(code){
   return window.TransportLanguage;
 }
 
-assert.equal(pkg.version,'1.5.1');
+assert.equal(pkg.version,'1.6.0');
 assert.equal(pkg.dependencies.xlsx,'^0.18.5');
-if(android){assert.match(android,/versionCode\s+8\b/);assert.match(android,/versionName\s+"1\.5\.0"/)}
+if(android){assert.match(android,/versionCode\s+9\b/);assert.match(android,/versionName\s+"1\.6\.0"/)}
 
 for(const panel of ['drivers','myTrucks','truckExpenses','invoiceImport']){
   assert.match(app,new RegExp(`['"]${panel}['"]`),`${panel} is wired into main navigation`);
@@ -69,7 +69,7 @@ assert.equal(hi.text('Automatic Excel Detection'),'Excel फॉर्मेट �
 assert.match(index,/vendor\/xlsx\.full\.min\.js\?v=690/);
 assert.match(index,/fleet-v69\.css\?v=691/);
 assert.match(index,/app\.js\?v=691/);
-assert.match(serviceWorker,/transport-v691-shell/);
+assert.match(serviceWorker,/transport-v692-shell/);
 assert.match(serviceWorker,/fleet-v69\.js\?v=691/);
 assert.match(serviceWorker,/invoice-import-v691\.js\?v=691/);
 assert.match(serviceWorker,/xlsx\.full\.min\.js\?v=690/);

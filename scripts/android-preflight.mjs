@@ -32,6 +32,12 @@ const required=[
   'public/assets/meera-logo.png',
   'public/assets/meera-partner-stamp.png'
 ];
+const androidRoot=path.join(root,'android');
+if(fs.existsSync(androidRoot))required.push(
+  'android/app/src/main/AndroidManifest.xml',
+  'android/app/src/main/java/in/meeralogistics/transporterp/MainActivity.java',
+  'android/app/src/main/java/in/meeralogistics/transporterp/DownloadNotificationPlugin.java'
+);
 let ok=true;
 for(const rel of required){
   if(!fs.existsSync(path.join(root,rel))){console.error('MISSING',rel);ok=false}
@@ -59,10 +65,18 @@ if(fs.existsSync(variablesPath)){
     console.error('Android targetSdkVersion 36 is required');ok=false;
   }
 }
+if(fs.existsSync(androidRoot)){
+  const manifest=fs.readFileSync(path.join(androidRoot,'app/src/main/AndroidManifest.xml'),'utf8');
+  const appGradle=fs.readFileSync(path.join(androidRoot,'app/build.gradle'),'utf8');
+  const mainActivity=fs.readFileSync(path.join(androidRoot,'app/src/main/java/in/meeralogistics/transporterp/MainActivity.java'),'utf8');
+  if(!manifest.includes('android.permission.POST_NOTIFICATIONS')){console.error('Android notification permission is missing');ok=false}
+  if(!/versionCode\s+9\b/.test(appGradle)||!/versionName\s+"1\.6\.0"/.test(appGradle)){console.error('Android V69.2 version is required');ok=false}
+  if(!mainActivity.includes('registerPlugin(DownloadNotificationPlugin.class)')){console.error('Download notification plugin is not registered');ok=false}
+}
 if(ok){
-  console.log('V69 Android API 36 + language + Driver Khata + My Trucks + Excel import preflight passed');
+  console.log('V69.2 Android API 36 + language + Driver/Truck/Excel + download notification preflight passed');
   console.log('App ID:',config.appId);
   console.log('App Name:',config.appName);
   console.log('Web Dir:',config.webDir);
-  console.log(fs.existsSync(path.join(root,'android'))?'Android native folder exists. Run npm run android:sync.':'Android folder not generated yet. After npm install run: npm run android:add');
+  console.log(fs.existsSync(androidRoot)?'Android native folder exists. Run npm run android:sync.':'Android folder not generated yet. After npm install run: npm run android:add');
 }else process.exit(1);

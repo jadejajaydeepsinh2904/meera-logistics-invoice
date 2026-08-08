@@ -106,14 +106,14 @@
   Object.assign(HI,{'Approval':'मंज़ूरी','Trucks':'ट्रक','Trip-wise below':'नीचे ट्रिप के अनुसार','COMMAND':'कमांड','INVOICE':'इनवॉइस','PARTY':'पार्टी','TRUCK':'ट्रक'});
 
   Object.assign(GU,{
-    'Fleet & Office':'ફ્લીટ અને ઓફિસ','Driver Khata':'ડ્રાઇવર ખાતું','My Trucks':'મારી ટ્રકો','My Trucks & Expenses':'મારી ટ્રકો અને ખર્ચ','Truck Expenses':'ટ્રક ખર્ચ','Old Excel Invoice Import':'જૂની Excelમાંથી ઇન્વૉઇસ','Excel Invoice Import':'Excel ઇન્વૉઇસ ઇમ્પોર્ટ',
+    'Download complete':'ડાઉનલોડ પૂર્ણ','Tap to open the downloaded file':'ડાઉનલોડ થયેલી ફાઇલ ખોલવા ટૅપ કરો','Fleet & Office':'ફ્લીટ અને ઓફિસ','Driver Khata':'ડ્રાઇવર ખાતું','My Trucks':'મારી ટ્રકો','My Trucks & Expenses':'મારી ટ્રકો અને ખર્ચ','Truck Expenses':'ટ્રક ખર્ચ','Old Excel Invoice Import':'જૂની Excelમાંથી ઇન્વૉઇસ','Excel Invoice Import':'Excel ઇન્વૉઇસ ઇમ્પોર્ટ',
     'Total Driver Balance':'કુલ ડ્રાઇવર બેલેન્સ','Driver Gave / Driver Got balance register':'ડ્રાઇવરને આપેલ / ડ્રાઇવર પાસેથી મળેલ હિસાબ','Add Driver':'ડ્રાઇવર ઉમેરો','Search by Driver Name':'ડ્રાઇવરનું નામ શોધો','Driver Name':'ડ્રાઇવરનું નામ','Licence Number':'લાઇસન્સ નંબર','No licence number':'લાઇસન્સ નંબર નથી','No mobile':'મોબાઇલ નથી','Save Driver':'ડ્રાઇવર સેવ કરો','Update Driver':'ડ્રાઇવર અપડેટ કરો','Driver Gave':'ડ્રાઇવરને આપ્યું','Driver Got':'ડ્રાઇવર પાસેથી મળ્યું','No Driver Khata entry yet.':'હજી ડ્રાઇવર ખાતામાં એન્ટ્રી નથી.','Save Entry':'એન્ટ્રી સેવ કરો','Download Ledger':'ખાતું ડાઉનલોડ કરો',
     'My Truck Expenses':'મારી ટ્રકનો ખર્ચ','Truck details, documents and expense ledger':'ટ્રક વિગત, દસ્તાવેજ અને ખર્ચ ખાતું','Search truck or owner':'ટ્રક અથવા માલિક શોધો','Expense Report':'ખર્ચ રિપોર્ટ','Expenses':'ખર્ચ','Expense':'ખર્ચ','View Ledger':'ખાતું જુઓ','Documents & truck expenses':'દસ્તાવેજ અને ટ્રક ખર્ચ','Own-truck expense register and reports':'પોતાની ટ્રકનો ખર્ચ રજિસ્ટર અને રિપોર્ટ','Truck, trip and office-style expense register':'ટ્રક અને ટ્રિપ મુજબનો ખર્ચ રજિસ્ટર','Add Truck Expense':'ટ્રક ખર્ચ ઉમેરો','Selected Month Total':'પસંદ કરેલા મહિનાનો કુલ ખર્ચ','Expense Type':'ખર્ચનો પ્રકાર','Choose Expense Type':'ખર્ચનો પ્રકાર પસંદ કરો','Expense Amount':'ખર્ચની રકમ','Expense Date':'ખર્ચની તારીખ','Payment Mode':'ચુકવણી રીત','Trip ID (optional)':'ટ્રિપ ID (વૈકલ્પિક)','Note':'નોંધ','Confirm':'ખાતરી કરો','Total Truck Expense':'કુલ ટ્રક ખર્ચ','Delete this Truck Expense?':'આ ટ્રક ખર્ચ ડિલીટ કરવો છે?','Add Custom Expense Type':'નવો ખર્ચ પ્રકાર ઉમેરો','Enter custom Expense Type':'નવા ખર્ચ પ્રકારનું નામ લખો',
     'Old Excel → Invoice Import':'જૂની Excel → ઇન્વૉઇસ ઇમ્પોર્ટ','Upload old Bill Excel, map columns, preview and create invoices':'જૂની Bill Excel upload કરીને column ગોઠવો, preview જુઓ અને invoices બનાવો','Select Excel':'Excel પસંદ કરો','Map Columns':'Column ગોઠવો','Create Invoices':'ઇન્વૉઇસ બનાવો','Choose old Excel file':'જૂની Excel file પસંદ કરો','Your file is previewed before saving':'સેવ કરતાં પહેલાં fileનું preview બતાવશે','Select your old Excel file to begin. Existing invoices are not changed automatically.':'શરૂ કરવા જૂની Excel file પસંદ કરો. હાલના invoices આપમેળે બદલાશે નહીં.','Column Mapping':'Column ગોઠવણી','Not available':'ઉપલબ્ધ નથી','detected':'મળ્યા','ready':'તૈયાર','duplicates skipped':'ડુપ્લિકેટ છોડ્યા','need mapping':'ગોઠવણી બાકી','Bill / Invoice No.':'Bill / ઇન્વૉઇસ નં.','Party / Ledger Number':'પાર્ટી / ખાતા નંબર','Truck / Gadi Number':'ટ્રક / ગાડી નંબર','Route / Description':'રૂટ / વિગત','Line / Bill Amount':'લાઇન / Bill રકમ','Create':'બનાવો','Importing...':'ઇમ્પોર્ટ થઈ રહ્યું છે...','Excel invoice import complete.':'Excel ઇન્વૉઇસ ઇમ્પોર્ટ પૂર્ણ થયો.','Downloaded successfully':'સફળતાપૂર્વક ડાઉનલોડ થયું',
     'DRIVER BHATTA':'ડ્રાઇવર ભથ્થું','DRIVER PAYMENT':'ડ્રાઇવર ચુકવણી','LOADING CHARGES':'લોડિંગ ચાર્જ','UNLOADING CHARGES':'અનલોડિંગ ચાર્જ','DETENTION CHARGES':'ડિટેન્શન ચાર્જ','UNION CHARGES':'યુનિયન ચાર્જ','TOLL EXPENSE':'ટોલ ખર્ચ','POLICE EXPENSE':'પોલીસ ખર્ચ','RTO EXPENSE':'RTO ખર્ચ','BROKERAGE EXPENSE':'બ્રોકરેજ ખર્ચ','FUEL EXPENSE':'ઇંધણ ખર્ચ','SHOWROOM SERVICE':'શોરૂમ સર્વિસ','REGULAR SERVICE':'નિયમિત સર્વિસ','MINOR REPAIR':'નાનું રિપેરિંગ','GEAR MAINTENANCE':'ગિયર મેન્ટેનન્સ','BRAKE OIL CHANGE':'બ્રેક ઓઇલ બદલવું','GREASE OIL CHANGE':'ગ્રીસ ઓઇલ બદલવું','ENGINE OIL CHANGE':'એન્જિન ઓઇલ બદલવું','SPARE PARTS PURCHASE':'સ્પેર પાર્ટ્સ ખરીદી','AIR FILTER CHANGE':'એર ફિલ્ટર બદલવું','OTHER EXPENSE':'અન્ય ખર્ચ'
   });
   Object.assign(HI,{
-    'Fleet & Office':'फ्लीट और ऑफिस','Driver Khata':'ड्राइवर खाता','My Trucks':'मेरे ट्रक','My Trucks & Expenses':'मेरे ट्रक और खर्च','Truck Expenses':'ट्रक खर्च','Old Excel Invoice Import':'पुरानी Excel से इनवॉइस','Excel Invoice Import':'Excel इनवॉइस इम्पोर्ट',
+    'Download complete':'डाउनलोड पूरा हुआ','Tap to open the downloaded file':'डाउनलोड की गई फाइल खोलने के लिए टैप करें','Fleet & Office':'फ्लीट और ऑफिस','Driver Khata':'ड्राइवर खाता','My Trucks':'मेरे ट्रक','My Trucks & Expenses':'मेरे ट्रक और खर्च','Truck Expenses':'ट्रक खर्च','Old Excel Invoice Import':'पुरानी Excel से इनवॉइस','Excel Invoice Import':'Excel इनवॉइस इम्पोर्ट',
     'Total Driver Balance':'कुल ड्राइवर बैलेंस','Driver Gave / Driver Got balance register':'ड्राइवर को दिया / ड्राइवर से मिला खाता','Add Driver':'ड्राइवर जोड़ें','Search by Driver Name':'ड्राइवर नाम खोजें','Driver Name':'ड्राइवर नाम','Licence Number':'लाइसेंस नंबर','No licence number':'लाइसेंस नंबर नहीं','No mobile':'मोबाइल नहीं','Save Driver':'ड्राइवर सेव करें','Update Driver':'ड्राइवर अपडेट करें','Driver Gave':'ड्राइवर को दिया','Driver Got':'ड्राइवर से मिला','No Driver Khata entry yet.':'अभी ड्राइवर खाते में कोई एंट्री नहीं है।','Save Entry':'एंट्री सेव करें','Download Ledger':'खाता डाउनलोड करें',
     'My Truck Expenses':'मेरे ट्रक का खर्च','Truck details, documents and expense ledger':'ट्रक विवरण, दस्तावेज़ और खर्च खाता','Search truck or owner':'ट्रक या मालिक खोजें','Expense Report':'खर्च रिपोर्ट','Expenses':'खर्च','Expense':'खर्च','View Ledger':'खाता देखें','Documents & truck expenses':'दस्तावेज़ और ट्रक खर्च','Own-truck expense register and reports':'अपने ट्रक का खर्च रजिस्टर और रिपोर्ट','Truck, trip and office-style expense register':'ट्रक और ट्रिप के अनुसार खर्च रजिस्टर','Add Truck Expense':'ट्रक खर्च जोड़ें','Selected Month Total':'चुने महीने का कुल खर्च','Expense Type':'खर्च का प्रकार','Choose Expense Type':'खर्च का प्रकार चुनें','Expense Amount':'खर्च राशि','Expense Date':'खर्च तारीख','Payment Mode':'भुगतान तरीका','Trip ID (optional)':'ट्रिप ID (वैकल्पिक)','Note':'नोट','Confirm':'पुष्टि करें','Total Truck Expense':'कुल ट्रक खर्च','Delete this Truck Expense?':'यह ट्रक खर्च डिलीट करें?','Add Custom Expense Type':'नया खर्च प्रकार जोड़ें','Enter custom Expense Type':'नए खर्च प्रकार का नाम लिखें',
     'Old Excel → Invoice Import':'पुरानी Excel → इनवॉइस इम्पोर्ट','Upload old Bill Excel, map columns, preview and create invoices':'पुरानी Bill Excel अपलोड करके कॉलम मिलाएँ, प्रीव्यू देखें और इनवॉइस बनाएँ','Select Excel':'Excel चुनें','Map Columns':'कॉलम मिलाएँ','Create Invoices':'इनवॉइस बनाएँ','Choose old Excel file':'पुरानी Excel फाइल चुनें','Your file is previewed before saving':'सेव करने से पहले फाइल का प्रीव्यू दिखेगा','Select your old Excel file to begin. Existing invoices are not changed automatically.':'शुरू करने के लिए पुरानी Excel फाइल चुनें। मौजूदा इनवॉइस अपने-आप नहीं बदलेंगे।','Column Mapping':'कॉलम मैपिंग','Not available':'उपलब्ध नहीं','detected':'मिले','ready':'तैयार','duplicates skipped':'डुप्लिकेट छोड़े','need mapping':'मैपिंग बाकी','Bill / Invoice No.':'Bill / इनवॉइस नं.','Party / Ledger Number':'पार्टी / खाता नंबर','Truck / Gadi Number':'ट्रक / गाड़ी नंबर','Route / Description':'रूट / विवरण','Line / Bill Amount':'लाइन / Bill राशि','Create':'बनाएँ','Importing...':'इम्पोर्ट हो रहा है...','Excel invoice import complete.':'Excel इनवॉइस इम्पोर्ट पूरा हुआ।','Downloaded successfully':'सफलतापूर्वक डाउनलोड हुआ',
@@ -153,6 +153,7 @@
   };
   const originalText=new WeakMap();
   const originalAttrs=new WeakMap();
+  const boundLanguageButtons=new WeakSet();
   let activeLanguage=readLanguage();
   let scheduled=false;
 
@@ -333,6 +334,7 @@
       if(button.getAttribute('aria-label')!==accessible)button.setAttribute('aria-label',accessible);
       if(button.title!==accessible)button.title=accessible;
     });
+    bindLanguageButtons(document);
   }
   function apply(root=document.body){
     setDocumentLanguage();
@@ -370,6 +372,7 @@
   }
   function openPicker(){
     closePicker();
+    if(!document.body)return false;
     const host=document.createElement('div');
     host.className='v683-language-overlay';
     host.innerHTML=`<section class="v683-language-modal" role="dialog" aria-modal="true" aria-labelledby="v683-language-title">
@@ -385,13 +388,33 @@
     host.querySelector('[data-language-close]').onclick=closePicker;
     host.addEventListener('click',event=>{if(event.target===host)closePicker()});
     host.querySelectorAll('[data-language-choice]').forEach(button=>button.onclick=()=>{const code=button.dataset.languageChoice;closePicker();setLanguage(code)});
+    return true;
   }
 
-  document.addEventListener('click',event=>{
-    const button=event.target.closest('[data-language-open]');
+  function languageButtonFromEvent(event){
+    const target=event?.target;
+    const element=target instanceof Element?target:target?.parentElement;
+    return element?.closest?.('[data-language-open]')||null;
+  }
+  function handleLanguageOpen(event){
+    const button=languageButtonFromEvent(event);
     if(!button)return;
+    if(event.__mlLanguageHandled)return;
+    event.__mlLanguageHandled=true;
     event.preventDefault();event.stopPropagation();openPicker();
-  },true);
+  }
+  function bindLanguageButtons(root=document){
+    const buttons=root?.querySelectorAll?.('[data-language-open]')||[];
+    buttons.forEach(button=>{
+      if(boundLanguageButtons.has(button))return;
+      boundLanguageButtons.add(button);
+      button.addEventListener('click',handleLanguageOpen);
+    });
+  }
+
+  // Direct binding is the primary path. Delegation is a fallback for a new
+  // button clicked before the next mutation-observer frame.
+  document.addEventListener('click',handleLanguageOpen);
   document.addEventListener('keydown',event=>{if(event.key==='Escape')closePicker()});
   new MutationObserver(()=>{
     // A single render may update the header, panel and advanced overlay in one

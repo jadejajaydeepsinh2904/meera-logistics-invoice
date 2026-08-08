@@ -14,7 +14,7 @@ assert.match(index,/interactive-widget=resizes-content/,'Android keyboard resize
 assert.match(index,/mobile-v68\.css\?v=685/,'Current V68 mobile layer is loaded');
 assert.ok(index.indexOf('desktop-v66.css')<index.indexOf('mobile-v68.css'),'Mobile compatibility rules load last');
 assert.match(index,/app\.js\?v=691/);
-assert.match(index,/advanced-v44\.js\?v=685/);
+assert.match(index,/advanced-v44\.js\?v=692/);
 assert.match(preflight,/public\/src\/mobile-v68\.css/,'Android sync requires the mobile layer');
 
 assert.match(app,/class="v68-network-status" data-v68-network/,'Connection state lives in the mobile header');

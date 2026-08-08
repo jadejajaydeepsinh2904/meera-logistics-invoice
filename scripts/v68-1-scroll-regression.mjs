@@ -18,7 +18,7 @@ assert.match(css,/\.main\{[\s\S]*?height:100dvh;[\s\S]*?overflow-y:auto!importan
 assert.match(css,/#app>\.login-shell\{[\s\S]*?height:100dvh;[\s\S]*?overflow-y:auto;[\s\S]*?touch-action:pan-y/,'Login keeps an independent mobile scroller');
 assert.match(css,/\.sidebar\{[\s\S]*?max-height:100dvh!important;[\s\S]*?overflow-y:auto!important;[\s\S]*?touch-action:pan-y/,'The mobile drawer remains independently scrollable');
 assert.doesNotMatch(app,/touchmove[\s\S]{0,120}preventDefault/,'App JavaScript does not cancel vertical swipe');
-if(androidApp){assert.match(androidApp,/versionCode\s+8\b/,'Current Android update preserves V68 scrolling');assert.match(androidApp,/versionName\s+"1\.5\.0"/,'Android update preserves the V68 scroll fix')}
+if(androidApp){assert.match(androidApp,/versionCode\s+9\b/,'Current Android update preserves V68 scrolling');assert.match(androidApp,/versionName\s+"1\.6\.0"/,'Android update preserves the V68 scroll fix')}
 
 if(androidApp)for(const rel of ['index.html','src/mobile-v68.css']){
   const publicFile=read(`public/${rel}`);

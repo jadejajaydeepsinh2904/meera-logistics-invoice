@@ -4,7 +4,7 @@
   <script>
   (async()=>{
     const q=new URLSearchParams(location.search);
-    if(['v665','v666','v667','v670','v690','v691'].includes(q.get('reset'))){
+    if(['v665','v666','v667','v670','v690','v691','v692'].includes(q.get('reset'))){
       try{
         if('serviceWorker' in navigator){
           for(const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
@@ -15,7 +15,7 @@
         sessionStorage.clear();
       }catch(e){}
       history.replaceState({},'',location.pathname);
-      document.documentElement.innerHTML='<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>V66 Updated</title></head><body style="font-family:Arial;padding:32px"><h2>V66 cache reset complete</h2><p>Reloading Transport ERP…</p></body>';
+      document.documentElement.innerHTML='<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>V69.2 Updated</title></head><body style="font-family:Arial;padding:32px"><h2>V69.2 cache reset complete</h2><p>Reloading Transport ERP…</p></body>';
       setTimeout(()=>location.replace('/'),700);
       return;
     }
@@ -37,14 +37,14 @@
   <link rel="stylesheet" href="/src/mobile-v64.css?v=670">
   <link rel="stylesheet" href="/src/desktop-v66.css?v=664">
   <link rel="stylesheet" href="/src/mobile-v68.css?v=685">
-  <link rel="stylesheet" href="/src/language-v683.css?v=685">
+  <link rel="stylesheet" href="/src/language-v683.css?v=692">
   <link rel="stylesheet" href="/src/fleet-v69.css?v=691">
   <title>Transport ERP</title>
 </head>
 <body>
   <div id="app"></div>
   <script src="/vendor/xlsx.full.min.js?v=690"></script>
-  <script src="/src/language-v683.js?v=691"></script>
+  <script src="/src/language-v683.js?v=692"></script>
   <script>
   window.__mlBootErrors=[];
   addEventListener('error',event=>window.__mlBootErrors.push(event.message||'A required app file could not load.'));
@@ -60,7 +60,7 @@
   <script type="module" src="/src/invoice-v36.js?v=691"></script>
   <script type="module" src="/src/party-ledger-v40.js?v=671"></script>
   <script type="module" src="/src/supplier-ledger-v41.js?v=671"></script>
-  <script type="module" src="/src/advanced-v44.js?v=685"></script>
-  <script type="module" src="/src/android-v63.js?v=683"></script>
+  <script type="module" src="/src/advanced-v44.js?v=692"></script>
+  <script type="module" src="/src/android-v63.js?v=692"></script>
 </body>
 </html>

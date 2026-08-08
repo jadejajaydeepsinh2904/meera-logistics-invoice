@@ -1,0 +1,31 @@
+MEERA LOGISTICS TRANSPORT ERP V69.2 FINAL REPORT
+================================================
+
+WEB
+- Language button is directly bound on every render.
+- Dynamic-button delegation remains as a fallback.
+- Gujarati, Hindi and English selection persists in local storage.
+- V69.2 cache key and network-first critical JS/CSS prevent stale language code.
+- One-time reset URL: /?reset=v692
+
+ANDROID
+- Version: 1.6.0 (versionCode 9)
+- Downloaded PDF/Excel is saved through the existing native Filesystem flow.
+- A Download complete notification is shown after saving.
+- Android 13+ notification permission is requested on the first download.
+- Notification tap opens the exact file through FileProvider and ACTION_VIEW.
+
+PRESERVED
+- V69.1 automatic old Excel invoice import.
+- Driver Khata, My Trucks, Truck Expenses and ledger downloads.
+- Gujarati/Hindi route display, mobile layout, Back navigation and scrolling.
+- Existing Party, Supplier, Truck, Invoice, PDF, Excel and backup data.
+
+VERIFICATION
+- npm install and Capacitor Android sync passed.
+- V68 through V69.2 regression suite passed.
+- Browser-DOM language-button click and Gujarati selection passed.
+- Android API 36 preflight and native Capacitor API inspection passed.
+- Full Gradle APK compile could not run in the packaging workspace because the
+  Gradle distribution host is unavailable there; Android Studio/Gradle will
+  download it normally on the development PC.

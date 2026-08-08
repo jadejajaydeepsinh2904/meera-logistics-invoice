@@ -22,14 +22,37 @@ async function writeNativeBlob(blob,fileName,directory,folder){
 }
 
 async function saveBlob(blob,fileName){
+  let saved;
   try{
-    return {...await writeNativeBlob(blob,fileName,'DOCUMENTS','Transport ERP'),location:'Documents/Transport ERP'};
+    saved={...await writeNativeBlob(blob,fileName,'DOCUMENTS','Transport ERP'),location:'Documents/Transport ERP'};
   }catch(storageError){
     const cached=await writeNativeBlob(blob,fileName,'CACHE','Transport ERP');
     const Share=plugin('Share');
     if(!Share?.share)throw storageError;
     await Share.share({title:cached.fileName,files:[cached.uri],dialogTitle:'Save or share file'});
-    return {...cached,location:'Android share menu'};
+    saved={...cached,location:'Android share menu'};
+  }
+  await notifyDownload(saved,blob);
+  return saved;
+}
+
+async function notifyDownload(saved,blob){
+  const notifier=plugin('DownloadNotification');
+  if(!notifier?.notifyDownload)return false;
+  try{
+    const t=value=>window.TransportLanguage?.text?.(value)||value;
+    await notifier.notifyDownload({
+      uri:saved.uri,
+      path:saved.path,
+      fileName:saved.fileName,
+      mimeType:blob?.type||'',
+      title:t('Download complete'),
+      body:t('Tap to open the downloaded file')
+    });
+    return true;
+  }catch(error){
+    console.warn('Download notification unavailable',error);
+    return false;
   }
 }
 
@@ -42,7 +65,7 @@ async function shareBlob(blob,fileName,title='',text=''){
 }
 
 function visibleOverlay(){
-  return document.querySelector('.a43-overlay,.modal-bg');
+  return document.querySelector('.v683-language-overlay,.a43-overlay,.modal-bg');
 }
 function clickDashboard(){
   const b=document.querySelector('[data-panel="dashboard"]');
@@ -52,7 +75,7 @@ function clickDashboard(){
 function closeTopOverlay(){
   const overlay=visibleOverlay();
   if(!overlay)return false;
-  const close=overlay.querySelector('[data-a43-close],[data-close],[data-close-form],[data-v59-close],.modal-close');
+  const close=overlay.querySelector('[data-language-close],[data-a43-close],[data-close],[data-close-form],[data-v59-close],.modal-close');
   if(close){close.click();return true}
   document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
   return true;
@@ -78,6 +101,14 @@ async function shareText(title,text,url=''){
 }
 async function nativeBack(){
   if(closeTopOverlay())return;
+  const sidebar=document.getElementById('sidebar');
+  if(sidebar?.classList.contains('open')){
+    sidebar.classList.remove('open');
+    return;
+  }
+  try{
+    if(typeof window.TransportERPBack==='function'&&window.TransportERPBack())return;
+  }catch{}
   const active=document.querySelector('.sidebar [data-panel].active');
   if(active&&active.dataset.panel!=='dashboard'){clickDashboard();return}
   try{

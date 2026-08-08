@@ -38,7 +38,7 @@ assert.equal(context.result.urgent,3,'Local feed marks the correct alerts import
 
 assert.match(index,/advanced-v44\.css\?v=672/);
 assert.match(index,/app\.js\?v=691/);
-assert.match(index,/advanced-v44\.js\?v=685/);
+assert.match(index,/advanced-v44\.js\?v=692/);
 
 if(fs.existsSync(path.join(root,'android/app/src/main/assets/public')))for(const rel of ['index.html','src/app.js','src/advanced-v44.js','src/advanced-v44.css']){
   const source=read(`public/${rel}`);

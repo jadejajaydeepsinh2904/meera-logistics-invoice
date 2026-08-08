@@ -1,0 +1,23 @@
+V69.2 WEBSITE GITHUB UPDATE (100 FILE LIMIT SAFE)
+================================================
+
+આ ZIPમાં માત્ર V69.2 માટે બદલાયેલી files છે. જૂની repository delete કરવાની નથી.
+
+UPLOAD કરવાની રીત
+1. ZIP Extract કરો.
+2. Extract થયેલા V69-2-GITHUB-WEB-UPDATE-ONLY folderની અંદર જાઓ.
+3. GitHubમાં હાલની Website repository ખોલો.
+4. Add file > Upload files દબાવો.
+5. અંદરની બધી files/folders repositoryના main rootમાં upload કરો.
+6. Commit changes દબાવો.
+
+ખાસ ધ્યાન
+- બહારનો V69-2-GITHUB-WEB-UPDATE-ONLY folder સીધો upload ન કરશો.
+- જૂની files delete ન કરશો.
+- Cloudflare Worker ફરી deploy કરવાની જરૂર નથી.
+- Deploy થયા પછી Website એક વાર આ રીતે ખોલો: /?reset=v692
+- Party, Supplier, Truck, Invoice અને જૂનો data બદલાશે નહીં.
+
+V69.2 WEB FIX
+- Gujarati / Hindi / English language button હવે તરત open અને switch થશે.
+- નવી cache key હોવાથી browser જૂની language file નહીં ચલાવે.
