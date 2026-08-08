@@ -1,30 +1,30 @@
 {
-  "version": "V62-CLOUD-DOCS-NOTIFICATIONS",
-  "source": "V61 D1 Subscription Recovery full project",
-  "schema_version": "53 unchanged + lazy document metadata columns",
+  "version": "V64-MOBILE-APP-REDESIGN",
+  "source": "V63 Android App Foundation full project",
+  "design_source": "user-owned gaadikhata-app-design.html",
+  "backend_schema": "unchanged from V62 / D1 schema_version 53",
   "checks": {
-    "storage_columns": "passed",
-    "r2_optional": "passed",
-    "multipart_upload": "passed",
-    "authenticated_binary_route": "passed",
-    "api_blob": "passed",
-    "app_multipart": "passed",
-    "gallery_multipart": "passed",
-    "notification_feed": "passed",
-    "notification_types": "passed",
-    "top_alert_button": "passed",
-    "browser_alerts": "passed",
-    "service_worker_v62": "passed",
-    "push_ready": "passed",
-    "r2_setup_file": "passed",
-    "reset_v62": "passed",
-    "v61_recovery_retained": "passed",
-    "super_admin_retained": "passed",
-    "legacy_document_sqlite_recovery": "passed",
+    "user_design_palette": "passed",
+    "bilty_cards": "passed",
+    "yellow_plate": "passed",
+    "paid_pending_stamp": "passed",
+    "mobile_header": "passed",
+    "bottom_nav": "passed",
+    "khata_overview": "passed",
+    "mobile_trips": "passed",
+    "mobile_trucks": "passed",
+    "desktop_retained": "passed",
+    "notification_bell": "passed",
+    "v63_android_retained": "passed",
+    "v62_backend_retained": "passed",
+    "reset_v64": "passed",
+    "mobile_css_loaded": "passed",
+    "sw_v64": "passed",
+    "android_preflight": "passed",
     "javascript_syntax": "passed",
-    "vercel_build": "passed"
+    "web_build": "passed"
   },
-  "total_files": 91,
+  "total_files": 107,
   "files": [
     {
       "path": ".vercelignore",
@@ -32,14 +32,24 @@
       "sha256": "a075e028fd7ee97f3b4cc2062c5449406cbbe47f5ef22929ddf31b360cf6b939"
     },
     {
+      "path": "ANDROID-V63-START-HERE.txt",
+      "size": 3153,
+      "sha256": "6dea5b8ba2abb1ca5bc1f89bc0ad54540ef9343b8d8f0367edd77d84b7766e43"
+    },
+    {
+      "path": "PLAY-STORE-V63-CHECKLIST.txt",
+      "size": 1104,
+      "sha256": "4528c9bf70aa0c9a65ce02b2ad274ad0846fa4641e1d5c245fb04306c96588db"
+    },
+    {
       "path": "README.md",
-      "size": 43904,
-      "sha256": "f922120374d99096f7c08447d74f6b09720f45db596cafee0db904012fc2e860"
+      "size": 46980,
+      "sha256": "2842a9fd22e315527c1249faaf171d8d1332ed1a64d59876c3330fa51825c6e4"
     },
     {
       "path": "START-HERE.txt",
-      "size": 41252,
-      "sha256": "722599fe32526071825f0d9fa13ec12ce868fbbb4e59065ed75f5c7adac0a5bb"
+      "size": 44328,
+      "sha256": "6e58fecba8fdf4e4def2544c14df5efd68d90d7cf97ff773123f2147abc1fdb9"
     },
     {
       "path": "V44-TEST-REPORT.txt",
@@ -137,9 +147,39 @@
       "sha256": "6142a2b4c51b6c5cac69f3b78c87062313484a6ed20cd4e9b84aa6724d705d88"
     },
     {
+      "path": "V63-ANDROID-APP-FOUNDATION-REPORT.txt",
+      "size": 1458,
+      "sha256": "6f027a33dd962ef69a2d6eb6e2384406dc30f1e854cda93eeecaffb5616dfdac"
+    },
+    {
+      "path": "V64-DESIGN-SOURCE.txt",
+      "size": 591,
+      "sha256": "618f325e9cb683d618bcdee2405417ed8e12fd6f016e5763b5244b303853f7b9"
+    },
+    {
+      "path": "V64-MOBILE-APP-REDESIGN-REPORT.txt",
+      "size": 1614,
+      "sha256": "79a1f9ff40b2c8bf49736b2177a0bab48eca31c4cfdc4db43da148d9fbdc2e75"
+    },
+    {
+      "path": "android/GENERATE-ANDROID-PROJECT.txt",
+      "size": 754,
+      "sha256": "0f98bd68b62641177fa67a5478465a39c748bb6df9d16b5b912ab81d54caadad"
+    },
+    {
+      "path": "capacitor.config.json",
+      "size": 623,
+      "sha256": "ae46ab32014e218fdda165a1c58c07bc57d1eb2c60c38bf3807514e149713c9b"
+    },
+    {
       "path": "package.json",
-      "size": 245,
-      "sha256": "9cebe7ba146f445b1a6543f45e8b006cd2de70f4ef4ce825466079d72bc78913"
+      "size": 1042,
+      "sha256": "c216efc12788cb99ec56c9316dd040029cec262e1f9bbfef472c9e94f6f21e61"
+    },
+    {
+      "path": "public/account-deletion-draft.html",
+      "size": 450,
+      "sha256": "8593129ccbbecdaa89ce4e57fd68951e615f18d3ad02d94f281561291747ea89"
     },
     {
       "path": "public/assets/meera-logo-pdf.jpg",
@@ -258,13 +298,18 @@
     },
     {
       "path": "public/index.html",
-      "size": 1964,
-      "sha256": "8961768b60501d96da37bcf8f52e7a51a5746b31211720716d868c93609329c0"
+      "size": 2191,
+      "sha256": "c3e8847377e78aa20967f0a3fe78b2c8f8ac3ce27282f43c2788ffeb0e99aab7"
     },
     {
       "path": "public/manifest.webmanifest",
-      "size": 644,
-      "sha256": "896bb92d34e8a6fb81b788e73f42180bbe88dd39f2af49e327eb0e9677460942"
+      "size": 750,
+      "sha256": "1ace351dc35edb56517aa167e5899a805d2212b3dbe22092cda499f7c077c1d2"
+    },
+    {
+      "path": "public/privacy-draft.html",
+      "size": 622,
+      "sha256": "d93c65eb2f1eefd8284597aae46751602219581e8cc9740e132944aabcd531d7"
     },
     {
       "path": "public/src/advanced-v44.css",
@@ -273,13 +318,18 @@
     },
     {
       "path": "public/src/advanced-v44.js",
-      "size": 63143,
-      "sha256": "1ffec5d83fe9e2a6f2f85d58e97a1bbbb2c0c0e70bc3c98d3fc810c209efe83a"
+      "size": 63227,
+      "sha256": "9f4603bbe480718baf17c41882645df6493a6fdd9da907af4ca5114498b48dd6"
+    },
+    {
+      "path": "public/src/android-v63.js",
+      "size": 2830,
+      "sha256": "2f7e95e5b9567bcb69236f8dab65e7d2863113b31b8e411ec750576e22b0634f"
     },
     {
       "path": "public/src/app.js",
-      "size": 136765,
-      "sha256": "6a58c411509eac5c7fe270ae45669fac720a3e4400679acee1686c02b9026e76"
+      "size": 146824,
+      "sha256": "6c773d29dddc75e8863878c81e6608eba9ff53fec2fd5238d29dc4c5f89156b5"
     },
     {
       "path": "public/src/core/api.js",
@@ -302,6 +352,11 @@
       "sha256": "08a4ec40c3e83dc6c8187a13903461bc5fa5009647f03132d96db0b309cafdb5"
     },
     {
+      "path": "public/src/mobile-v64.css",
+      "size": 10774,
+      "sha256": "737ffaf213953e12537e3cdf81f5ca884e4524a1894a33909cf2bdc72bdd028e"
+    },
+    {
       "path": "public/src/party-ledger-pdf-v40.js",
       "size": 10992,
       "sha256": "5c48ed59bc6cdd825f4f7415d98b58bbb9a37387a09098829784794757bd479d"
@@ -318,8 +373,8 @@
     },
     {
       "path": "public/src/styles.css",
-      "size": 38346,
-      "sha256": "64fb2fd424a81e5cfe7859c30598db92c13010e7420b25daa68c47f11a777388"
+      "size": 38953,
+      "sha256": "551e77088472d5195f1d1d101804619ff5162373d46d491e9ceadaea3946f898"
     },
     {
       "path": "public/src/supplier-ledger-pdf-v41.js",
@@ -350,6 +405,16 @@
       "path": "public/sw-v62.js",
       "size": 4916,
       "sha256": "bbf735db7db05b5e70dd53fbd7fd989a26b733035db7b6109ac31ba231bb84b1"
+    },
+    {
+      "path": "public/sw-v63.js",
+      "size": 4916,
+      "sha256": "f680481a20e1c139c7802fe8721ec81ec7423cc68cc999d530d886a1b4d8a81e"
+    },
+    {
+      "path": "public/sw-v64.js",
+      "size": 4943,
+      "sha256": "ac97cec0878b2104ae18145762b551d08350bad8f1b3002e607dab74e9cac468"
     },
     {
       "path": "public/version-v53.txt",
@@ -400,6 +465,21 @@
       "path": "public/version-v62.txt",
       "size": 51,
       "sha256": "b913d8cce10caea79637235f970c1eed0b9d017bd353ac7dcaefe9d4f36c8cab"
+    },
+    {
+      "path": "public/version-v63.txt",
+      "size": 49,
+      "sha256": "123cf7d0af11100cb06341f1f65099022f20201768c60b7aa181cb76e6f6a225"
+    },
+    {
+      "path": "public/version-v64.txt",
+      "size": 46,
+      "sha256": "96fe91f58a9f1ce48ddf615e085222285a82a621e67060ba3da8886ff99a214d"
+    },
+    {
+      "path": "scripts/android-preflight.mjs",
+      "size": 1196,
+      "sha256": "f1b0c78dceb15144ae1d6c2378ec9013f455bde13fb4a0b1e42b318b035b9820"
     },
     {
       "path": "vercel.json",

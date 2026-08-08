@@ -1001,3 +1001,78 @@ DEPLOY
 3. Vercel redeploy.
 4. Open /?reset=v62 once.
 5. Smart Tools -> Notifications / Truck Gallery.
+
+
+V63 ANDROID APP FOUNDATION
+
+COMPLETED
+- Full V62 Transport ERP retained.
+- Capacitor Android configuration added.
+- Stable Android package ID: in.meeralogistics.transporterp
+- App name: Transport ERP
+- Android native Back-button bridge.
+- Native/external link bridge.
+- Native share foundation for invoice/share flows.
+- Android status bar/network hooks.
+- Camera/gallery file-picker workflow retained.
+- V62 multipart document uploads retained.
+- V62 private image/PDF document viewing retained.
+- Android-safe viewport/touch sizing CSS.
+- Android/PWA manifest cleaned up.
+- V63 service worker added for the web/PWA build.
+- Android preflight script included.
+- Android Studio generation/build instructions included.
+- Play Store readiness checklist included.
+- Privacy/account-deletion draft placeholders included, clearly marked as drafts.
+
+IMPORTANT
+V63 is source/foundation. A signed APK/AAB is not created in this environment because the Android SDK/Gradle toolchain is not installed here.
+On a Windows/Mac/Linux development PC with Android Studio:
+npm install
+npm run android:preflight
+npm run android:add
+npm run android:sync
+npm run android:open
+
+NEXT
+V64 should focus on Google Play Billing backend/product integration and real subscription purchase verification, after the Android project is generated/tested.
+
+DEPLOY WEB
+Cloudflare Worker backend does not need a schema change for V63.
+For web update: Vercel redeploy then open /?reset=v63 once.
+
+
+V64 MOBILE APP REDESIGN — USER GAADIKHATA DESIGN
+
+COMPLETED
+- Mobile UI redesigned directly from the user's own GaadiKhata HTML design.
+- Desktop ERP interface remains intact.
+- Mobile gets navy/cream/amber visual identity.
+- Dynamic company name and current date in mobile header.
+- Mobile home summary: Today Freight + Party Due.
+- Quick actions: New Trip, New Invoice, Receive, Pay Supplier.
+- Recent trips are Bilty-style cards with yellow truck number plate, route arrow and PAID/PENDING stamp.
+- Party outstanding uses compact account rows.
+- Trip History gets a dedicated mobile card list.
+- Truck Fleet gets a dedicated mobile list with owner/document details.
+- New Khata overview screen shows Estimated Profit, Party Receivable, Supplier Pending and recent money entries.
+- Bottom navigation: Home / Trips / Khata / More.
+- More opens the existing full sidebar, so no old ERP function is lost.
+- Mobile bell opens the V62 Notification Center.
+- Existing Party Khata and Supplier Khata functionality remains.
+- Existing V63 Android foundation remains.
+- V62 Cloud Docs/Notifications, V61 D1 recovery, V60 Super Admin and V58 accounting remain.
+- V64 service worker/cache reset included.
+
+ANDROID STUDIO
+Android Studio is now installed on the user's PC. After deploying/testing V64 web UI, the same V64 ZIP
+can be used for Android generation:
+npm install
+npm run android:preflight
+npm run android:add
+npm run android:sync
+npm run android:open
+
+WEB DEPLOY
+V64 is frontend/UI only. Cloudflare Worker does not need a new deploy if V62/V61 backend is already live.
+Deploy Vercel, then open /?reset=v64 once.

@@ -1,0 +1,71 @@
+TRANSPORT ERP — V63 ANDROID APP FOUNDATION
+
+WHAT V63 DOES
+- Keeps the full web ERP and V62 backend.
+- Adds Capacitor Android application configuration.
+- App ID: in.meeralogistics.transporterp
+- App Name: Transport ERP
+- Uses public/ as the Android web bundle.
+- Existing Cloudflare Worker remains the backend.
+- Login/session/data stay server-side as before.
+- Android hardware Back button closes popup/modal first, returns to Dashboard next, exits only from Dashboard.
+- External web links/WhatsApp can open outside the app.
+- Invoice text sharing uses the Android native share sheet when available.
+- Existing camera/gallery file input and V62 multipart document upload are retained.
+- V62 private document Blob/PDF viewing is retained.
+- Offline/PWA service worker remains available for the normal web version.
+
+FIRST ANDROID BUILD
+1. Install Android Studio (current stable) and Node.js.
+2. Extract the FULL V63 project.
+3. Terminal in project:
+   npm install
+   npm run android:preflight
+   npm run android:add
+   npm run android:sync
+   npm run android:open
+4. In Android Studio wait for Gradle sync.
+5. Test on a real Android phone.
+6. For testing APK: Build > Build APK(s).
+7. For Play Store later: Build > Generate Signed App Bundle / APK > Android App Bundle.
+
+IMPORTANT
+- V63 is the Android foundation/source project, not a pre-signed Play Store AAB.
+- Do not publish before Google Play Billing, privacy/data safety and account-deletion flow are finalized.
+- Do not change the package ID after Play Store production launch.
+
+
+V64 MOBILE APP REDESIGN — USER GAADIKHATA DESIGN
+
+COMPLETED
+- Mobile UI redesigned directly from the user's own GaadiKhata HTML design.
+- Desktop ERP interface remains intact.
+- Mobile gets navy/cream/amber visual identity.
+- Dynamic company name and current date in mobile header.
+- Mobile home summary: Today Freight + Party Due.
+- Quick actions: New Trip, New Invoice, Receive, Pay Supplier.
+- Recent trips are Bilty-style cards with yellow truck number plate, route arrow and PAID/PENDING stamp.
+- Party outstanding uses compact account rows.
+- Trip History gets a dedicated mobile card list.
+- Truck Fleet gets a dedicated mobile list with owner/document details.
+- New Khata overview screen shows Estimated Profit, Party Receivable, Supplier Pending and recent money entries.
+- Bottom navigation: Home / Trips / Khata / More.
+- More opens the existing full sidebar, so no old ERP function is lost.
+- Mobile bell opens the V62 Notification Center.
+- Existing Party Khata and Supplier Khata functionality remains.
+- Existing V63 Android foundation remains.
+- V62 Cloud Docs/Notifications, V61 D1 recovery, V60 Super Admin and V58 accounting remain.
+- V64 service worker/cache reset included.
+
+ANDROID STUDIO
+Android Studio is now installed on the user's PC. After deploying/testing V64 web UI, the same V64 ZIP
+can be used for Android generation:
+npm install
+npm run android:preflight
+npm run android:add
+npm run android:sync
+npm run android:open
+
+WEB DEPLOY
+V64 is frontend/UI only. Cloudflare Worker does not need a new deploy if V62/V61 backend is already live.
+Deploy Vercel, then open /?reset=v64 once.

@@ -1,0 +1,19 @@
+V64 MOBILE DESIGN SOURCE
+
+The mobile visual language in V64 is based directly on the user-provided,
+user-owned file:
+gaadikhata-app-design.html
+
+Reused/adapted design elements:
+- Navy / cream / amber transport palette
+- Yellow number-plate truck badge
+- Bilty-style trip cards
+- Paid/Pending stamped status
+- Perforation line treatment
+- Compact quick actions
+- Dark Khata summary card
+- Fixed bottom mobile navigation
+- Rounded truck/account list cards
+
+Business functionality and data are from the existing Transport ERP project.
+Desktop keeps the existing professional sidebar interface.

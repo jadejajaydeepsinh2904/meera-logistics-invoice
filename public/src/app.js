@@ -391,10 +391,53 @@ function subscriptionBannerV59(d){
   const usage=`${u.trips||0}/${sub.max_trips_month||0} Trips · ${u.invoices||0}/${sub.max_invoices_month||0} Invoices · ${u.users||0}/${sub.max_users||0} Users`;
   return `<div class="v59-sub-banner ${cls}"><div><b>${esc(main)}</b><span>${esc(usage)}</span></div><button type="button" class="btn ${expired?'primary':'soft'}" data-v59-open-plan>View Plan</button></div>`;
 }
+function v64TodayText(){
+  return new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'});
+}
+function v64TodayTrips(d){
+  const day=today();
+  return (d.trips||[]).filter(t=>String(t.trip_date||'').slice(0,10)===day);
+}
+function v64TripAmount(t){
+  return Number(t.weight||0)*Number(t.rate||0);
+}
+function v64TripPaymentState(d,t){
+  const inv=(d.invoices||[]).find(i=>String(i.id)===String(t.invoice_id));
+  if(!inv)return {label:'PENDING',paid:false};
+  const pending=Number(inv.pending_amount??Math.max(0,Number(inv.total||0)-invoiceReceivedAmount(inv)));
+  return pending<=0.01?{label:'PAID',paid:true}:{label:'PENDING',paid:false};
+}
+function v64MobileHeader(d,title){
+  const company=esc(d.saas?.company?.company_name||'TRANSPORT ERP');
+  const todayTrips=v64TodayTrips(d);
+  const todayFreight=todayTrips.reduce((a,t)=>a+v64TripAmount(t),0);
+  const isHome=state.panel==='dashboard';
+  return `<header class="v64-mobile-header no-print">
+    <div class="v64-brand-row">
+      <div class="v64-mobile-brand"><b>${company}</b><small>TRANSPORT ERP</small></div>
+      <button type="button" class="v64-bell" data-v64-alerts aria-label="Alerts">🔔<span></span></button>
+    </div>
+    <div class="v64-date-line">${esc(v64TodayText())} · ${esc(title||'Dashboard')}</div>
+    ${isHome?`<div class="v64-summary-strip">
+      <div class="v64-sum-card"><small>Today Freight</small><b>${money(todayFreight)} <em>${todayTrips.length} Trips</em></b></div>
+      <div class="v64-sum-card due"><small>Party Due</small><b>${money(d.summary.partyOutstanding)} <em>${d.partyLedger.filter(x=>Number(x.outstanding||0)>0).length} Parties</em></b></div>
+    </div>`:''}
+  </header>`;
+}
+function v64BottomNav(){
+  const active=state.panel;
+  const tab=(panel,icon,label,activePanels=[panel])=>`<button type="button" class="v64-tab ${activePanels.includes(active)?'active':''}" data-panel="${panel}"><i>${icon}</i><span>${label}</span></button>`;
+  return `<nav class="v64-tabbar no-print">
+    ${tab('dashboard','⌂','Home')}
+    ${tab('trips','🚛','Trips',['trips','invoices'])}
+    ${tab('khata','▤','Khata',['khata','parties','suppliers'])}
+    <button type="button" class="v64-tab" id="v64MoreBtn"><i>☰</i><span>More</span></button>
+  </nav>`;
+}
 function render(){
   const d=state.data;
   window.ML_PLATFORM_ADMIN=!!d.user?.platform_admin;
-  const titles={dashboard:'Dashboard',trips:'Trip History',invoices:'Invoice History',parties:'Party Khata',partyPayments:'Party Payments',suppliers:'Supplier Khata',truckEntries:'Truck / Supplier Entries',supplierPayments:'Supplier Payments',trucks:'Truck & Document',masters:'Master',forms:'Forms',expenses:'Office Expenses',reports:'Reports & Audit'};
+  const titles={dashboard:'Dashboard',trips:'Trip History',invoices:'Invoice History',parties:'Party Khata',partyPayments:'Party Payments',suppliers:'Supplier Khata',truckEntries:'Truck / Supplier Entries',supplierPayments:'Supplier Payments',trucks:'Truck & Document',masters:'Master',forms:'Forms',expenses:'Office Expenses',reports:'Reports & Audit',khata:'Khata'};
   app.innerHTML=`<div class="erp">
     <aside class="sidebar" id="sidebar">
       <div class="brand"><div class="brand-mark">ML</div><div><b>MEERA LOGISTICS</b><small>TRANSPORT ERP</small></div></div>
@@ -403,10 +446,12 @@ function render(){
       <div class="nav-group-title">Office</div><div class="nav">${navButton('trucks','Truck & Document')}${navButton('masters','Master')}${navButton('forms','Forms')}${navButton('reports','Reports & Audit')}</div>
     </aside>
     <main class="main">
+      ${v64MobileHeader(d,titles[state.panel])}
       ${subscriptionBannerV59(d)}
       <div class="topbar no-print"><div style="display:flex;gap:9px;align-items:center"><button class="btn light mobile-menu" id="menuBtn">☰</button><div class="top-title"><h1>${titles[state.panel]}</h1><p>Live online data · ${esc(d.saas?.company?.company_name||'MEERA LOGISTICS')} · ${esc(d.user.username)} (${esc(d.saas?.role||d.user.role||'')}) · ${esc(d.saas?.subscription?.plan_name||'')}</p></div></div>
       <div class="top-actions"><button class="btn light" id="refreshBtn">Refresh</button><button class="btn soft" id="backupBtn">Backup</button><button class="btn light" id="logoutBtn">Logout</button></div></div>
       ${panelHtml()}
+      ${v64BottomNav()}
     </main>
   </div>`;
   wireCommon();
@@ -436,6 +481,10 @@ function wireCommon(){
     }
   };
   document.getElementById('menuBtn').onclick=()=>document.getElementById('sidebar').classList.toggle('open');
+  const moreBtn=document.getElementById('v64MoreBtn');
+  if(moreBtn)moreBtn.onclick=()=>document.getElementById('sidebar')?.classList.toggle('open');
+  const mobileBell=document.querySelector('[data-v64-alerts]');
+  if(mobileBell)mobileBell.onclick=()=>document.dispatchEvent(new CustomEvent('ml-open-notifications-v64'));
   document.getElementById('refreshBtn').onclick=()=>loadData();
   const planBtn=document.querySelector('[data-v59-open-plan]');
   if(planBtn)planBtn.onclick=()=>{
@@ -471,6 +520,7 @@ function filterRows(items,fields){
 function panelHtml(){
   const d=state.data;
   if(state.panel==='dashboard')return dashboardPanel(d);
+  if(state.panel==='khata')return khataPanelV64(d);
   if(state.panel==='trips')return tripsPanel(d);
   if(state.panel==='invoices')return invoicesPanel(d);
   if(state.panel==='parties')return partiesPanel(d);
@@ -485,30 +535,80 @@ function panelHtml(){
   return reportsPanel(d);
 }
 function metric(label,value,sub=''){return `<div class="card metric"><small>${label}</small><b>${typeof value==='number'?money(value):esc(value)}</b>${sub?`<em>${esc(sub)}</em>`:''}</div>`}
-function dashboardPanel(d){
-  return `<section class="panel active">
-    <div class="cards">${metric('Party Receivable',d.summary.partyOutstanding,'Outstanding from parties')}${metric('Supplier Payable',d.summary.supplierPending,'Pending to truck owners')}${metric('Total Billing',d.summary.totalBilling,`${d.summary.invoices} invoices`)}${metric('Party Received',d.summary.partyReceived,'Collection received')}${metric('Estimated Profit',d.summary.estimatedProfit,'Before income tax')}${metric('Total Trips',String(d.summary.trips),'All transport entries')}</div>
-    <div class="quick-actions no-print">
-      <button type="button" class="quick" data-action="new-trip"><b>+ New Trip</b><small>Create transport booking</small></button>
-      <button type="button" class="quick" data-action="new-invoice"><b>+ New Invoice</b><small>Create GST invoice</small></button>
-      <button type="button" class="quick" data-action="new-party-payment"><b>Receive Payment</b><small>Party collection entry</small></button>
-      <button type="button" class="quick" data-action="new-supplier-payment"><b>Pay Supplier</b><small>Truck malik payment</small></button>
+function v64TripCard(d,t){
+  const pay=v64TripPaymentState(d,t),supplier=tripSupplierName(t);
+  return `<article class="v64-bilty" data-action="view-trip" data-id="${esc(t.id)}">
+    <div class="v64-bilty-top">
+      <span class="v64-plate">${esc(t.truck_no||'-')}</span>
+      <span class="v64-route">${esc(t.loading_point||'-')} <b>→</b> ${esc(t.unloading_point||'-')}</span>
+      <span class="v64-stamp ${pay.paid?'paid':'pending'}">${pay.label}</span>
     </div>
-    <div class="grid2" style="margin-top:12px"><div class="card"><div class="section-title"><h2>Recent Trips</h2><button class="btn soft" data-panel="trips">View all</button></div>${table(['Date','Party','Truck','Route','Status'],d.trips.slice(0,8).map(t=>[esc(t.trip_date),`<b>${esc(t.party_name)}</b>`,esc(t.truck_no),`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,statusBadge(t.status)]),'700px')}</div>
-    <div class="card"><div class="section-title"><h2>Party Outstanding</h2></div><div class="row-list">${d.partyLedger.slice(0,8).map(p=>{
-      const lastInvoice=sortInvoicesSeries(d.invoices.filter(i=>i.party_name===p.party_name),true)[0];
-      return `<div class="ledger-row"><button style="all:unset;cursor:pointer;flex:1" data-action="view-party-ledger" data-id="${encodeURIComponent(p.party_name)}"><b>${esc((p.ledger_no?p.ledger_no+' · ':'')+p.party_name)}</b><small>${lastInvoice?`Last Invoice ${esc(lastInvoice.invoice_no)} · `:''}${p.invoices} invoices · ${p.payments} payments</small></button><div class="money-right"><b>${money(p.outstanding)}</b><small>Outstanding</small></div></div>`;
-    }).join('')}</div></div></div>
+    <div class="v64-perforation"></div>
+    <div class="v64-bilty-bottom">
+      <span><small>Party</small><b>${esc(t.party_name||'-')}</b><em>${supplier?`Supplier: ${esc(supplier)}`:''}</em></span>
+      <strong>${money(v64TripAmount(t))}</strong>
+    </div>
+  </article>`;
+}
+function dashboardPanel(d){
+  const recent=[...(d.trips||[])].sort((a,b)=>String(b.trip_date||'').localeCompare(String(a.trip_date||''))).slice(0,5);
+  const partyDue=[...(d.partyLedger||[])].filter(x=>Number(x.outstanding||0)>0).sort((a,b)=>Number(b.outstanding||0)-Number(a.outstanding||0)).slice(0,4);
+  return `<section class="panel active">
+    <div class="v64-mobile-dashboard">
+      <div class="v64-quick-row">
+        <button class="v64-quick" data-action="new-trip"><i>🚛</i><span>New Trip</span></button>
+        <button class="v64-quick" data-action="new-invoice"><i>🧾</i><span>New Invoice</span></button>
+        <button class="v64-quick" data-action="new-party-payment"><i>₹</i><span>Receive</span></button>
+        <button class="v64-quick" data-action="new-supplier-payment"><i>↗</i><span>Pay Supplier</span></button>
+      </div>
+
+      <div class="v64-section-title"><h3>Recent Trips <span>· Bilty</span></h3><button data-panel="trips">View all ›</button></div>
+      <div>${recent.length?recent.map(t=>v64TripCard(d,t)).join(''):'<div class="v64-empty">No trips yet.</div>'}</div>
+
+      <div class="v64-section-title"><h3>Party Outstanding <span>· Khata</span></h3><button data-panel="parties">View all ›</button></div>
+      <div class="v64-list">${partyDue.length?partyDue.map(p=>`<button class="v64-simple-row" data-action="view-party-ledger" data-id="${encodeURIComponent(p.party_name)}">
+        <span class="v64-avatar">${esc(String(p.party_name||'P').slice(0,2))}</span>
+        <span class="v64-row-copy"><b>${esc(p.party_name)}</b><small>${p.invoices||0} invoices · ${p.payments||0} payments</small></span>
+        <strong>${money(p.outstanding)}</strong>
+      </button>`).join(''):'<div class="v64-empty">No party outstanding.</div>'}</div>
+    </div>
+
+    <div class="v64-desktop-dashboard">
+      <div class="cards">${metric('Party Receivable',d.summary.partyOutstanding,'Outstanding from parties')}${metric('Supplier Payable',d.summary.supplierPending,'Pending to truck owners')}${metric('Total Billing',d.summary.totalBilling,`${d.summary.invoices} invoices`)}${metric('Party Received',d.summary.partyReceived,'Collection received')}${metric('Estimated Profit',d.summary.estimatedProfit,'Before income tax')}${metric('Total Trips',String(d.summary.trips),'All transport entries')}</div>
+      <div class="quick-actions no-print">
+        <button type="button" class="quick" data-action="new-trip"><b>+ New Trip</b><small>Create transport booking</small></button>
+        <button type="button" class="quick" data-action="new-invoice"><b>+ New Invoice</b><small>Create GST invoice</small></button>
+        <button type="button" class="quick" data-action="new-party-payment"><b>Receive Payment</b><small>Party collection entry</small></button>
+        <button type="button" class="quick" data-action="new-supplier-payment"><b>Pay Supplier</b><small>Truck malik payment</small></button>
+      </div>
+      <div class="grid2" style="margin-top:12px"><div class="card"><div class="section-title"><h2>Recent Trips</h2><button class="btn soft" data-panel="trips">View all</button></div>${table(['Date','Party','Truck','Route','Status'],d.trips.slice(0,8).map(t=>[esc(t.trip_date),`<b>${esc(t.party_name)}</b>`,esc(t.truck_no),`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,statusBadge(t.status)]),'700px')}</div>
+      <div class="card"><div class="section-title"><h2>Party Outstanding</h2></div><div class="row-list">${d.partyLedger.slice(0,8).map(p=>{
+        const lastInvoice=sortInvoicesSeries(d.invoices.filter(i=>i.party_name===p.party_name),true)[0];
+        return `<div class="ledger-row"><button style="all:unset;cursor:pointer;flex:1" data-action="view-party-ledger" data-id="${encodeURIComponent(p.party_name)}"><b>${esc((p.ledger_no?p.ledger_no+' · ':'')+p.party_name)}</b><small>${lastInvoice?`Last Invoice ${esc(lastInvoice.invoice_no)} · `:''}${p.invoices} invoices · ${p.payments} payments</small></button><div class="money-right"><b>${money(p.outstanding)}</b><small>Outstanding</small></div></div>`;
+      }).join('')}</div></div></div>
+    </div>
   </section>`;
 }
 function tripsPanel(d){
   const rows=filterRows(d.trips,['trip_no','invoice_no','trip_date','party_name','truck_no','material','loading_point','unloading_point','status'])
     .sort((a,b)=>Number(String(b.trip_no||'').replace(/\D/g,''))-Number(String(a.trip_no||'').replace(/\D/g,'')));
-  return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Trip History</h2><small>Trip booking, status and POD</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search trips…"><button class="btn primary" data-action="new-trip">New Trip</button></div></div>${table(['Trip No.','Invoice','Date','Party','Truck / Supplier','Route','Material','Weight × Rate','Status','POD','Action'],rows.map(t=>[
-    `<button class="link-btn" data-action="view-trip" data-id="${esc(t.id)}"><b>${esc(t.trip_no||t.id)}</b></button>`,
-    t.invoice_no?`<button class="link-btn" data-action="view-linked-invoice" data-id="${esc(t.invoice_id)}">${esc(t.invoice_no)}</button>`:'-',
-    esc(t.trip_date),esc(t.party_name),`<b>${esc(t.truck_no)}</b><br><small><b>Supplier:</b> ${esc(tripSupplierName(t))}</small>${t.driver_name?`<br><small>Driver: ${esc(t.driver_name)}</small>`:''}`,`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,esc(t.material),`${esc(t.weight)} × ${money(t.rate)}`,statusBadge(t.status),t.pod_file_name?`<span class="badge info">${esc(t.pod_file_name)}</span>`:'-',`<div class="action-set"><button class="mini green" data-action="view-trip" data-id="${esc(t.id)}">Open Trip</button><button class="mini" data-action="edit-trip" data-id="${esc(t.id)}">Edit</button><button class="mini danger" data-action="delete-trip" data-id="${esc(t.id)}">Delete</button></div>`
-  ]),'1250px')}</div></section>`;
+  return `<section class="panel active">
+    <div class="v64-mobile-list-screen">
+      <div class="v64-mobile-screen-head">
+        <div><b>Trip History</b><small>${rows.length} transport trips</small></div>
+        <button class="v64-round-add" data-action="new-trip">＋</button>
+      </div>
+      <label class="v64-search-wrap"><span>⌕</span><input class="search" data-search value="${esc(state.search)}" placeholder="Search trip, party, truck…"></label>
+      <div class="v64-trip-list">${rows.length?rows.map(t=>v64TripCard(d,t)).join(''):'<div class="v64-empty">No trips found.</div>'}</div>
+    </div>
+    <div class="v64-desktop-list">
+      <div class="card"><div class="section-title"><div><h2>Trip History</h2><small>Trip booking, status and POD</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search trips…"><button class="btn primary" data-action="new-trip">New Trip</button></div></div>${table(['Trip No.','Invoice','Date','Party','Truck / Supplier','Route','Material','Weight × Rate','Status','POD','Action'],rows.map(t=>[
+        `<button class="link-btn" data-action="view-trip" data-id="${esc(t.id)}"><b>${esc(t.trip_no||t.id)}</b></button>`,
+        t.invoice_no?`<button class="link-btn" data-action="view-linked-invoice" data-id="${esc(t.invoice_id)}">${esc(t.invoice_no)}</button>`:'-',
+        esc(t.trip_date),esc(t.party_name),`<b>${esc(t.truck_no)}</b><br><small><b>Supplier:</b> ${esc(tripSupplierName(t))}</small>${t.driver_name?`<br><small>Driver: ${esc(t.driver_name)}</small>`:''}`,`${esc(t.loading_point)} → ${esc(t.unloading_point)}`,esc(t.material),`${esc(t.weight)} × ${money(t.rate)}`,statusBadge(t.status),t.pod_file_name?`<span class="badge info">${esc(t.pod_file_name)}</span>`:'-',`<div class="action-set"><button class="mini green" data-action="view-trip" data-id="${esc(t.id)}">Open Trip</button><button class="mini" data-action="edit-trip" data-id="${esc(t.id)}">Edit</button><button class="mini danger" data-action="delete-trip" data-id="${esc(t.id)}">Delete</button></div>`
+      ]),'1250px')}</div>
+    </div>
+  </section>`;
 }
 function invoicesPanel(d){
   const rows=sortInvoicesSeries(filterRows(d.invoices,['invoice_no','invoice_date','party_name','lr_no','material']),true);
@@ -612,6 +712,35 @@ function partiesPanel(d){
   </section>`;
 }
 
+function khataPanelV64(d){
+  const transactions=[
+    ...(d.partyPayments||[]).map(x=>({date:x.payment_date,type:'IN',name:x.party_name,amount:Number(x.amount||0),note:'Party Receipt'})),
+    ...(d.supplierPayments||[]).map(x=>({date:x.payment_date,type:'OUT',name:x.owner_name,amount:Number(x.amount||0),note:'Supplier Payment'})),
+    ...(d.expenses||[]).map(x=>({date:x.expense_date,type:'OUT',name:x.category||'Expense',amount:Number(x.amount||0),note:x.notes||'Office Expense'}))
+  ].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).slice(0,8);
+  return `<section class="panel active">
+    <div class="v64-khata-screen">
+      <div class="v64-khata-total">
+        <small>Estimated Profit</small><b>${money(d.summary.estimatedProfit)}</b>
+        <div><span><small>Party Receivable</small><strong>${money(d.summary.partyOutstanding)}</strong></span><span><small>Supplier Pending</small><strong>${money(d.summary.supplierPending)}</strong></span></div>
+      </div>
+      <div class="v64-khata-switch">
+        <button data-panel="parties"><i>₹</i><span><b>Party Khata</b><small>Receive & invoice ledger</small></span><strong>${money(d.summary.partyOutstanding)}</strong></button>
+        <button data-panel="suppliers"><i>🚛</i><span><b>Supplier Khata</b><small>Payable & truck ledger</small></span><strong>${money(d.summary.supplierPending)}</strong></button>
+      </div>
+      <div class="v64-section-title"><h3>Recent Entries</h3><button data-panel="reports">Reports ›</button></div>
+      <div class="v64-list">${transactions.length?transactions.map(x=>`<div class="v64-simple-row">
+        <span class="v64-avatar ${x.type==='IN'?'green':'red'}">₹</span>
+        <span class="v64-row-copy"><b>${esc(x.name||'-')}</b><small>${esc(x.note)} · ${esc(x.date||'')}</small></span>
+        <strong class="${x.type==='IN'?'v64-in':'v64-out'}">${x.type==='IN'?'+':'-'}${money(x.amount)}</strong>
+      </div>`).join(''):'<div class="v64-empty">No recent payment entries.</div>'}</div>
+    </div>
+    <div class="v64-desktop-khata">
+      <div class="cards">${metric('Party Receivable',d.summary.partyOutstanding)}${metric('Supplier Pending',d.summary.supplierPending)}${metric('Party Received',d.summary.partyReceived)}${metric('Supplier Paid',d.summary.supplierPaid)}${metric('Office Expenses',d.summary.expenses)}${metric('Estimated Profit',d.summary.estimatedProfit)}</div>
+      <div class="grid2"><button class="card" data-panel="parties"><h2>Party Khata</h2><p>Invoice, receipt and outstanding ledger</p></button><button class="card" data-panel="suppliers"><h2>Supplier Khata</h2><p>Supplier payable, payments and truck ledger</p></button></div>
+    </div>
+  </section>`;
+}
 function partyPaymentsPanel(d){
   const rows=filterRows(d.partyPayments,['receipt_no','party_name','payment_date','payment_mode','reference']);
   return `<section class="panel active"><div class="card"><div class="section-title"><div><h2>Party Payment History</h2><small>TransportBook-style receipt register</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search payments…"><button class="btn green" data-action="new-party-payment">Receive Payment</button></div></div>${table(['Receipt','Date','Party','Mode','Reference','Notes','Amount','Action'],rows.map(p=>[
@@ -727,9 +856,26 @@ function supplierPaymentsPanel(d){
 }
 function trucksPanel(d){
   const rows=filterRows(d.trucks,['truck_no','owner_name','owner_mobile','bank_details']);
-  return `<section class="panel active"><div class="grid2"><div class="card"><div class="section-title"><div><h2>Truck Master</h2><small>Owner and bank details</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search truck…"><button class="btn primary" data-action="new-truck">Add Truck</button></div></div>${table(['Truck','Owner','Mobile','Bank Details','Documents','Action'],rows.map(t=>[
-    `<b>${esc(t.truck_no)}</b>`,esc(t.owner_name||'-'),esc(t.owner_mobile||'-'),esc(t.bank_details||'-'),String(d.documents.filter(x=>x.truck_no===t.truck_no).length),actionButtons('truck',t.id,`<button class="mini green" data-action="new-document" data-id="${encodeURIComponent(t.truck_no)}">Document</button>`)
-  ]),'850px')}</div><div class="card"><div class="section-title"><h2>Recent Documents</h2><button class="btn soft" data-action="new-document">Add</button></div>${d.documents.length?d.documents.slice(0,12).map(x=>`<div class="ledger-row"><button style="all:unset;cursor:pointer;flex:1" data-action="view-document" data-id="${esc(x.id)}"><b>${esc(x.truck_no)} · ${esc(x.kind)}</b><small>${esc(x.file_name||'Document')} ${x.expiry_date?'· Expiry '+esc(x.expiry_date):''}</small></button><button class="mini danger" data-action="delete-document" data-id="${esc(x.id)}">Delete</button></div>`).join(''):'<div class="notice">No documents.</div>'}</div></div></section>`;
+  return `<section class="panel active">
+    <div class="v64-mobile-list-screen">
+      <div class="v64-mobile-screen-head"><div><b>Truck Fleet</b><small>${rows.length} trucks · documents & owners</small></div><button class="v64-round-add" data-action="new-truck">＋</button></div>
+      <label class="v64-search-wrap"><span>⌕</span><input class="search" data-search value="${esc(state.search)}" placeholder="Search truck or owner…"></label>
+      <div class="v64-list">${rows.map(t=>{
+        const docs=(d.documents||[]).filter(x=>x.truck_no===t.truck_no);
+        const initials=String(t.truck_no||'TR').replace(/[^A-Z0-9]/gi,'').slice(-2);
+        return `<div class="v64-simple-row">
+          <span class="v64-avatar">${esc(initials)}</span>
+          <button class="v64-row-copy" data-action="edit-truck" data-id="${esc(t.id)}"><b>${esc(t.truck_no)}</b><small>${esc(t.owner_name||'No owner')} · ${docs.length} documents</small></button>
+          <button class="v64-doc-pill" data-action="new-document" data-id="${encodeURIComponent(t.truck_no)}">DOC +</button>
+        </div>`;
+      }).join('')||'<div class="v64-empty">No trucks found.</div>'}</div>
+    </div>
+    <div class="v64-desktop-list">
+      <div class="grid2"><div class="card"><div class="section-title"><div><h2>Truck Master</h2><small>Owner and bank details</small></div><div class="toolbar"><input class="search" data-search value="${esc(state.search)}" placeholder="Search truck…"><button class="btn primary" data-action="new-truck">Add Truck</button></div></div>${table(['Truck','Owner','Mobile','Bank Details','Documents','Action'],rows.map(t=>[
+        `<b>${esc(t.truck_no)}</b>`,esc(t.owner_name||'-'),esc(t.owner_mobile||'-'),esc(t.bank_details||'-'),String(d.documents.filter(x=>x.truck_no===t.truck_no).length),actionButtons('truck',t.id,`<button class="mini green" data-action="new-document" data-id="${encodeURIComponent(t.truck_no)}">Document</button>`)
+      ]),'850px')}</div><div class="card"><div class="section-title"><h2>Recent Documents</h2><button class="btn soft" data-action="new-document">Add</button></div>${d.documents.length?d.documents.slice(0,12).map(x=>`<div class="ledger-row"><button style="all:unset;cursor:pointer;flex:1" data-action="view-document" data-id="${esc(x.id)}"><b>${esc(x.truck_no)} · ${esc(x.kind)}</b><small>${esc(x.file_name||'Document')} ${x.expiry_date?'· Expiry '+esc(x.expiry_date):''}</small></button><button class="mini danger" data-action="delete-document" data-id="${esc(x.id)}">Delete</button></div>`).join(''):'<div class="notice">No documents.</div>'}</div></div>
+    </div>
+  </section>`;
 }
 function mastersPanel(d){
   return `<section class="panel active"><div class="grid3"><div class="card"><div class="section-title"><h3>Party Master</h3><button class="btn soft" data-action="new-party">Add</button></div>${d.parties.slice(0,30).map(p=>`<div class="ledger-row"><div><b>${esc(p.party_name)}</b><small>${esc(p.ledger_no||'No ledger number')} · ${esc(p.gst_no||'No GST')}</small></div><div class="action-set"><button class="mini" data-action="edit-party" data-id="${esc(p.id)}">Edit</button><button class="mini danger" data-action="delete-party" data-id="${esc(p.id)}">Delete</button></div></div>`).join('')}</div>
@@ -1909,7 +2055,9 @@ function openLedgerPrint(title,content){
   w.document.close();
 }
 function manualWhatsApp(message){
-  window.open(`https://wa.me/?text=${encodeURIComponent(message)}`,'_blank');
+  const url=`https://wa.me/?text=${encodeURIComponent(message)}`;
+  if(window.TransportNative?.openExternal)return window.TransportNative.openExternal(url);
+  window.open(url,'_blank');
 }
 
 async function viewPartyLedger(name){
@@ -2009,6 +2157,7 @@ function invoicePrintHtml(i){
 
 function shareInvoice(i){
   const text=`Meera Logistics\nInvoice: ${i.invoice_no}\nDate: ${i.invoice_date}\nParty: ${i.party_name}\nTotal: ${money(i.total)}`;
+  if(window.TransportNative?.shareText)return window.TransportNative.shareText(`Invoice ${i.invoice_no}`,text);
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');
 }
 function exportInvoices(){

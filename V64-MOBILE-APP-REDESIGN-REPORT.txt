@@ -1,0 +1,34 @@
+V64 MOBILE APP REDESIGN — USER GAADIKHATA DESIGN
+
+COMPLETED
+- Mobile UI redesigned directly from the user's own GaadiKhata HTML design.
+- Desktop ERP interface remains intact.
+- Mobile gets navy/cream/amber visual identity.
+- Dynamic company name and current date in mobile header.
+- Mobile home summary: Today Freight + Party Due.
+- Quick actions: New Trip, New Invoice, Receive, Pay Supplier.
+- Recent trips are Bilty-style cards with yellow truck number plate, route arrow and PAID/PENDING stamp.
+- Party outstanding uses compact account rows.
+- Trip History gets a dedicated mobile card list.
+- Truck Fleet gets a dedicated mobile list with owner/document details.
+- New Khata overview screen shows Estimated Profit, Party Receivable, Supplier Pending and recent money entries.
+- Bottom navigation: Home / Trips / Khata / More.
+- More opens the existing full sidebar, so no old ERP function is lost.
+- Mobile bell opens the V62 Notification Center.
+- Existing Party Khata and Supplier Khata functionality remains.
+- Existing V63 Android foundation remains.
+- V62 Cloud Docs/Notifications, V61 D1 recovery, V60 Super Admin and V58 accounting remain.
+- V64 service worker/cache reset included.
+
+ANDROID STUDIO
+Android Studio is now installed on the user's PC. After deploying/testing V64 web UI, the same V64 ZIP
+can be used for Android generation:
+npm install
+npm run android:preflight
+npm run android:add
+npm run android:sync
+npm run android:open
+
+WEB DEPLOY
+V64 is frontend/UI only. Cloudflare Worker does not need a new deploy if V62/V61 backend is already live.
+Deploy Vercel, then open /?reset=v64 once.

@@ -1,0 +1,22 @@
+{
+  "from": "V63-ANDROID-APP-FOUNDATION",
+  "to": "V64-MOBILE-APP-REDESIGN",
+  "modified": [
+    "FILE-LIST.json",
+    "START-HERE.txt",
+    "README.md",
+    "package.json",
+    "ANDROID-V63-START-HERE.txt",
+    "public/index.html",
+    "public/src/advanced-v44.js",
+    "public/src/app.js"
+  ],
+  "new": [
+    "V64-MOBILE-APP-REDESIGN-REPORT.txt",
+    "V64-DESIGN-SOURCE.txt",
+    "public/sw-v64.js",
+    "public/version-v64.txt",
+    "public/src/mobile-v64.css"
+  ],
+  "deleted": []
+}
