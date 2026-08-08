@@ -12,7 +12,8 @@ const formatDate=value=>String(value||'-').slice(0,10);
 let activeOverlay=null;
 let bootstrapPromise=null;
 function closeLedger(){activeOverlay?.remove();activeOverlay=null}
-function downloadBlob(blob,name){
+async function downloadBlob(blob,name){
+  if(window.TransportNative?.saveBlob){await window.TransportNative.saveBlob(blob,name);return}
   const url=URL.createObjectURL(blob),link=document.createElement('a');
   link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
@@ -52,7 +53,7 @@ async function downloadLedger(name,button=null){
   const old=button?.textContent;if(button){button.disabled=true;button.textContent='Preparing...'}
   try{
     const {payload,bootstrap}=await loadSupplierLedger(name);
-    downloadBlob(createSupplierLedgerPdfBlob(payload,name,bootstrap),supplierLedgerPdfName(payload,name,bootstrap));
+    await downloadBlob(createSupplierLedgerPdfBlob(payload,name,bootstrap),supplierLedgerPdfName(payload,name,bootstrap));
   }catch(error){alert(error.message||'Unable to download Supplier Ledger.')}
   finally{if(button){button.disabled=false;button.textContent=old||'Download'}}
 }

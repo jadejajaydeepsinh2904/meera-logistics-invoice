@@ -16,7 +16,8 @@ const balanceText=value=>`${amount(Math.abs(Number(value||0)))} ${Number(value||
 
 let activeOverlay=null;
 function closeLedger(){activeOverlay?.remove();activeOverlay=null}
-function downloadBlob(blob,name){
+async function downloadBlob(blob,name){
+  if(window.TransportNative?.saveBlob){await window.TransportNative.saveBlob(blob,name);return}
   const url=URL.createObjectURL(blob);
   const link=document.createElement('a');
   link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();
@@ -62,7 +63,7 @@ async function downloadLedger(name,button=null){
   try{
     const payload=await loadLedger(name);
     const blob=createPartyLedgerPdfBlob(payload,name);
-    downloadBlob(blob,partyLedgerPdfName(payload,name));
+    await downloadBlob(blob,partyLedgerPdfName(payload,name));
   }catch(error){alert(error.message||'Unable to download Party Ledger.')}
   finally{if(button){button.disabled=false;button.textContent=old||'Download'}}
 }

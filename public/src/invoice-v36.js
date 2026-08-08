@@ -203,7 +203,13 @@ function saveBlob(blob,fileName){
 }
 async function downloadInvoice(invoice,data){
   const blob=await createInvoicePdfBlob(invoice,data);
-  saveBlob(blob,safeInvoicePdfName(invoice));
+  const fileName=safeInvoicePdfName(invoice);
+  if(window.TransportNative?.saveBlob){
+    const saved=await window.TransportNative.saveBlob(blob,fileName);
+    alert(`Invoice saved: ${saved.location}`);
+    return;
+  }
+  saveBlob(blob,fileName);
 }
 function invoiceShareText(invoice,data){
   const company=companySettings(data);
@@ -215,6 +221,10 @@ function invoiceShareText(invoice,data){
 async function shareInvoice(invoice,data){
   const blob=await createInvoicePdfBlob(invoice,data);
   const fileName=safeInvoicePdfName(invoice);
+  if(window.TransportNative?.shareBlob){
+    await window.TransportNative.shareBlob(blob,fileName,`Invoice ${invoice.invoice_no}`,invoiceShareText(invoice,data));
+    return;
+  }
   const file=new File([blob],fileName,{type:'application/pdf',lastModified:Date.now()});
   const shareData={title:`Invoice ${invoice.invoice_no}`,text:invoiceShareText(invoice,data),files:[file]};
   if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){
@@ -241,7 +251,9 @@ function exportInvoices(data){
   }
   const csv='\uFEFF'+rows.map(row=>row.map(value=>`"${String(value??'').replaceAll('"','""')}"`).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
-  const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`${safeInvoicePdfName({invoice_no:companySettings(data).companyName,party_name:'INVOICE HISTORY'}).replace(/\.pdf$/i,'')}.csv`;link.click();URL.revokeObjectURL(link.href);
+  const fileName=`${safeInvoicePdfName({invoice_no:companySettings(data).companyName,party_name:'INVOICE HISTORY'}).replace(/\.pdf$/i,'')}.csv`;
+  if(window.TransportNative?.saveBlob){window.TransportNative.saveBlob(blob,fileName).catch(error=>alert(error.message||'Unable to save file.'));return}
+  const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=fileName;link.click();URL.revokeObjectURL(link.href);
 }
 
 document.addEventListener('click',async event=>{

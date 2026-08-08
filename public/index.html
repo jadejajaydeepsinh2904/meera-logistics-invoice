@@ -4,7 +4,7 @@
   <script>
   (async()=>{
     const q=new URLSearchParams(location.search);
-    if(['v665','v666','v667'].includes(q.get('reset'))){
+    if(['v665','v666','v667','v670'].includes(q.get('reset'))){
       try{
         if('serviceWorker' in navigator){
           for(const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
@@ -29,22 +29,22 @@
   <meta name="application-name" content="Transport ERP">
   <meta name="description" content="Meera Logistics Transport ERP">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/src/styles.css?v=667">
+  <link rel="stylesheet" href="/src/styles.css?v=670">
   <link rel="stylesheet" href="/src/invoice-v36.css?v=54">
   <link rel="stylesheet" href="/src/party-ledger-v40.css?v=40">
   <link rel="stylesheet" href="/src/supplier-ledger-v41.css?v=44">
   <link rel="stylesheet" href="/src/advanced-v44.css?v=664">
-  <link rel="stylesheet" href="/src/mobile-v64.css?v=664">
+  <link rel="stylesheet" href="/src/mobile-v64.css?v=670">
   <link rel="stylesheet" href="/src/desktop-v66.css?v=664">
   <title>Transport ERP</title>
 </head>
 <body>
   <div id="app"></div>
-  <script type="module" src="/src/app.js?v=667"></script>
-  <script type="module" src="/src/invoice-v36.js?v=666"></script>
-  <script type="module" src="/src/party-ledger-v40.js?v=40"></script>
-  <script type="module" src="/src/supplier-ledger-v41.js?v=44"></script>
-  <script type="module" src="/src/advanced-v44.js?v=665"></script>
-  <script type="module" src="/src/android-v63.js?v=664"></script>
+  <script type="module" src="/src/app.js?v=670"></script>
+  <script type="module" src="/src/invoice-v36.js?v=670"></script>
+  <script type="module" src="/src/party-ledger-v40.js?v=670"></script>
+  <script type="module" src="/src/supplier-ledger-v41.js?v=670"></script>
+  <script type="module" src="/src/advanced-v44.js?v=670"></script>
+  <script type="module" src="/src/android-v63.js?v=670"></script>
 </body>
 </html>

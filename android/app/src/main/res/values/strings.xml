@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Transport ERP</string>
+    <string name="title_activity_main">Transport ERP</string>
+    <string name="package_name">in.meeralogistics.transporterp</string>
+    <string name="custom_url_scheme">in.meeralogistics.transporterp</string>
+</resources>

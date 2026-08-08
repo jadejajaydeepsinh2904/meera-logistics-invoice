@@ -466,13 +466,13 @@ select option[value="__ADD_NEW__"]{font-weight:800;color:#2457d2}
 
 /* V63 Android native shell */
 .android-native-v63 body{overscroll-behavior-y:none}
-.android-native-v63 .topbar{padding-top:max(12px,env(safe-area-inset-top))}
-.android-native-v63 .sidebar{padding-bottom:max(12px,env(safe-area-inset-bottom))}
+.android-native-v63 .topbar{padding-top:max(12px,var(--safe-area-inset-top,env(safe-area-inset-top)))}
+.android-native-v63 .sidebar{padding-bottom:max(12px,var(--safe-area-inset-bottom,env(safe-area-inset-bottom)))}
 .android-native-v63 input,.android-native-v63 select,.android-native-v63 textarea{font-size:16px}
 .android-offline-v63 .a43-online{font-weight:800}
 @media(max-width:760px){
   .android-native-v63 .btn,.android-native-v63 button{min-height:42px}
-  .android-native-v63 .modal{max-height:calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 14px)}
+  .android-native-v63 .modal{max-height:calc(100vh - var(--safe-area-inset-top,env(safe-area-inset-top)) - var(--safe-area-inset-bottom,env(safe-area-inset-bottom)) - 14px)}
 }
 
 

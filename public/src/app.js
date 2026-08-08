@@ -48,7 +48,7 @@ const invoiceDate=s=>{if(!s)return '';const p=String(s).split('-');return p.leng
 const number3=n=>Number(n||0).toFixed(3);
 const norm=s=>String(s||'').trim().toUpperCase();
 const accountKey=s=>norm(s).replace(/[^A-Z0-9]/g,'');
-const download=(name,text,type='application/json')=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)};
+const download=(name,text,type='application/json')=>{const blob=new Blob([text],{type});if(window.TransportNative?.saveBlob){window.TransportNative.saveBlob(blob,name).catch(error=>alert(error.message||'Unable to save file.'));return}const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href)};
 const statusBadge=s=>`<span class="badge ${String(s||'').toLowerCase().replaceAll('_','')}">${esc(s||'-')}</span>`;
 const actionButtons=(type,id,extra='')=>`<div class="action-set"><button class="mini" data-action="edit-${type}" data-id="${esc(id)}">Edit</button>${extra}<button class="mini danger" data-action="delete-${type}" data-id="${esc(id)}">Delete</button></div>`;
 
@@ -2407,6 +2407,7 @@ async function viewDocument(id){
 function safeFileName(value){return String(value||'LEDGER').replace(/[\\/:*?"<>|]+/g,' ').trim()}
 function downloadTextFile(name,text,type='text/csv;charset=utf-8'){
   const blob=new Blob([text],{type});const a=document.createElement('a');
+  if(window.TransportNative?.saveBlob){window.TransportNative.saveBlob(blob,name).catch(error=>alert(error.message||'Unable to save file.'));return}
   a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
 }

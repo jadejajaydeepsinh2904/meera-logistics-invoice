@@ -1,0 +1,33 @@
+{
+  "appId": "in.meeralogistics.transporterp",
+  "appName": "Transport ERP",
+  "webDir": "public",
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": [
+      "meera-logistics-invoice.jadejajaydeepsinhk007.workers.dev"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "launchAutoHide": true,
+      "backgroundColor": "#10284c",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false
+    },
+    "SystemBars": {
+      "insetsHandling": "css",
+      "style": "DARK",
+      "hidden": false,
+      "animation": "NONE"
+    },
+    "StatusBar": {
+      "style": "DARK"
+    }
+  }
+}

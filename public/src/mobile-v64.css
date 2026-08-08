@@ -22,7 +22,7 @@
   .main{padding:0 0 84px!important;background:var(--v64-paper);min-height:100dvh}
   .topbar{display:none!important}
   .v59-sub-banner{margin:0;border-radius:0}
-  .v64-mobile-header{display:block;background:linear-gradient(180deg,var(--v64-ink2),var(--v64-ink));padding:max(14px,env(safe-area-inset-top)) 18px 18px;color:var(--v64-white)}
+  .v64-mobile-header{display:block;background:linear-gradient(180deg,var(--v64-ink2),var(--v64-ink));padding:max(14px,var(--safe-area-inset-top,env(safe-area-inset-top))) 18px 18px;color:var(--v64-white)}
   .v64-brand-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
   .v64-mobile-brand{min-width:0;display:grid;gap:2px}
   .v64-mobile-brand b{font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:21px;letter-spacing:.035em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase}
@@ -37,7 +37,7 @@
   .v64-sum-card b em{font-family:Arial,sans-serif;font-size:9px;font-style:normal;color:var(--v64-amber);margin-left:3px}
   .v64-sum-card.due>b{color:#F0A79E}.v64-sum-card.due b em{color:#e47c70}
 
-  .v64-tabbar{position:fixed;display:flex;left:0;right:0;bottom:0;z-index:95;background:var(--v64-white);border-top:1px solid var(--v64-paper-line);padding:7px 6px max(8px,env(safe-area-inset-bottom));box-shadow:0 -8px 24px #1b2a4a12}
+  .v64-tabbar{position:fixed;display:flex;left:0;right:0;bottom:0;z-index:95;background:var(--v64-white);border-top:1px solid var(--v64-paper-line);padding:7px 6px max(8px,var(--safe-area-inset-bottom,env(safe-area-inset-bottom)));box-shadow:0 -8px 24px #1b2a4a12}
   .v64-tab{flex:1;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px;border-radius:10px;color:#9AA2B4}
   .v64-tab i{font-style:normal;font-size:18px;line-height:1}.v64-tab span{font-size:9px;font-weight:700}
   .v64-tab.active{background:#FBF2DC;color:var(--v64-amber-dark)}

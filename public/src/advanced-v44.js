@@ -5,7 +5,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const money=v=>'₹'+Number(v||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtDate=v=>{if(!v)return '-';const p=String(v).slice(0,10).split('-');return p.length===3?`${p[2]}-${p[1]}-${p[0]}`:v};
 const safeName=v=>String(v||'MEERA').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim();
-const downloadBlob=(blob,name)=>{const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)};
+const downloadBlob=(blob,name)=>{if(window.TransportNative?.saveBlob){window.TransportNative.saveBlob(blob,name).catch(error=>alert(error.message||'Unable to save file.'));return}const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)};
 const toast=(text,type='ok')=>{let t=document.querySelector('.a43-toast');if(!t){t=document.createElement('div');t.className='a43-toast';document.body.appendChild(t)}t.className=`a43-toast ${type}`;t.textContent=text;t.hidden=false;clearTimeout(t._timer);t._timer=setTimeout(()=>t.hidden=true,3200)};
 
 async function loadAdvanced(force=false){
@@ -624,7 +624,7 @@ function decorate(){
 }
 new MutationObserver(()=>requestAnimationFrame(decorate)).observe(document.documentElement,{childList:true,subtree:true});applySettings(cachedSettings());decorate();hydrateSettings();
 window.addEventListener('online',()=>{decorate();navigator.serviceWorker?.controller?.postMessage({type:'SYNC_QUEUE'});toast('Online — offline changes syncing')});window.addEventListener('offline',decorate);
-if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw-v66-4.js?v=665').catch(()=>{});
+if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())navigator.serviceWorker.register('/sw-v66-4.js?v=670').catch(()=>{});
 
 document.addEventListener('ml-open-saas-v59',()=>openSaasCenter());
 

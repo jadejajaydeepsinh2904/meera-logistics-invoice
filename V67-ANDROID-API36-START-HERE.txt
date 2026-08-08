@@ -1,0 +1,39 @@
+TRANSPORT ERP V67 — ANDROID 16 / API 36 PROJECT
+
+BASE
+- Latest web/business logic: V66-7.
+- Existing design, logo, invoice layout, trip/accounting data and Cloudflare backend retained.
+- Android package ID: in.meeralogistics.transporterp
+- App name: Transport ERP
+- Version name: 1.3.0
+- Version code: 1
+
+COMPLETED IN V67
+- Real native Android Studio/Gradle project generated with Capacitor 8.5.
+- compileSdkVersion and targetSdkVersion are 36 (Android 16).
+- Meera Logistics adaptive launcher icon and splash screen generated.
+- Android Back button, external links, network state and native share retained.
+- Invoice PDF, Party Ledger, Supplier Ledger, Excel/CSV and backup downloads use Android native file save/share.
+- No broad photo/media permission is requested; existing system file picker remains.
+- Clear-text network traffic and Android cloud backup of local session data are disabled.
+- Android 16 edge-to-edge safe-area handling added without changing the UI design.
+
+GITHUB UPLOAD
+- Upload the V67 changed-files ZIP contents at the same paths.
+- The ZIP intentionally excludes node_modules and generated copied web assets.
+- It contains fewer than 100 GitHub paths.
+
+ANDROID STUDIO BUILD
+1. Install/update Android Studio Otter 2025.2.1 or newer.
+2. Use JDK 21 and Android SDK 36.
+3. Open the repository folder in Terminal.
+4. Run: npm install
+5. Run: npm run android:sync
+6. Run: npm run android:open
+7. In Android Studio, wait for Gradle Sync and run on a real Android phone.
+
+NOT YET FOR PUBLIC PAID RELEASE
+- Google Play Billing products and backend purchase-token verification.
+- Final plan prices/product IDs.
+- Final privacy policy, account deletion and Data Safety answers.
+- Signed release AAB and closed testing.
