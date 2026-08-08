@@ -608,7 +608,7 @@ function dashboardPanel(d){
         </div>
       </div>
     </div>
-  </section>;
+  </section>`;
 }
 function tripsPanel(d){
   const rows=filterRows(d.trips,['trip_no','invoice_no','trip_date','party_name','truck_no','material','loading_point','unloading_point','status'])

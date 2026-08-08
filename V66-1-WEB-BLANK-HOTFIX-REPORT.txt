@@ -1,0 +1,4 @@
+V66.1 fixes the blank web page caused by a missing closing backtick in the V66 desktop dashboard template.
+V66 unified desktop design, V65 LR fix, Android/mobile design and backend are retained.
+Reset URL: /?reset=v661
+Worker redeploy is not required.

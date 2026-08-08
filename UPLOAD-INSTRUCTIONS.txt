@@ -1,13 +1,4 @@
-V66 ONLY CHANGED FILES FROM V65
-
-Actual changed/new files: 9
-
-GitHub:
-Upload/replace these files in the same paths on main.
-Then let Vercel deploy.
-Open /?reset=v66 once.
-
-Android local:
-Replace these files in the local project.
-Run: npm run android:sync
-Then Run in Android Studio.
+Upload/replace these 8 files in GitHub main.
+After Vercel deploy, open:
+https://meera-logistics-invoice.vercel.app/?reset=v661
+Worker redeploy is NOT required.
