@@ -1,5 +1,5 @@
 import {api} from './core/api.js';
-import {createInvoicePdfBlob,safeInvoicePdfName} from './invoice-pdf-v39.js';
+import {createInvoicePdfBlob,safeInvoicePdfName} from './invoice-pdf-v39.js?v=666';
 
 const CACHE_KEY='ml_bootstrap_cache_v6';
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({

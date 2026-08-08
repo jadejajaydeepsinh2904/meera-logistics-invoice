@@ -185,6 +185,10 @@ function createInvoiceContent(invoice,data){
   const sgstAmount=nonGst?0:taxable*Number(invoice.sgst||0)/100;
   const cgstAmount=nonGst?0:taxable*Number(invoice.cgst||0)/100;
   const partyGst=invoice.party_gst||(data.parties||[]).find(p=>String(p.party_name||'').trim().toUpperCase()===String(invoice.party_name||'').trim().toUpperCase())?.gst_no||'-';
+  const tripById=new Map((data.trips||[]).map(trip=>[String(trip.id),trip]));
+  const itemLoadingDate=item=>item.loading_date||item.loadingDate||tripById.get(String(item.trip_id||item.tripId||''))?.trip_date||invoice.loading_date||invoice.invoice_date;
+  const loadingDates=[...new Set(items.map(itemLoadingDate).filter(Boolean))];
+  const loadingDateSummary=loadingDates.length===1?formatDate(loadingDates[0]):'TRIP-WISE BELOW';
 
   pdf.strokeColor(0.12,0.24,0.46);pdf.lineWidth(1.2);pdf.rect(8,8,PAGE_W-16,PAGE_H-16);
 
@@ -211,7 +215,7 @@ function createInvoiceContent(invoice,data){
   const summaryRows=[
     ['INVOICE DATE',formatDate(invoice.invoice_date)],
     ['MATERIAL',invoice.material||'-'],
-    ['LOADING DATE',formatDate(invoice.loading_date||invoice.invoice_date)],
+    ['LOADING DATE',loadingDateSummary],
     ['LOADING WEIGHT',number3(loadingTotal)],
     ['UNLOADING WEIGHT',number3(unloadingTotal)],
     ['SHORTAGE',number3(shortageTotal)]
@@ -245,7 +249,7 @@ function createInvoiceContent(invoice,data){
   const rowH=Math.max(7.5,Math.min(18,(tableTop-bottomTop-headerH-10)/rowCount));
   const fontSize=Math.max(5.2,Math.min(7.5,rowH*0.44));
   const columns=[
-    ['SR.',28],['LR NO.',55],['TRUCK NO.',88],['DESCRIPTION',194],['LOADING WT.',72],['UNLOADING WT.',72],['DIFF.',49],['WEIGHT / TON',72],['RATE PER TON',72],['TOTAL',88]
+    ['SR.',24],['LOADING DATE',58],['LR NO.',56],['TRUCK NO.',80],['DESCRIPTION',158],['LOADING WT.',65],['UNLOADING WT.',65],['DIFF.',44],['WEIGHT / TON',65],['RATE PER TON',78],['TOTAL',97]
   ];
   let x=tableX;
   columns.forEach(([label,width])=>{
@@ -254,14 +258,14 @@ function createInvoiceContent(invoice,data){
   items.forEach((item,index)=>{
     const y=tableTop-headerH-(index+1)*rowH;
     const values=[
-      String(index+1),item.lr_number||invoice.lr_no||'-',item.truck_no||'-',item.description||'-',
+      String(index+1),formatDate(itemLoadingDate(item)),item.lr_number||invoice.lr_no||'-',item.truck_no||'-',item.description||'-',
       number3(item.loading_weight??item.weight),number3(item.unloading_weight??item.weight),
       number3(item.shortage??Math.max(0,Number(item.loading_weight||0)-Number(item.unloading_weight||0))),
       number3(item.weight),money(item.rate),money(item.amount??Number(item.weight||0)*Number(item.rate||0))
     ];
     let cx=tableX;
     columns.forEach(([label,width],colIndex)=>{
-      drawCell(pdf,{x:cx,y,w:width,h:rowH,text:values[colIndex],font:'F2',size:colIndex===3?Math.max(4.8,fontSize-0.6):fontSize,wrap:colIndex===3,maxLines:2});cx+=width;
+      drawCell(pdf,{x:cx,y,w:width,h:rowH,text:values[colIndex],font:'F2',size:colIndex===4?Math.max(4.8,fontSize-0.6):colIndex===1?Math.max(5,fontSize-0.3):fontSize,wrap:colIndex===4,maxLines:2});cx+=width;
     });
   });
 
