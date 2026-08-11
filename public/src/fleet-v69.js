@@ -1,5 +1,4 @@
 import {api} from './core/api.js';
-import {parseWorkbookSheets,buildImportedInvoices} from './invoice-import-v691.js?v=691';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -9,7 +8,7 @@ const accountKey=value=>norm(value).replace(/[^A-Z0-9]/g,'');
 const money=value=>'₹'+Number(value||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
 const today=()=>new Date().toISOString().slice(0,10);
 const data=()=>window.ML_APP_DATA||{};
-const safeName=value=>String(value||'TRANSPORT ERP').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim();
+const safeName=value=>String(value||'TransportBahi').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim();
 const translate=value=>window.TransportLanguage?.text?.(value)||value;
 
 const EXPENSE_TYPES=[
@@ -101,8 +100,8 @@ function truckExpenseRows(rows){
 function invoiceImportPanel(){
   return `<section class="panel active v69-page" data-v69-panel="invoice-import">
     <div class="card v69-import-card">
-      <div class="section-title"><div><h2>Old Excel → Invoice Import</h2><small>Upload old Bill Excel, automatically detect every sheet, preview and create invoices</small></div></div>
-      <div class="v69-import-steps"><span><b>1</b>Select Excel</span><span><b>2</b>Detect Format</span><span><b>3</b>Preview</span><span><b>4</b>Create Invoices</span></div>
+      <div class="section-title"><div><h2>Old Excel → Invoice Import</h2><small>Upload old Bill Excel, map columns, preview and create invoices</small></div></div>
+      <div class="v69-import-steps"><span><b>1</b>Select Excel</span><span><b>2</b>Map Columns</span><span><b>3</b>Preview</span><span><b>4</b>Create Invoices</span></div>
       <label class="v69-drop"><input type="file" accept=".xlsx,.xls,.csv" data-v69-import-file><b>Choose old Excel file</b><small>.xlsx, .xls or .csv · Your file is previewed before saving</small></label>
       <div class="v69-import-workspace" data-v69-import-workspace><div class="notice">Select your old Excel file to begin. Existing invoices are not changed automatically.</div></div>
     </div>
@@ -210,29 +209,98 @@ async function downloadTruckExpenseRows(rows,name){
   await workbookDownload(name,{TruckExpenses:sheet});
 }
 
+const IMPORT_FIELDS=[
+  ['invoiceNo','Bill / Invoice No.',true,['billno','billnumber','invoiceno','invoicenumber','bill no','invoice no']],
+  ['invoiceDate','Invoice Date',true,['billdate','invoicedate','date','bill date']],
+  ['invoiceType','Invoice Type',false,['invoicetype','billtype','gsttype']],
+  ['partyName','Party Name',false,['partyname','billto','customername','party']],
+  ['partyNumber','Party / Ledger Number',false,['partynumber','partyno','ledgerno','party no']],
+  ['partyGst','Party GST',false,['partygst','gstno','gstnumber','gstin']],
+  ['partyAddress','Party Address',false,['partyaddress','address']],
+  ['lrNumber','LR Number',false,['lrnumber','lrno','lr no','biltyno']],
+  ['truckNo','Truck / Gadi Number',true,['truckno','trucknumber','gadinumber','vehicle no','vehiclenumber']],
+  ['loadingPoint','Loading Point',false,['loadingpoint','load','from']],
+  ['unloadingPoint','Unloading Point',false,['unloadingpoint','unload','to']],
+  ['description','Route / Description',false,['description','route','particulars']],
+  ['material','Material',false,['material','product','goods']],
+  ['loadingWeight','Loading Weight',false,['loadingweight','loadweight','grossweight']],
+  ['unloadingWeight','Unloading Weight',false,['unloadingweight','unloadweight','netweight']],
+  ['billingWeight','Billing Weight',false,['billingweight','weight','quantity','qty']],
+  ['rate','Rate',false,['rate','rateperton','freightrate']],
+  ['lineAmount','Line / Bill Amount',false,['amount','lineamount','billamount','freightamount']],
+  ['sgst','SGST %',false,['sgst','sgstpercent']],['cgst','CGST %',false,['cgst','cgstpercent']],
+  ['diesel','Diesel',false,['diesel','dieselamount']],['munshi','Munshi Charges',false,['munshi','munshicharges']],
+  ['comments','Comments',false,['comments','notes','remark']],['supplierName','Supplier / Truck Malik',false,['supplier','suppliername','truckmalik','ownername']],
+  ['supplierRate','Supplier Rate',false,['supplierrate','truckrate','hire rate']],['commission','Commission',false,['commission']],['supplierAdvance','Supplier Advance',false,['supplieradvance','advance']]
+];
 let importSession=null;
+const headerKey=value=>String(value||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+function inferColumn(headers,aliases){
+  const normalized=headers.map(headerKey);
+  for(const alias of aliases){const key=headerKey(alias),exact=normalized.indexOf(key);if(exact>=0)return headers[exact]}
+  for(const alias of aliases){const key=headerKey(alias),index=normalized.findIndex(x=>x.includes(key)||key.includes(x));if(index>=0)return headers[index]}
+  return '';
+}
 async function readImportFile(file){
   if(!window.XLSX)throw new Error('Excel engine is unavailable. Refresh the App once and retry.');
   const workbook=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true,cellText:false});
-  const sheets=workbook.SheetNames.map(name=>({name,rows:window.XLSX.utils.sheet_to_json(workbook.Sheets[name],{header:1,defval:'',raw:true,blankrows:false})}));
-  const parsed=parseWorkbookSheets(sheets);
-  if(!parsed.records.length)throw new Error('No supported invoice rows found. Keep Bill No., Date, Truck No. and Amount/Total headings in the Excel.');
-  importSession={fileName:file.name,...parsed};renderImportWorkspace();
+  const sheet=workbook.Sheets[workbook.SheetNames[0]];
+  const rows=window.XLSX.utils.sheet_to_json(sheet,{defval:'',raw:true});
+  if(!rows.length)throw new Error('No data rows found in the first Excel sheet.');
+  const headers=[...new Set(rows.flatMap(row=>Object.keys(row)))];
+  const mapping=Object.fromEntries(IMPORT_FIELDS.map(([key,,,aliases])=>[key,inferColumn(headers,aliases)]));
+  importSession={fileName:file.name,headers,rows,mapping};renderImportWorkspace();
+}
+function mappingSelect(key,label,required){
+  const value=importSession.mapping[key]||'';
+  return `<label><span>${esc(label)}${required?' *':''}</span><select data-v69-map="${esc(key)}"><option value="">— Not available —</option>${importSession.headers.map(header=>`<option value="${esc(header)}" ${header===value?'selected':''}>${esc(header)}</option>`).join('')}</select></label>`;
+}
+function cell(row,key){const header=importSession.mapping[key];return header?row[header]:''}
+function numberValue(value){const parsed=Number(String(value??'').replace(/[,₹Rs.\s]/gi,''));return Number.isFinite(parsed)?parsed:0}
+function isoDate(value){
+  if(value instanceof Date&&!Number.isNaN(value.getTime()))return value.toISOString().slice(0,10);
+  if(typeof value==='number'&&window.XLSX?.SSF?.parse_date_code){const d=window.XLSX.SSF.parse_date_code(value);if(d)return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`}
+  const text=String(value||'').trim();if(/^\d{4}-\d{1,2}-\d{1,2}/.test(text)){const [y,m,d]=text.split(/[-T]/);return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`}
+  const match=text.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);if(match){const year=match[3].length===2?`20${match[3]}`:match[3];return `${year}-${match[2].padStart(2,'0')}-${match[1].padStart(2,'0')}`}
+  const parsed=new Date(text);return Number.isNaN(parsed.getTime())?'':parsed.toISOString().slice(0,10);
 }
 function mappedInvoices(){
-  const source=data();
-  return buildImportedInvoices(importSession.records,{parties:source.parties||[],existingInvoices:source.invoices||[],parseExcelDate:value=>window.XLSX?.SSF?.parse_date_code?.(value),fileName:importSession.fileName});
+  const source=data(),parties=source.parties||[],groups=new Map();
+  importSession.rows.forEach((row,index)=>{
+    const invoiceNo=String(cell(row,'invoiceNo')||'').trim();
+    let partyName=norm(cell(row,'partyName'));
+    const partyNumber=String(cell(row,'partyNumber')||'').trim();
+    if(!partyName&&partyNumber){const party=parties.find(x=>accountKey(x.ledger_no)===accountKey(partyNumber)||String(x.id)===partyNumber);partyName=party?.party_name||''}
+    const party=parties.find(x=>accountKey(x.party_name)===accountKey(partyName))||{};
+    const truckNo=norm(cell(row,'truckNo'));
+    let weight=numberValue(cell(row,'billingWeight'))||numberValue(cell(row,'unloadingWeight'))||numberValue(cell(row,'loadingWeight'));
+    const lineAmount=numberValue(cell(row,'lineAmount'));
+    let rate=numberValue(cell(row,'rate'));
+    if(!weight&&lineAmount){weight=1;rate=lineAmount}
+    else if(weight&&!rate&&lineAmount)rate=lineAmount/weight;
+    const loadingWeight=numberValue(cell(row,'loadingWeight'))||weight;
+    const unloadingWeight=numberValue(cell(row,'unloadingWeight'))||weight;
+    const loading=norm(cell(row,'loadingPoint')),unloading=norm(cell(row,'unloadingPoint'));
+    const description=norm(cell(row,'description'))||[loading,unloading].filter(Boolean).join(' TO ')||'-';
+    const key=invoiceNo||`__ROW_${index}`;
+    if(!groups.has(key))groups.set(key,{invoiceNo,invoiceDate:isoDate(cell(row,'invoiceDate')),invoiceType:norm(cell(row,'invoiceType'))==='NON_GST'||norm(cell(row,'invoiceType'))==='NON-GST'?'NON_GST':'GST',partyName,partyAddress:String(cell(row,'partyAddress')||party.address||''),partyGst:norm(cell(row,'partyGst')||party.gst_no||''),lrNo:String(cell(row,'lrNumber')||''),material:norm(cell(row,'material')),sgst:numberValue(cell(row,'sgst'))||9,cgst:numberValue(cell(row,'cgst'))||9,diesel:numberValue(cell(row,'diesel')),munshi:numberValue(cell(row,'munshi')),comments:String(cell(row,'comments')||''),items:[],sourceRows:[]});
+    const group=groups.get(key);group.sourceRows.push(index+2);group.items.push({truckNo,description,loadingWeight,unloadingWeight,weight,rate,lrNumber:String(cell(row,'lrNumber')||''),loadingDate:isoDate(cell(row,'invoiceDate')),supplierName:norm(cell(row,'supplierName')),supplierRate:numberValue(cell(row,'supplierRate')),commission:numberValue(cell(row,'commission')),supplierAdvance:numberValue(cell(row,'supplierAdvance'))});
+  });
+  return [...groups.values()].map(group=>{
+    const errors=[];if(!group.invoiceNo)errors.push('Bill No. missing');if(!group.invoiceDate)errors.push('Date missing');if(!group.partyName)errors.push('Party missing');if(group.items.some(x=>!x.truckNo))errors.push('Truck No. missing');if(group.items.some(x=>!x.weight))errors.push('Weight/Amount missing');
+    const duplicate=(data().invoices||[]).some(x=>accountKey(x.invoice_no)===accountKey(group.invoiceNo));
+    return {...group,errors,duplicate};
+  });
 }
 function renderImportWorkspace(){
   const host=document.querySelector('[data-v69-import-workspace]');if(!host||!importSession)return;
   const invoices=mappedInvoices(),valid=invoices.filter(x=>!x.errors.length&&!x.duplicate);
-  const sourceCards=importSession.sources.map(source=>`<span><b>${esc(source.sheetName)}</b> · ${source.format==='FORM'?'Formatted Invoice':'Invoice List'} · ${source.rows} rows${source.metadata?.partyName?` · ${esc(source.metadata.partyName)}`:''}</span>`).join('');
-  host.innerHTML=`<div class="v69-import-file"><b>${esc(importSession.fileName)}</b><span>${importSession.records.length} rows · ${invoices.length} invoices detected from ${importSession.sources.length} sheet/table(s)</span></div>
-    <details class="v69-mapping" open><summary>Automatic Excel Detection</summary><div class="v69-auto-sources">${sourceCards||'<span>No supported table found.</span>'}</div>${importSession.warnings.length?`<div class="notice">${importSession.warnings.map(esc).join('<br>')}</div>`:''}</details>
-    <div class="v69-import-summary"><span><b>${invoices.length}</b> detected</span><span><b>${valid.length}</b> ready</span><span><b>${invoices.filter(x=>x.duplicate).length}</b> duplicates skipped</span><span><b>${invoices.filter(x=>x.errors.length).length}</b> need correction</span></div>
-    <div class="table-wrap"><table class="v69-table"><thead><tr><th>Bill No.</th><th>Bill / Loading Date</th><th>Party</th><th>Truck Lines</th><th>Tax</th><th>Total</th><th>Status</th></tr></thead><tbody>${invoices.slice(0,50).map(x=>`<tr><td><b>${esc(x.invoiceNo||'-')}</b></td><td>${esc(x.invoiceDate||'-')}<br><small>${esc(x.loadingDate||'-')}</small></td><td>${esc(x.partyName||'-')}</td><td>${x.items.map(i=>esc(i.truckNo||'-')).join('<br>')}</td><td>${x.invoiceType==='IGST'?`IGST ${Number(x.cgst||0)}%`:x.invoiceType==='NON_GST'?'NON-GST':`${Number(x.sgst||0)}% + ${Number(x.cgst||0)}%`}</td><td>${money(x.calculatedTotal)}</td><td>${x.duplicate?'<span class="badge warning">DUPLICATE</span>':x.errors.length?`<span class="badge pending">${esc(x.errors.join(', '))}</span>`:`<span class="badge paid">READY</span>${x.warnings.length?`<small class="v69-import-warning">${esc(x.warnings.join(' · '))}</small>`:''}`}</td></tr>`).join('')}</tbody></table></div>
+  host.innerHTML=`<div class="v69-import-file"><b>${esc(importSession.fileName)}</b><span>${importSession.rows.length} rows · ${invoices.length} invoices detected</span></div>
+    <details class="v69-mapping" open><summary>Column Mapping</summary><div>${IMPORT_FIELDS.map(([key,label,required])=>mappingSelect(key,label,required)).join('')}</div></details>
+    <div class="v69-import-summary"><span><b>${invoices.length}</b> detected</span><span><b>${valid.length}</b> ready</span><span><b>${invoices.filter(x=>x.duplicate).length}</b> duplicates skipped</span><span><b>${invoices.filter(x=>x.errors.length).length}</b> need mapping</span></div>
+    <div class="table-wrap"><table class="v69-table"><thead><tr><th>Bill No.</th><th>Date</th><th>Party</th><th>Truck Lines</th><th>Amount</th><th>Status</th></tr></thead><tbody>${invoices.slice(0,30).map(x=>`<tr><td><b>${esc(x.invoiceNo||'-')}</b></td><td>${esc(x.invoiceDate||'-')}</td><td>${esc(x.partyName||'-')}</td><td>${x.items.map(i=>esc(i.truckNo||'-')).join('<br>')}</td><td>${money(x.items.reduce((sum,i)=>sum+Number(i.weight||0)*Number(i.rate||0),0))}</td><td>${x.duplicate?'<span class="badge warning">DUPLICATE</span>':x.errors.length?`<span class="badge pending">${esc(x.errors.join(', '))}</span>`:'<span class="badge paid">READY</span>'}</td></tr>`).join('')}</tbody></table></div>
     <div class="v69-import-progress" data-v69-import-progress></div><div class="form-actions"><button class="btn primary" data-v69-action="run-invoice-import" ${valid.length?'':'disabled'}>Create ${valid.length} Invoices</button></div>`;
-  window.TransportLanguage?.apply?.();
+  host.querySelectorAll('[data-v69-map]').forEach(select=>select.onchange=()=>{importSession.mapping[select.dataset.v69Map]=select.value;renderImportWorkspace()});window.TransportLanguage?.apply?.();
 }
 async function runInvoiceImport(button){
   const invoices=mappedInvoices().filter(x=>!x.errors.length&&!x.duplicate);if(!invoices.length)return alert('No valid new invoices are ready.');
@@ -240,7 +308,7 @@ async function runInvoiceImport(button){
   const progress=document.querySelector('[data-v69-import-progress]');let success=0;const errors=[];busy(button,true,'Importing...');
   for(let index=0;index<invoices.length;index++){
     const invoice=invoices[index];if(progress)progress.textContent=`Creating ${index+1} of ${invoices.length}: ${invoice.invoiceNo}`;
-    try{const {errors:rowErrors,warnings,duplicate,sourceRows,tax,expectedTotal,calculatedTotal,...body}=invoice;await api('/invoices',{method:'POST',body:JSON.stringify(body),timeoutMs:60000});success++}catch(error){errors.push(`${invoice.invoiceNo}: ${error.message||error}`)}
+    try{const body={...invoice};delete body.errors;delete body.duplicate;delete body.sourceRows;await api('/invoices',{method:'POST',body:JSON.stringify(body),timeoutMs:60000});success++}catch(error){errors.push(`${invoice.invoiceNo}: ${error.message||error}`)}
   }
   busy(button,false);if(progress)progress.textContent=`Completed: ${success} created · ${errors.length} failed`;
   alert(`Excel invoice import complete.\nCreated: ${success}\nFailed: ${errors.length}${errors.length?'\n\n'+errors.slice(0,8).join('\n'):''}`);importSession=null;refresh();

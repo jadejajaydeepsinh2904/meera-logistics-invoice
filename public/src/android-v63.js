@@ -22,42 +22,19 @@ async function writeNativeBlob(blob,fileName,directory,folder){
 }
 
 async function saveBlob(blob,fileName){
-  let saved;
   try{
-    saved={...await writeNativeBlob(blob,fileName,'DOCUMENTS','Transport ERP'),location:'Documents/Transport ERP'};
+    return {...await writeNativeBlob(blob,fileName,'DOCUMENTS','TransportBahi'),location:'Documents/TransportBahi'};
   }catch(storageError){
-    const cached=await writeNativeBlob(blob,fileName,'CACHE','Transport ERP');
+    const cached=await writeNativeBlob(blob,fileName,'CACHE','TransportBahi');
     const Share=plugin('Share');
     if(!Share?.share)throw storageError;
     await Share.share({title:cached.fileName,files:[cached.uri],dialogTitle:'Save or share file'});
-    saved={...cached,location:'Android share menu'};
-  }
-  await notifyDownload(saved,blob);
-  return saved;
-}
-
-async function notifyDownload(saved,blob){
-  const notifier=plugin('DownloadNotification');
-  if(!notifier?.notifyDownload)return false;
-  try{
-    const t=value=>window.TransportLanguage?.text?.(value)||value;
-    await notifier.notifyDownload({
-      uri:saved.uri,
-      path:saved.path,
-      fileName:saved.fileName,
-      mimeType:blob?.type||'',
-      title:t('Download complete'),
-      body:t('Tap to open the downloaded file')
-    });
-    return true;
-  }catch(error){
-    console.warn('Download notification unavailable',error);
-    return false;
+    return {...cached,location:'Android share menu'};
   }
 }
 
 async function shareBlob(blob,fileName,title='',text=''){
-  const cached=await writeNativeBlob(blob,fileName,'CACHE','Transport ERP');
+  const cached=await writeNativeBlob(blob,fileName,'CACHE','TransportBahi');
   const Share=plugin('Share');
   if(!Share?.share)throw new Error('Android sharing is unavailable');
   await Share.share({title:title||cached.fileName,text,files:[cached.uri],dialogTitle:title||'Share file'});

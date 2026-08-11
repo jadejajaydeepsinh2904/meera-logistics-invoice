@@ -1,21 +1,22 @@
-TRANSPORT ERP V69 — GITHUB UPDATE ONLY
+TRANSPORTBAHI V7.0 - GITHUB WEB UPDATE ONLY
+============================================
 
-આ package V68.5 Web project ઉપર V69 add કરવા માટે છે.
-આમાં માત્ર નવી અથવા બદલાયેલી files છે; Full Project ફરી upload કરવાની જરૂર નથી.
+આ ZIPમાં ફક્ત Web માટેની 25 બદલાયેલી જરૂરી files છે.
+Android project, node_modules, tests અને જૂના reports તેમાં નથી.
 
-GITHUBમાં UPLOAD કરવાની રીત:
+GitHubમાં Upload કરવાની રીત:
 
-1. ZIP Extract કરો.
-2. GitHubમાં હાલની Website Repository ખોલો.
-3. Add file > Upload files દબાવો.
-4. Extract થયેલા "Transport-ERP-V69-GITHUB-UPDATE-ONLY" folderની અંદરની બધી files અને folders પસંદ કરો.
-5. બહારનું "Transport-ERP-V69-GITHUB-UPDATE-ONLY" folder repositoryમાં upload ન કરશો.
-6. Commit changes દબાવો.
+1. આ ZIPને Extract કરો.
+2. તમારા હાલના Website GitHub Repositoryને ખોલો.
+3. Add file > Upload files પસંદ કરો.
+4. Extract થયેલા folderની અંદરની package.json, package-lock.json અને public folder પસંદ કરો.
+5. નીચે Commit changes દબાવો.
+6. Vercel આપમેળે નવી Web version deploy કરશે.
 
-મહત્વનું:
+ખાસ ધ્યાન:
 
-- આ packageમાં કુલ 29 files છે, એટલે GitHubની 100-file upload limit નહીં આવે.
-- Existing files એ જ path પર replace થશે અને V69ની નવી files add થશે.
-- જૂનો data delete નહીં થાય.
-- Vercel GitHub સાથે connected હોય તો commit પછી Web આપમેળે deploy થશે.
-- Driver Khata અને Truck Expense online sync માટે worker folderનું update Cloudflare Workerમાં deploy કરવું પડશે.
+- ZIPનો બહારનો TransportBahi folder GitHubમાં upload કરશો નહીં.
+- તેની અંદરની files/folders Repositoryના rootમાં upload કરવાના છે.
+- જૂનું android folder delete કે upload કરવાની જરૂર નથી.
+- Meera Logisticsના invoice/company dataમાં કોઈ ફેરફાર થતો નથી.
+

@@ -1,6 +1,6 @@
 
 import {api,apiBlob,token,setToken,clearToken} from './core/api.js';
-import {renderV69Panel} from './fleet-v69.js?v=691';
+import {renderV69Panel} from './fleet-v69.js?v=690';
 
 const app=document.getElementById('app');
 let state={panel:'dashboard',data:null,search:'',loading:false,activeTrip:null};
@@ -26,7 +26,7 @@ function sortInvoicesSeries(items,desc=true){
     return desc?B.number-A.number:A.number-B.number;
   });
 }
-function invoiceTypeLabel(i){const type=i.invoice_type||'GST';return type==='NON_GST'?'NON-GST':type==='IGST'?'IGST':'GST'}
+function invoiceTypeLabel(i){return (i.invoice_type||'GST')==='NON_GST'?'NON-GST':'GST'}
 function invoiceStatus(total,received){
   const t=Number(total||0),r=Number(received||0);
   if(r<=0)return 'PENDING';
@@ -362,12 +362,12 @@ function loginView(message=''){
   state.search='';
   panelTrail.length=0;
   app.innerHTML=`<div class="login-shell">
-    <div class="login-art"><h1>Transport<br>made simple.</h1><p>Trips, invoices, party khata, supplier khata, payments, documents અને profit — ek secure Transport ERP ma.</p>
+    <div class="login-art"><h1>Trip થી<br>Profit સુધી.</h1><p>Trips, invoices, party khata, supplier khata, payments, documents અને profit — બધું TransportBahiમાં.</p>
       <div class="v59-login-points"><span>✓ 14-day Free Trial</span><span>✓ Your company data stays isolated</span><span>✓ No card required for trial</span></div>
     </div>
     <div class="login-side">
       <form class="login-card" id="loginForm">
-        <div class="login-logo">ML</div><h2>Welcome back</h2><p>Sign in to Transport ERP</p>
+        <img class="login-logo" src="/assets/transportbahi-icon-192.png" alt="TransportBahi"><h2>TransportBahi</h2><p>Trip થી Profit સુધી</p>
         ${message?`<div class="error-box">${esc(message)}</div>`:''}
         <label class="field"><span>Username</span><input name="username" autocomplete="username" required></label>
         <label class="field" style="margin-top:12px"><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label>
@@ -394,7 +394,7 @@ async function loadData({background=false}={}){
       state.data=cached.data;
       render();
     }else{
-      app.innerHTML='<div class="loading"><div><b>Opening Meera Logistics ERP…</b><br><small>Connecting to online database</small></div></div>';
+      app.innerHTML='<div class="loading"><div><b>Opening TransportBahi…</b><br><small>Connecting to online database</small></div></div>';
     }
   }
   try{
@@ -592,13 +592,13 @@ function v64TripPaymentState(d,t){
     :{label:'PENDING',paid:false,pending:Number(x.pending||0)};
 }
 function v64MobileHeader(d,title){
-  const company=esc(d.saas?.company?.company_name||'TRANSPORT ERP');
+  const company=esc(d.saas?.company?.company_name||'TRANSPORT COMPANY');
   const todayTrips=v64TodayTrips(d);
   const todayFreight=todayTrips.reduce((a,t)=>a+v64TripAmount(t),0);
   const isHome=state.panel==='dashboard';
   return `<header class="v64-mobile-header no-print">
     <div class="v64-brand-row">
-      <div class="v64-mobile-brand"><b>${company}</b><small>TRANSPORT ERP</small></div>
+      <div class="v64-mobile-brand"><b>${company}</b><small>TransportBahi</small></div>
       <div class="v683-header-actions"><button type="button" class="v683-language-button v683-mobile-language" data-language-open data-language-label aria-label="Choose App Language">${window.TransportLanguage?.buttonLabel?.()||'🌐 EN'}</button><button type="button" class="v64-bell" data-v64-alerts aria-label="Alerts">🔔<span></span></button></div>
     </div>
     <div class="v64-date-line ${isHome?'':'has-back'}">
@@ -632,7 +632,7 @@ function render(){
   const titles={dashboard:'Dashboard',trips:'Trip History',invoices:'Invoice History',parties:'Party Khata',partyPayments:'Party Payments',suppliers:'Supplier Khata',truckEntries:'Truck / Supplier Entries',supplierPayments:'Supplier Payments',trucks:'Truck & Document',drivers:'Driver Khata',myTrucks:'My Trucks',truckExpenses:'Truck Expenses',invoiceImport:'Excel Invoice Import',masters:'Master',forms:'Forms',expenses:'Office Expenses',reports:'Reports & Audit',khata:'Khata'};
   app.innerHTML=`<div class="erp">
     <aside class="sidebar" id="sidebar">
-      <div class="brand"><div class="brand-mark">ML</div><div><b>MEERA LOGISTICS</b><small>TRANSPORT ERP</small></div></div>
+      <div class="brand"><img class="brand-mark" src="/assets/transportbahi-icon-192.png" alt=""><div><b>TransportBahi</b><small>Trip થી Profit સુધી</small></div></div>
       <div class="nav-group-title">Dashboard</div><div class="nav">${navButton('dashboard','Dashboard')}${navButton('trips','Trip History')}${navButton('invoices','Invoice History')}</div>
       <div class="nav-group-title">Account</div><div class="nav">${navButton('parties','Party Khata')}${navButton('suppliers','Supplier Khata')}${navButton('drivers','Driver Khata')}</div>
       <div class="nav-group-title">Fleet & Office</div><div class="nav">${navButton('myTrucks','My Trucks')}${navButton('truckExpenses','Truck Expenses')}${navButton('trucks','Truck & Document')}${navButton('invoiceImport','Old Excel Invoice Import')}${navButton('masters','Master')}${navButton('forms','Forms')}${navButton('reports','Reports & Audit')}</div>
@@ -2039,7 +2039,6 @@ function invoiceForm(x={},tripContext=null){
       <span>Invoice Type</span>
       <div class="invoice-type-buttons">
         <button type="button" class="type-choice ${initialType==='GST'?'active':''}" data-type-choice="GST">GST Invoice</button>
-        <button type="button" class="type-choice ${initialType==='IGST'?'active':''}" data-type-choice="IGST">IGST Invoice</button>
         <button type="button" class="type-choice ${initialType==='NON_GST'?'active':''}" data-type-choice="NON_GST">Non-GST Invoice</button>
       </div>
       <input type="hidden" name="invoiceType" value="${esc(initialType)}">
@@ -2054,8 +2053,8 @@ function invoiceForm(x={},tripContext=null){
     <input type="hidden" name="loadingDate" value="${esc(x.loading_date||tripContext?.trip_date||today())}">
     ${field('Diesel','diesel',x.diesel||0,'number','step="0.01"')}
     ${field('Munshi','munshi',x.munshi||0,'number','step="0.01"')}
-    <div class="gst-field sgst-field">${field('SGST %','sgst',x.sgst??Number(window.ML_SETTINGS?.defaultSgst??9),'number','step="0.01"')}</div>
-    <div class="gst-field cgst-field">${field(initialType==='IGST'?'IGST %':'CGST %','cgst',x.cgst??Number(window.ML_SETTINGS?.defaultCgst??9),'number','step="0.01"')}</div>
+    <div class="gst-field">${field('SGST %','sgst',x.sgst??Number(window.ML_SETTINGS?.defaultSgst??9),'number','step="0.01"')}</div>
+    <div class="gst-field">${field('CGST %','cgst',x.cgst??Number(window.ML_SETTINGS?.defaultCgst??9),'number','step="0.01"')}</div>
 
     <div class="span2"><div class="section-title"><div><h3>Truck Details</h3><small>એક invoiceમાં જેટલી truck જોઈએ એટલી add કરો</small></div><div class="toolbar"><button type="button" class="btn green" id="addTripFromInvoice">+ New Trip</button><button type="button" class="btn soft" id="addLine">+ Add Another Truck</button></div></div><div class="invoice-lines" id="invoiceLines"></div></div>
 
@@ -2180,27 +2179,18 @@ function invoiceForm(x={},tripContext=null){
     }
 
     function applyType(type,forceNumber=true){
-      const previous=typeInput.value;
       typeInput.value=type;
       host.querySelectorAll('[data-type-choice]').forEach(b=>b.classList.toggle('active',b.dataset.typeChoice===type));
       const nonGst=type==='NON_GST';
-      const igst=type==='IGST';
       host.querySelectorAll('.gst-field').forEach(el=>el.style.display=nonGst?'none':'');
-      host.querySelector('.sgst-field').style.display=nonGst||igst?'none':'';
-      host.querySelector('.cgst-field .field>span').textContent=igst?'IGST %':'CGST %';
       host.querySelectorAll('.gst-summary').forEach(el=>el.style.display=nonGst?'none':'');
       if(nonGst){
         host.querySelector('[name=sgst]').value=0;
         host.querySelector('[name=cgst]').value=0;
         if(forceNumber && (!edit || !numberInput.value || /^ML/i.test(numberInput.value)))numberInput.value=d.nextNonGstInvoiceNo||'JAY 001';
-      }else if(igst){
-        const combined=Number(host.querySelector('[name=sgst]').value||0)+Number(host.querySelector('[name=cgst]').value||0);
-        host.querySelector('[name=sgst]').value=0;
-        host.querySelector('[name=cgst]').value=combined||18;
-        if(forceNumber && (!edit || !numberInput.value || /^JAY/i.test(numberInput.value)))numberInput.value=d.nextInvoiceNo||'ML - 1';
       }else{
-        if(previous==='IGST'&&Number(host.querySelector('[name=sgst]').value||0)===0&&Number(host.querySelector('[name=cgst]').value||0)>0){const half=Number(host.querySelector('[name=cgst]').value||0)/2;host.querySelector('[name=sgst]').value=half;host.querySelector('[name=cgst]').value=half}
-        else{if(Number(host.querySelector('[name=sgst]').value||0)===0)host.querySelector('[name=sgst]').value=9;if(Number(host.querySelector('[name=cgst]').value||0)===0)host.querySelector('[name=cgst]').value=9}
+        if(Number(host.querySelector('[name=sgst]').value||0)===0)host.querySelector('[name=sgst]').value=9;
+        if(Number(host.querySelector('[name=cgst]').value||0)===0)host.querySelector('[name=cgst]').value=9;
         if(forceNumber && (!edit || !numberInput.value || /^JAY/i.test(numberInput.value)))numberInput.value=d.nextInvoiceNo||'ML - 1';
       }
       recalcInvoice();
@@ -2584,15 +2574,13 @@ function downloadInvoice(i){
   w.document.close();
 }
 function invoicePrintHtml(i){
-  const taxType=invoiceTypeLabel(i);
-  const taxRows=taxType==='NON-GST'?'':taxType==='IGST'?`<div><span>IGST ${Number(i.sgst||0)+Number(i.cgst||0)}%</span><b>${money(i.subtotal*(Number(i.sgst||0)+Number(i.cgst||0))/100)}</b></div>`:`<div><span>SGST ${i.sgst}%</span><b>${money(i.subtotal*i.sgst/100)}</b></div><div><span>CGST ${i.cgst}%</span><b>${money(i.subtotal*i.cgst/100)}</b></div>`;
-  return `<div class="print-sheet"><div class="invoice-header"><div class="invoice-company"><h1>MEERA LOGISTICS</h1><div>Transport & Logistics Services</div><div>Jamnagar, Gujarat</div></div><div class="invoice-meta"><b>${taxType==='NON-GST'?'NON-GST INVOICE':taxType==='IGST'?'IGST INVOICE':'TAX INVOICE'}</b><div>${esc(i.invoice_no)}</div><div>${esc(i.invoice_date)}</div></div></div>
+  return `<div class="print-sheet"><div class="invoice-header"><div class="invoice-company"><h1>MEERA LOGISTICS</h1><div>Transport & Logistics Services</div><div>Jamnagar, Gujarat</div></div><div class="invoice-meta"><b>${invoiceTypeLabel(i)==='NON-GST'?'NON-GST INVOICE':'TAX INVOICE'}</b><div>${esc(i.invoice_no)}</div><div>${esc(i.invoice_date)}</div></div></div>
   <div class="invoice-party"><div><b>Bill To</b><div>${esc(i.party_name)}</div><div>${esc(i.party_address||'')}</div><div>GST: ${esc(i.party_gst||state.data?.parties?.find(p=>accountKey(p.party_name)===accountKey(i.party_name))?.gst_no||'-')}</div></div><div><b>Material:</b> ${esc(i.material||'-')}<br><b>Loading Date:</b> Trip-wise below</div></div>
   ${table(['Trip','Loading Date','LR No','Truck No','Description','Loading Wt.','Unloading Wt.','Difference','Billing Wt.','Rate','Amount'],(i.items||[]).map(x=>{
     const trip=state.data?.trips?.find(t=>String(t.id)===String(x.trip_id));
     return [esc(trip?.trip_no||'-'),esc(trip?.trip_date||i.loading_date||'-'),esc(x.lr_number||'-'),esc(x.truck_no),esc(x.description),number3(x.loading_weight??x.weight),number3(x.unloading_weight??x.weight),number3(x.shortage||0),number3(x.weight),money(x.rate),money(x.amount)];
   }),'1180px')}
-  <div class="invoice-total"><div><span>Subtotal</span><b>${money(i.subtotal)}</b></div><div><span>Diesel</span><b>${money(i.diesel)}</b></div><div><span>Munshi</span><b>${money(i.munshi)}</b></div>${taxRows}<div class="grand"><span>Total</span><span>${money(i.total)}</span></div></div><p style="white-space:pre-line">${esc(i.comments||'')}</p></div>`;
+  <div class="invoice-total"><div><span>Subtotal</span><b>${money(i.subtotal)}</b></div><div><span>Diesel</span><b>${money(i.diesel)}</b></div><div><span>Munshi</span><b>${money(i.munshi)}</b></div><div><span>SGST ${i.sgst}%</span><b>${money(i.subtotal*i.sgst/100)}</b></div><div><span>CGST ${i.cgst}%</span><b>${money(i.subtotal*i.cgst/100)}</b></div><div class="grand"><span>Total</span><span>${money(i.total)}</span></div></div><p style="white-space:pre-line">${esc(i.comments||'')}</p></div>`;
 }
 
 function shareInvoice(i){

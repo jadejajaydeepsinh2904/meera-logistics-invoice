@@ -102,28 +102,37 @@
     'Days':'दिन','Revenue':'आय','Other Expenses':'अन्य खर्च','FREIGHT':'भाड़ा','PAYMENT':'पेमेंट','PM BILL':'PM बिल','CASH':'नकद','BANK':'बैंक','UPI':'UPI','NEFT':'NEFT','RTGS':'RTGS','DRAFT':'ड्राफ्ट','DISPATCHED':'डिस्पैच','CONVERTED':'ट्रिप में बदला','REVIEWED':'जाँच पूरी','OK':'ठीक','INFO':'जानकारी','CRITICAL':'गंभीर','Sun':'रवि','Mon':'सोम','Tue':'मंगल','Wed':'बुध','Thu':'गुरु','Fri':'शुक्र','Sat':'शनि','year':'वर्ष','month':'महीना','Supplier Entries':'सप्लायर एंट्री','Delete this trip?':'यह ट्रिप डिलीट करें?','Delete this PM bill?':'यह PM बिल डिलीट करें?','Delete this invoice?':'यह इनवॉइस डिलीट करें?','Delete this party?':'यह पार्टी डिलीट करें?','Delete this party payment?':'यह पार्टी पेमेंट डिलीट करें?','Delete this supplier entry?':'यह सप्लायर एंट्री डिलीट करें?','Delete this supplier payment?':'यह सप्लायर पेमेंट डिलीट करें?','Delete this truck?':'यह ट्रक डिलीट करें?','Delete this document?':'यह दस्तावेज़ डिलीट करें?','Delete this route?':'यह रूट डिलीट करें?','Delete this material?':'यह मटेरियल डिलीट करें?','Delete this expense?':'यह खर्च डिलीट करें?','Backup restored successfully.':'बैकअप सफलतापूर्वक वापस आया।','Creating company...':'कंपनी बन रही है...','Unable to create company':'कंपनी नहीं बन सकी','Settings default par reset karva?':'सेटिंग्स डिफ़ॉल्ट पर रीसेट करें?','Browser notification support available nathi.':'ब्राउज़र notification support उपलब्ध नहीं है।','Notification permission allow thayu nathi.':'Notification permission नहीं मिली।'
   });
 
+  Object.assign(GU,{
+    'Opening TransportBahi…':'TransportBahi ખુલી રહ્યું છે…',
+    'Trip થી':'Trip થી','Profit સુધી.':'Profit સુધી.','Trip થી Profit સુધી':'Trip થી Profit સુધી',
+    'Trips, invoices, party khata, supplier khata, payments, documents અને profit — બધું TransportBahiમાં.':'ટ્રિપ, ઇન્વૉઇસ, પાર્ટી ખાતું, સપ્લાયર ખાતું, ચુકવણી, દસ્તાવેજ અને નફો — બધું TransportBahiમાં.',
+    'TransportBahi Smart Operations':'TransportBahi સ્માર્ટ કામગીરી',
+    'TransportBahi · Super Admin':'TransportBahi · સુપર એડમિન'
+  });
+  Object.assign(HI,{
+    'Opening TransportBahi…':'TransportBahi खुल रहा है…',
+    'Trip થી':'ट्रिप से','Profit સુધી.':'प्रॉफिट तक।','Trip થી Profit સુધી':'ट्रिप से प्रॉफिट तक',
+    'Trips, invoices, party khata, supplier khata, payments, documents અને profit — બધું TransportBahiમાં.':'ट्रिप, इनवॉइस, पार्टी खाता, सप्लायर खाता, पेमेंट, दस्तावेज़ और लाभ — सब कुछ TransportBahi में।',
+    'TransportBahi Smart Operations':'TransportBahi स्मार्ट ऑपरेशन',
+    'TransportBahi · Super Admin':'TransportBahi · सुपर एडमिन'
+  });
+
   Object.assign(GU,{'Approval':'મંજૂરી','Trucks':'ટ્રક','Trip-wise below':'નીચે ટ્રિપ મુજબ','COMMAND':'કમાન્ડ','INVOICE':'ઇન્વૉઇસ','PARTY':'પાર્ટી','TRUCK':'ટ્રક'});
   Object.assign(HI,{'Approval':'मंज़ूरी','Trucks':'ट्रक','Trip-wise below':'नीचे ट्रिप के अनुसार','COMMAND':'कमांड','INVOICE':'इनवॉइस','PARTY':'पार्टी','TRUCK':'ट्रक'});
 
   Object.assign(GU,{
-    'Download complete':'ડાઉનલોડ પૂર્ણ','Tap to open the downloaded file':'ડાઉનલોડ થયેલી ફાઇલ ખોલવા ટૅપ કરો','Fleet & Office':'ફ્લીટ અને ઓફિસ','Driver Khata':'ડ્રાઇવર ખાતું','My Trucks':'મારી ટ્રકો','My Trucks & Expenses':'મારી ટ્રકો અને ખર્ચ','Truck Expenses':'ટ્રક ખર્ચ','Old Excel Invoice Import':'જૂની Excelમાંથી ઇન્વૉઇસ','Excel Invoice Import':'Excel ઇન્વૉઇસ ઇમ્પોર્ટ',
+    'Fleet & Office':'ફ્લીટ અને ઓફિસ','Driver Khata':'ડ્રાઇવર ખાતું','My Trucks':'મારી ટ્રકો','My Trucks & Expenses':'મારી ટ્રકો અને ખર્ચ','Truck Expenses':'ટ્રક ખર્ચ','Old Excel Invoice Import':'જૂની Excelમાંથી ઇન્વૉઇસ','Excel Invoice Import':'Excel ઇન્વૉઇસ ઇમ્પોર્ટ',
     'Total Driver Balance':'કુલ ડ્રાઇવર બેલેન્સ','Driver Gave / Driver Got balance register':'ડ્રાઇવરને આપેલ / ડ્રાઇવર પાસેથી મળેલ હિસાબ','Add Driver':'ડ્રાઇવર ઉમેરો','Search by Driver Name':'ડ્રાઇવરનું નામ શોધો','Driver Name':'ડ્રાઇવરનું નામ','Licence Number':'લાઇસન્સ નંબર','No licence number':'લાઇસન્સ નંબર નથી','No mobile':'મોબાઇલ નથી','Save Driver':'ડ્રાઇવર સેવ કરો','Update Driver':'ડ્રાઇવર અપડેટ કરો','Driver Gave':'ડ્રાઇવરને આપ્યું','Driver Got':'ડ્રાઇવર પાસેથી મળ્યું','No Driver Khata entry yet.':'હજી ડ્રાઇવર ખાતામાં એન્ટ્રી નથી.','Save Entry':'એન્ટ્રી સેવ કરો','Download Ledger':'ખાતું ડાઉનલોડ કરો',
     'My Truck Expenses':'મારી ટ્રકનો ખર્ચ','Truck details, documents and expense ledger':'ટ્રક વિગત, દસ્તાવેજ અને ખર્ચ ખાતું','Search truck or owner':'ટ્રક અથવા માલિક શોધો','Expense Report':'ખર્ચ રિપોર્ટ','Expenses':'ખર્ચ','Expense':'ખર્ચ','View Ledger':'ખાતું જુઓ','Documents & truck expenses':'દસ્તાવેજ અને ટ્રક ખર્ચ','Own-truck expense register and reports':'પોતાની ટ્રકનો ખર્ચ રજિસ્ટર અને રિપોર્ટ','Truck, trip and office-style expense register':'ટ્રક અને ટ્રિપ મુજબનો ખર્ચ રજિસ્ટર','Add Truck Expense':'ટ્રક ખર્ચ ઉમેરો','Selected Month Total':'પસંદ કરેલા મહિનાનો કુલ ખર્ચ','Expense Type':'ખર્ચનો પ્રકાર','Choose Expense Type':'ખર્ચનો પ્રકાર પસંદ કરો','Expense Amount':'ખર્ચની રકમ','Expense Date':'ખર્ચની તારીખ','Payment Mode':'ચુકવણી રીત','Trip ID (optional)':'ટ્રિપ ID (વૈકલ્પિક)','Note':'નોંધ','Confirm':'ખાતરી કરો','Total Truck Expense':'કુલ ટ્રક ખર્ચ','Delete this Truck Expense?':'આ ટ્રક ખર્ચ ડિલીટ કરવો છે?','Add Custom Expense Type':'નવો ખર્ચ પ્રકાર ઉમેરો','Enter custom Expense Type':'નવા ખર્ચ પ્રકારનું નામ લખો',
     'Old Excel → Invoice Import':'જૂની Excel → ઇન્વૉઇસ ઇમ્પોર્ટ','Upload old Bill Excel, map columns, preview and create invoices':'જૂની Bill Excel upload કરીને column ગોઠવો, preview જુઓ અને invoices બનાવો','Select Excel':'Excel પસંદ કરો','Map Columns':'Column ગોઠવો','Create Invoices':'ઇન્વૉઇસ બનાવો','Choose old Excel file':'જૂની Excel file પસંદ કરો','Your file is previewed before saving':'સેવ કરતાં પહેલાં fileનું preview બતાવશે','Select your old Excel file to begin. Existing invoices are not changed automatically.':'શરૂ કરવા જૂની Excel file પસંદ કરો. હાલના invoices આપમેળે બદલાશે નહીં.','Column Mapping':'Column ગોઠવણી','Not available':'ઉપલબ્ધ નથી','detected':'મળ્યા','ready':'તૈયાર','duplicates skipped':'ડુપ્લિકેટ છોડ્યા','need mapping':'ગોઠવણી બાકી','Bill / Invoice No.':'Bill / ઇન્વૉઇસ નં.','Party / Ledger Number':'પાર્ટી / ખાતા નંબર','Truck / Gadi Number':'ટ્રક / ગાડી નંબર','Route / Description':'રૂટ / વિગત','Line / Bill Amount':'લાઇન / Bill રકમ','Create':'બનાવો','Importing...':'ઇમ્પોર્ટ થઈ રહ્યું છે...','Excel invoice import complete.':'Excel ઇન્વૉઇસ ઇમ્પોર્ટ પૂર્ણ થયો.','Downloaded successfully':'સફળતાપૂર્વક ડાઉનલોડ થયું',
     'DRIVER BHATTA':'ડ્રાઇવર ભથ્થું','DRIVER PAYMENT':'ડ્રાઇવર ચુકવણી','LOADING CHARGES':'લોડિંગ ચાર્જ','UNLOADING CHARGES':'અનલોડિંગ ચાર્જ','DETENTION CHARGES':'ડિટેન્શન ચાર્જ','UNION CHARGES':'યુનિયન ચાર્જ','TOLL EXPENSE':'ટોલ ખર્ચ','POLICE EXPENSE':'પોલીસ ખર્ચ','RTO EXPENSE':'RTO ખર્ચ','BROKERAGE EXPENSE':'બ્રોકરેજ ખર્ચ','FUEL EXPENSE':'ઇંધણ ખર્ચ','SHOWROOM SERVICE':'શોરૂમ સર્વિસ','REGULAR SERVICE':'નિયમિત સર્વિસ','MINOR REPAIR':'નાનું રિપેરિંગ','GEAR MAINTENANCE':'ગિયર મેન્ટેનન્સ','BRAKE OIL CHANGE':'બ્રેક ઓઇલ બદલવું','GREASE OIL CHANGE':'ગ્રીસ ઓઇલ બદલવું','ENGINE OIL CHANGE':'એન્જિન ઓઇલ બદલવું','SPARE PARTS PURCHASE':'સ્પેર પાર્ટ્સ ખરીદી','AIR FILTER CHANGE':'એર ફિલ્ટર બદલવું','OTHER EXPENSE':'અન્ય ખર્ચ'
   });
   Object.assign(HI,{
-    'Download complete':'डाउनलोड पूरा हुआ','Tap to open the downloaded file':'डाउनलोड की गई फाइल खोलने के लिए टैप करें','Fleet & Office':'फ्लीट और ऑफिस','Driver Khata':'ड्राइवर खाता','My Trucks':'मेरे ट्रक','My Trucks & Expenses':'मेरे ट्रक और खर्च','Truck Expenses':'ट्रक खर्च','Old Excel Invoice Import':'पुरानी Excel से इनवॉइस','Excel Invoice Import':'Excel इनवॉइस इम्पोर्ट',
+    'Fleet & Office':'फ्लीट और ऑफिस','Driver Khata':'ड्राइवर खाता','My Trucks':'मेरे ट्रक','My Trucks & Expenses':'मेरे ट्रक और खर्च','Truck Expenses':'ट्रक खर्च','Old Excel Invoice Import':'पुरानी Excel से इनवॉइस','Excel Invoice Import':'Excel इनवॉइस इम्पोर्ट',
     'Total Driver Balance':'कुल ड्राइवर बैलेंस','Driver Gave / Driver Got balance register':'ड्राइवर को दिया / ड्राइवर से मिला खाता','Add Driver':'ड्राइवर जोड़ें','Search by Driver Name':'ड्राइवर नाम खोजें','Driver Name':'ड्राइवर नाम','Licence Number':'लाइसेंस नंबर','No licence number':'लाइसेंस नंबर नहीं','No mobile':'मोबाइल नहीं','Save Driver':'ड्राइवर सेव करें','Update Driver':'ड्राइवर अपडेट करें','Driver Gave':'ड्राइवर को दिया','Driver Got':'ड्राइवर से मिला','No Driver Khata entry yet.':'अभी ड्राइवर खाते में कोई एंट्री नहीं है।','Save Entry':'एंट्री सेव करें','Download Ledger':'खाता डाउनलोड करें',
     'My Truck Expenses':'मेरे ट्रक का खर्च','Truck details, documents and expense ledger':'ट्रक विवरण, दस्तावेज़ और खर्च खाता','Search truck or owner':'ट्रक या मालिक खोजें','Expense Report':'खर्च रिपोर्ट','Expenses':'खर्च','Expense':'खर्च','View Ledger':'खाता देखें','Documents & truck expenses':'दस्तावेज़ और ट्रक खर्च','Own-truck expense register and reports':'अपने ट्रक का खर्च रजिस्टर और रिपोर्ट','Truck, trip and office-style expense register':'ट्रक और ट्रिप के अनुसार खर्च रजिस्टर','Add Truck Expense':'ट्रक खर्च जोड़ें','Selected Month Total':'चुने महीने का कुल खर्च','Expense Type':'खर्च का प्रकार','Choose Expense Type':'खर्च का प्रकार चुनें','Expense Amount':'खर्च राशि','Expense Date':'खर्च तारीख','Payment Mode':'भुगतान तरीका','Trip ID (optional)':'ट्रिप ID (वैकल्पिक)','Note':'नोट','Confirm':'पुष्टि करें','Total Truck Expense':'कुल ट्रक खर्च','Delete this Truck Expense?':'यह ट्रक खर्च डिलीट करें?','Add Custom Expense Type':'नया खर्च प्रकार जोड़ें','Enter custom Expense Type':'नए खर्च प्रकार का नाम लिखें',
     'Old Excel → Invoice Import':'पुरानी Excel → इनवॉइस इम्पोर्ट','Upload old Bill Excel, map columns, preview and create invoices':'पुरानी Bill Excel अपलोड करके कॉलम मिलाएँ, प्रीव्यू देखें और इनवॉइस बनाएँ','Select Excel':'Excel चुनें','Map Columns':'कॉलम मिलाएँ','Create Invoices':'इनवॉइस बनाएँ','Choose old Excel file':'पुरानी Excel फाइल चुनें','Your file is previewed before saving':'सेव करने से पहले फाइल का प्रीव्यू दिखेगा','Select your old Excel file to begin. Existing invoices are not changed automatically.':'शुरू करने के लिए पुरानी Excel फाइल चुनें। मौजूदा इनवॉइस अपने-आप नहीं बदलेंगे।','Column Mapping':'कॉलम मैपिंग','Not available':'उपलब्ध नहीं','detected':'मिले','ready':'तैयार','duplicates skipped':'डुप्लिकेट छोड़े','need mapping':'मैपिंग बाकी','Bill / Invoice No.':'Bill / इनवॉइस नं.','Party / Ledger Number':'पार्टी / खाता नंबर','Truck / Gadi Number':'ट्रक / गाड़ी नंबर','Route / Description':'रूट / विवरण','Line / Bill Amount':'लाइन / Bill राशि','Create':'बनाएँ','Importing...':'इम्पोर्ट हो रहा है...','Excel invoice import complete.':'Excel इनवॉइस इम्पोर्ट पूरा हुआ।','Downloaded successfully':'सफलतापूर्वक डाउनलोड हुआ',
     'DRIVER BHATTA':'ड्राइवर भत्ता','DRIVER PAYMENT':'ड्राइवर भुगतान','LOADING CHARGES':'लोडिंग चार्ज','UNLOADING CHARGES':'अनलोडिंग चार्ज','DETENTION CHARGES':'डिटेंशन चार्ज','UNION CHARGES':'यूनियन चार्ज','TOLL EXPENSE':'टोल खर्च','POLICE EXPENSE':'पुलिस खर्च','RTO EXPENSE':'RTO खर्च','BROKERAGE EXPENSE':'ब्रोकरेज खर्च','FUEL EXPENSE':'ईंधन खर्च','SHOWROOM SERVICE':'शोरूम सर्विस','REGULAR SERVICE':'नियमित सर्विस','MINOR REPAIR':'छोटी मरम्मत','GEAR MAINTENANCE':'गियर मेंटेनेंस','BRAKE OIL CHANGE':'ब्रेक ऑयल बदलना','GREASE OIL CHANGE':'ग्रीस ऑयल बदलना','ENGINE OIL CHANGE':'इंजन ऑयल बदलना','SPARE PARTS PURCHASE':'स्पेयर पार्ट्स खरीद','AIR FILTER CHANGE':'एयर फिल्टर बदलना','OTHER EXPENSE':'अन्य खर्च'
-  });
-  Object.assign(GU,{
-    'Upload old Bill Excel, automatically detect every sheet, preview and create invoices':'જૂની Bill Excel upload કરો; દરેક sheet આપમેળે ઓળખીને preview બાદ invoices બનાવો','Detect Format':'ફોર્મેટ ઓળખો','Automatic Excel Detection':'Excel ફોર્મેટ આપમેળે ઓળખાણ','Formatted Invoice':'તૈયાર ઇન્વૉઇસ','Invoice List':'ઇન્વૉઇસ લિસ્ટ','Bill / Loading Date':'Bill / લોડિંગ તારીખ','Tax':'ટેક્સ','need correction':'સુધારો જરૂરી','rows':'રો','invoices':'ઇન્વૉઇસ','sheet/table(s)':'sheet/table','IGST Invoice':'IGST ઇન્વૉઇસ','IGST Transport Invoice':'IGST ટ્રાન્સપોર્ટ ઇન્વૉઇસ','Original tax':'મૂળ ટેક્સ','No supported table found.':'ઓળખી શકાય એવું invoice table મળ્યું નથી.','No supported invoice rows found. Keep Bill No., Date, Truck No. and Amount/Total headings in the Excel.':'Invoice row મળ્યાં નથી. Excelમાં Bill No., Date, Truck No. અને Amount/Total heading રાખો.'
-  });
-  Object.assign(HI,{
-    'Upload old Bill Excel, automatically detect every sheet, preview and create invoices':'पुरानी Bill Excel अपलोड करें; हर sheet अपने-आप पहचानकर प्रीव्यू के बाद इनवॉइस बनाएँ','Detect Format':'फॉर्मेट पहचानें','Automatic Excel Detection':'Excel फॉर्मेट की अपने-आप पहचान','Formatted Invoice':'तैयार इनवॉइस','Invoice List':'इनवॉइस सूची','Bill / Loading Date':'Bill / लोडिंग तारीख','Tax':'टैक्स','need correction':'सुधार जरूरी','rows':'पंक्तियाँ','invoices':'इनवॉइस','sheet/table(s)':'sheet/table','IGST Invoice':'IGST इनवॉइस','IGST Transport Invoice':'IGST ट्रांसपोर्ट इनवॉइस','Original tax':'मूल टैक्स','No supported table found.':'पहचानने योग्य invoice table नहीं मिला।','No supported invoice rows found. Keep Bill No., Date, Truck No. and Amount/Total headings in the Excel.':'Invoice पंक्तियाँ नहीं मिलीं। Excel में Bill No., Date, Truck No. और Amount/Total heading रखें।'
   });
 
   const DICTIONARIES={gu:GU,hi:HI};
@@ -153,7 +162,6 @@
   };
   const originalText=new WeakMap();
   const originalAttrs=new WeakMap();
-  const boundLanguageButtons=new WeakSet();
   let activeLanguage=readLanguage();
   let scheduled=false;
 
@@ -334,7 +342,6 @@
       if(button.getAttribute('aria-label')!==accessible)button.setAttribute('aria-label',accessible);
       if(button.title!==accessible)button.title=accessible;
     });
-    bindLanguageButtons(document);
   }
   function apply(root=document.body){
     setDocumentLanguage();
@@ -372,7 +379,6 @@
   }
   function openPicker(){
     closePicker();
-    if(!document.body)return false;
     const host=document.createElement('div');
     host.className='v683-language-overlay';
     host.innerHTML=`<section class="v683-language-modal" role="dialog" aria-modal="true" aria-labelledby="v683-language-title">
@@ -388,33 +394,13 @@
     host.querySelector('[data-language-close]').onclick=closePicker;
     host.addEventListener('click',event=>{if(event.target===host)closePicker()});
     host.querySelectorAll('[data-language-choice]').forEach(button=>button.onclick=()=>{const code=button.dataset.languageChoice;closePicker();setLanguage(code)});
-    return true;
   }
 
-  function languageButtonFromEvent(event){
-    const target=event?.target;
-    const element=target instanceof Element?target:target?.parentElement;
-    return element?.closest?.('[data-language-open]')||null;
-  }
-  function handleLanguageOpen(event){
-    const button=languageButtonFromEvent(event);
+  document.addEventListener('click',event=>{
+    const button=event.target.closest('[data-language-open]');
     if(!button)return;
-    if(event.__mlLanguageHandled)return;
-    event.__mlLanguageHandled=true;
     event.preventDefault();event.stopPropagation();openPicker();
-  }
-  function bindLanguageButtons(root=document){
-    const buttons=root?.querySelectorAll?.('[data-language-open]')||[];
-    buttons.forEach(button=>{
-      if(boundLanguageButtons.has(button))return;
-      boundLanguageButtons.add(button);
-      button.addEventListener('click',handleLanguageOpen);
-    });
-  }
-
-  // Direct binding is the primary path. Delegation is a fallback for a new
-  // button clicked before the next mutation-observer frame.
-  document.addEventListener('click',handleLanguageOpen);
+  },true);
   document.addEventListener('keydown',event=>{if(event.key==='Escape')closePicker()});
   new MutationObserver(()=>{
     // A single render may update the header, panel and advanced overlay in one

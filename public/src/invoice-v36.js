@@ -1,5 +1,5 @@
 import {api} from './core/api.js';
-import {createInvoicePdfBlob,safeInvoicePdfName} from './invoice-pdf-v39.js?v=691';
+import {createInvoicePdfBlob,safeInvoicePdfName} from './invoice-pdf-v39.js?v=666';
 
 const CACHE_KEY='ml_bootstrap_cache_v6';
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({
@@ -12,7 +12,7 @@ const formatDate=value=>{
   const parts=String(value).split('-');
   return parts.length===3?`${parts[2]}-${parts[1]}-${parts[0]}`:String(value);
 };
-const invoiceType=invoice=>{const type=invoice.invoice_type||'GST';return type==='NON_GST'?'NON-GST':type==='IGST'?'IGST':'GST'};
+const invoiceType=invoice=>(invoice.invoice_type||'GST')==='NON_GST'?'NON-GST':'GST';
 
 const DEFAULT_COMPANY_SETTINGS={
   companyName:'MEERA LOGISTICS',
@@ -52,7 +52,7 @@ function tripNumber(data,tripId){
 function invoiceMarkup(invoice,data){
   const company=companySettings(data);
   const items=invoice.items||[];
-  const type=invoiceType(invoice),nonGst=type==='NON-GST',igst=type==='IGST';
+  const nonGst=invoiceType(invoice)==='NON-GST';
   const lrNumbers=[...new Set(items.map(item=>String(item.lr_number||'').trim()).filter(Boolean))];
   if(!lrNumbers.length && String(invoice.lr_no||'').trim())lrNumbers.push(String(invoice.lr_no).trim());
   const rowClass=items.length>14?' v36-very-many-lines':items.length>8?' v36-many-lines':'';
@@ -70,7 +70,7 @@ function invoiceMarkup(invoice,data){
     <header class="v36-head">
       <img class="v36-logo" src="/assets/meera-logo.png" alt="Meera Logistics logo">
       <div class="v36-company-name">${esc(company.companyName)}</div>
-      <div class="v36-title"><b>${esc(invoice.invoice_no)}</b><span>${nonGst?'Non-GST Transport Invoice':igst?'IGST Transport Invoice':'Transport Invoice'}</span></div>
+      <div class="v36-title"><b>${esc(invoice.invoice_no)}</b><span>${nonGst?'Non-GST Transport Invoice':'Transport Invoice'}</span></div>
     </header>
 
     <section class="v36-top-grid">
@@ -118,7 +118,7 @@ function invoiceMarkup(invoice,data){
       <div class="v36-comments"><b>Comments</b><div>${comments||'1. Payment due within 30 days.<br>2. Mention invoice number in payment reference.'}</div></div>
       <table class="v36-totals"><tbody>
         <tr><th>Total</th><td>${money(freightTotal)}</td></tr>
-        ${nonGst?'':igst?`<tr><th>IGST ${Number(invoice.sgst||0)+Number(invoice.cgst||0)}%</th><td>${money(sgstAmount+cgstAmount)}</td></tr>`:`<tr><th>SGST ${Number(invoice.sgst||0)}%</th><td>${money(sgstAmount)}</td></tr><tr><th>CGST ${Number(invoice.cgst||0)}%</th><td>${money(cgstAmount)}</td></tr>`}
+        ${nonGst?'':`<tr><th>SGST ${Number(invoice.sgst||0)}%</th><td>${money(sgstAmount)}</td></tr><tr><th>CGST ${Number(invoice.cgst||0)}%</th><td>${money(cgstAmount)}</td></tr>`}
         <tr><th>Diesel</th><td>${money(invoice.diesel||0)}</td></tr>
         <tr><th>Munshi Charges</th><td>${money(invoice.munshi||0)}</td></tr>
         <tr class="grand"><th>Total</th><td>${money(invoice.total)}</td></tr>

@@ -1,3 +1,3 @@
-V69.2
-Version 1.6.0
-Web language button fix + cache-safe UI assets + Android download notification tap-to-open
+V69
+Version 1.5.0
+Routes + Driver Khata + My Trucks + Truck Expenses + Ledger Downloads + Old Excel Invoice Import

@@ -1,0 +1,2 @@
+TransportBahi V1.7.0
+Branding release: app name, launcher icon, splash screen, web logo and favicon.

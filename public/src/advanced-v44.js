@@ -22,7 +22,7 @@ function closeAdvanced(){A43.overlay?.remove();A43.overlay=null}
 function modal(title,body,actions=''){
   closeAdvanced();
   const host=document.createElement('div');host.className='a43-overlay';
-  host.innerHTML=`<section class="a43-modal"><header><div><b>${esc(title)}</b><small>Meera Logistics Smart Operations</small></div><div class="a43-head-actions">${actions}<button data-a43-close>Close</button></div></header><main>${body}</main></section>`;
+  host.innerHTML=`<section class="a43-modal"><header><div><b>${esc(title)}</b><small>TransportBahi Smart Operations</small></div><div class="a43-head-actions">${actions}<button data-a43-close>Close</button></div></header><main>${body}</main></section>`;
   document.body.appendChild(host);A43.overlay=host;
   host.querySelector('[data-a43-close]').onclick=closeAdvanced;
   host.addEventListener('click',e=>{if(e.target===host)closeAdvanced()});
@@ -201,7 +201,7 @@ async function openSuperAdminV60(){
     const data=await api('/super-admin'),s=data.summary||{};
     host.querySelector('main').innerHTML=`
       <div class="v60-admin-head">
-        <div><h2>Transport ERP · Super Admin</h2><small>Platform-level company, trial and subscription support controls.</small></div>
+        <div><h2>TransportBahi · Super Admin</h2><small>Platform-level company, trial and subscription support controls.</small></div>
         <button type="button" data-v60-refresh>Refresh</button>
       </div>
       <div class="v60-metrics">
@@ -599,7 +599,7 @@ async function showUrgentBrowserAlertV62(feed){
   const key=`ml_v62_alert_${new Date().toISOString().slice(0,10)}`;
   if(localStorage.getItem(key))return;
   localStorage.setItem(key,'1');
-  const title=`Transport ERP · ${feed.urgent} important alert(s)`;
+  const title=`TransportBahi · ${feed.urgent} important alert(s)`;
   const body=(feed.items||[]).filter(x=>x.severity!=='info').slice(0,2).map(x=>x.title+' — '+x.text).join('\n');
   try{
     const reg=await navigator.serviceWorker?.ready;
@@ -690,7 +690,7 @@ function decorate(){
 }
 new MutationObserver(()=>requestAnimationFrame(decorate)).observe(document.documentElement,{childList:true,subtree:true});applySettings(cachedSettings());decorate();hydrateSettings();
 window.addEventListener('online',()=>{decorate();navigator.serviceWorker?.controller?.postMessage({type:'SYNC_QUEUE'});toast('Online — offline changes syncing')});window.addEventListener('offline',decorate);
-if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())navigator.serviceWorker.register('/sw-v69.js?v=692').catch(()=>{});
+if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())navigator.serviceWorker.register('/sw-v69.js?v=700').catch(()=>{});
 
 document.addEventListener('ml-open-saas-v59',()=>openSaasCenter());
 
