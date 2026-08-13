@@ -63,13 +63,43 @@ function planFeatureList(features={}){
 }
 function v59PlanPrice(p,cycle='MONTHLY'){
   const n=Number(cycle==='YEARLY'?p.yearly_price:p.monthly_price||0);
-  return n>0?`₹${n.toLocaleString('en-IN')}${cycle==='YEARLY'?'/year':'/month'}`:'Price via Play Billing';
+  return n>0?`₹${n.toLocaleString('en-IN')}${cycle==='YEARLY'?'/year':'/month'}`:'Contact Support';
+}
+function v180PlayOffer(playProducts=[],productId='',cycle='MONTHLY'){
+  const product=playProducts.find(x=>x.productId===productId);
+  const basePlanId=cycle==='YEARLY'?'yearly':'monthly';
+  const offers=(product?.offers||[]).filter(x=>x.basePlanId===basePlanId);
+  return offers.find(x=>x.hasFreeTrial)||offers.find(x=>!x.offerId)||offers[0]||null;
+}
+function v180ProductId(plan,cycle='MONTHLY'){
+  return cycle==='YEARLY'?plan.play_product_id_yearly:plan.play_product_id_monthly;
+}
+function v180PlanSaving(plan){
+  const saving=Number(plan.monthly_price||0)*12-Number(plan.yearly_price||0);
+  return saving>0?`Save ₹${saving.toLocaleString('en-IN')} / year`:'';
+}
+async function v180BillingAccountId(companyId){
+  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(companyId||'')));
+  return [...new Uint8Array(bytes)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function v180VerifyPlayPurchase(purchase){
+  if(!purchase?.purchaseToken)throw new Error('Google Play purchase token is missing. Use Restore Purchase and retry.');
+  return api('/play-subscription/verify',{
+    method:'POST',timeoutMs:45000,
+    body:JSON.stringify({purchaseToken:purchase.purchaseToken,productId:purchase.productId||'',basePlanId:purchase.basePlanId||''})
+  });
 }
 async function openSaasCenter(){
   const host=loading('Company & Subscription');
   try{
-    const [ctx,plans,requests]=await Promise.all([api('/saas-context'),api('/saas-plans'),api('/subscription-request').catch(()=>[])]);
+    const billing=window.TransportNative?.billing||null;
+    const [ctx,plans,requests,playResult]=await Promise.all([
+      api('/saas-context'),api('/saas-plans'),api('/subscription-request').catch(()=>[]),
+      billing?.getProducts?billing.getProducts().catch(error=>({products:[],error:error.message||String(error)})):Promise.resolve({products:[]})
+    ]);
     const c=ctx.company||{},s=ctx.subscription||{},u=ctx.usage||{},pending=ctx.pendingRequest||requests?.find?.(x=>x.status==='PENDING');
+    const paidPlans=plans.filter(p=>p.id!=='TRIAL'),playProducts=playResult?.products||[];
+    const canManage=['OWNER','ADMIN'].includes(String(ctx.role||'').toUpperCase());
     const days=ctx.daysRemaining;
     host.querySelector('main').innerHTML=`
       <div class="v49-summary-grid">
@@ -96,18 +126,14 @@ async function openSaasCenter(){
         ${settingField('Supplier Prefix','supplierPrefix',c.supplier_prefix||'PML')}
         <div class="a43-form-actions wide"><button class="primary">Save Company</button></div>
       </form>
-      <div class="a44-settings-section"><b>Subscription Plans</b><small>Usage limits are enforced now. Paid purchase activation will connect to Google Play Billing in the Android billing phase.</small></div>
-      <div class="v49-plan-grid">${plans.map(p=>`
-        <div class="v49-plan ${p.id===s.plan_id?'current':''}">
-          <small>${esc(p.id)}</small><h3>${esc(p.plan_name)}</h3>
-          <div class="v59-plan-price">${v59PlanPrice(p)}</div>
-          <p>${p.max_users} users · ${p.max_trips_month>=999999?'Unlimited':p.max_trips_month} trips/month · ${p.max_invoices_month>=999999?'Unlimited':p.max_invoices_month} invoices/month · ${p.max_storage_mb} MB storage</p>
-          <div class="v49-chips">${planFeatureList(p.features||{})}</div>
-          ${p.id===s.plan_id?`<button type="button" disabled>Current Plan</button>`:
-            p.id==='TRIAL'?`<button type="button" disabled>Trial only</button>`:
-            `<button type="button" data-v59-request-plan="${p.id}" ${pending?'disabled':''}>${pending?'Request Pending':'Request '+esc(p.plan_name)}</button>`}
-        </div>`).join('')}</div>
-      <div class="v49-note"><b>Billing status:</b> Plan limits, expiry and read-only mode are live. Plan request does not activate paid access by itself; secure Google Play purchase verification will activate it later.</div>`;
+      <div class="a44-settings-section"><b>Simple Launch Plans</b><small>Start with a 14-day trial. Choose a monthly plan or save with yearly billing.</small></div>
+      <div class="v180-plan-toolbar">
+        <div class="v180-cycle" role="group" aria-label="Billing cycle"><button type="button" class="active" data-v180-cycle="MONTHLY">Monthly</button><button type="button" data-v180-cycle="YEARLY">Yearly · Save more</button></div>
+        ${billing?`<button type="button" data-v180-restore>Restore Purchase</button>`:'<span>Google Play purchase is available in the Android app.</span>'}
+      </div>
+      <div class="v180-billing-status" data-v180-billing-status ${playResult?.error?'data-state="warning"':''}>${esc(playResult?.error?`Play products are not live yet: ${playResult.error}`:billing?'Secure payment and renewal by Google Play.':'Use Request Plan below; our team will contact you.')}</div>
+      <div class="v49-plan-grid v180-plan-grid" data-v180-plan-grid></div>
+      <div class="v49-note"><b>Safe activation:</b> Google Play purchase is verified on the TransportBahi server before paid access starts. Pending or unverified payment never activates a plan.</div>`;
     host.querySelector('#v49CompanyForm').onsubmit=async e=>{
       e.preventDefault();
       try{
@@ -115,15 +141,73 @@ async function openSaasCenter(){
         toast('Company profile saved');closeAdvanced();openSaasCenter();
       }catch(err){alert(err.message)}
     };
-    host.querySelectorAll('[data-v59-request-plan]').forEach(btn=>btn.onclick=async()=>{
-      const planId=btn.dataset.v59RequestPlan;
-      const cycle=confirm(`Request ${planId} YEARLY plan?\nPress Cancel for MONTHLY.`)?'YEARLY':'MONTHLY';
-      btn.disabled=true;
+    let selectedCycle='MONTHLY';
+    const planGrid=host.querySelector('[data-v180-plan-grid]');
+    const status=host.querySelector('[data-v180-billing-status]');
+    const setStatus=(message,state='')=>{status.textContent=message;status.dataset.state=state};
+    const bindPlanActions=()=>{
+      planGrid.querySelectorAll('[data-v180-buy]').forEach(btn=>btn.onclick=async()=>{
+        const plan=paidPlans.find(p=>p.id===btn.dataset.v180Buy);if(!plan)return;
+        const productId=v180ProductId(plan,selectedCycle),basePlanId=selectedCycle==='YEARLY'?'yearly':'monthly';
+        btn.disabled=true;setStatus('Opening secure Google Play payment…','busy');
+        try{
+          const purchase=await billing.purchase(productId,basePlanId,await v180BillingAccountId(c.id));
+          if(purchase.state==='PENDING'){
+            setStatus('Payment is pending in Google Play. Use Restore Purchase after payment completes.','warning');
+            btn.disabled=false;return;
+          }
+          if(purchase.state!=='PURCHASED')throw new Error('Google Play purchase is not complete.');
+          setStatus('Payment received. Verifying subscription securely…','busy');
+          const verified=await v180VerifyPlayPurchase(purchase);
+          setStatus(`${verified.planName||verified.planId||plan.plan_name} activated successfully.`,'ok');
+          toast('Subscription activated');
+          setTimeout(()=>{closeAdvanced();location.reload()},900);
+        }catch(err){setStatus(err.message||'Subscription could not be activated.','error');btn.disabled=false}
+      });
+      planGrid.querySelectorAll('[data-v59-request-plan]').forEach(btn=>btn.onclick=async()=>{
+        const planId=btn.dataset.v59RequestPlan;
+        btn.disabled=true;setStatus('Submitting plan request…','busy');
+        try{
+          await api('/subscription-request',{method:'POST',body:JSON.stringify({planId,billingCycle:selectedCycle})});
+          toast('Plan request submitted');closeAdvanced();openSaasCenter();
+        }catch(err){setStatus(err.message||'Plan request failed.','error');btn.disabled=false}
+      });
+    };
+    const renderPlans=()=>{
+      host.querySelectorAll('[data-v180-cycle]').forEach(btn=>btn.classList.toggle('active',btn.dataset.v180Cycle===selectedCycle));
+      planGrid.innerHTML=paidPlans.map(p=>{
+        const productId=v180ProductId(p,selectedCycle),offer=v180PlayOffer(playProducts,productId,selectedCycle);
+        const price=offer?.displayPrice?`${offer.displayPrice}${selectedCycle==='YEARLY'?'/year':'/month'}`:v59PlanPrice(p,selectedCycle);
+        const current=p.id===s.plan_id&&!ctx.readOnly;
+        const action=current?'<button type="button" disabled>Current Plan</button>':
+          billing&&offer&&canManage?`<button type="button" class="primary" data-v180-buy="${p.id}">${offer.hasFreeTrial?'Start Free Trial':'Choose '+esc(p.plan_name)}</button>`:
+          canManage?`<button type="button" data-v59-request-plan="${p.id}" ${pending?'disabled':''}>${pending?'Request Pending':'Request '+esc(p.plan_name)}</button>`:
+          '<button type="button" disabled>Owner/Admin only</button>';
+        return `<div class="v49-plan ${current?'current':''} ${p.id==='PRO'?'popular':''}">
+          ${p.id==='PRO'?'<span class="v180-popular">MOST POPULAR</span>':''}
+          <small>${esc(p.id)}</small><h3>${esc(p.plan_name)}</h3>
+          <div class="v59-plan-price">${esc(price)}</div>
+          ${selectedCycle==='YEARLY'?`<b class="v180-saving">${esc(v180PlanSaving(p))}</b>`:'<span class="v180-trial-copy">14-day trial for new companies</span>'}
+          <p>${p.max_users} users · ${p.max_trips_month>=999999?'Unlimited':p.max_trips_month} trips/month · ${p.max_invoices_month>=999999?'Unlimited':p.max_invoices_month} invoices/month · ${p.max_storage_mb} MB storage</p>
+          <div class="v49-chips">${planFeatureList(p.features||{})}</div>${action}</div>`;
+      }).join('');
+      bindPlanActions();
+    };
+    host.querySelectorAll('[data-v180-cycle]').forEach(btn=>btn.onclick=()=>{selectedCycle=btn.dataset.v180Cycle;renderPlans()});
+    const restore=host.querySelector('[data-v180-restore]');
+    if(restore)restore.onclick=async()=>{
+      restore.disabled=true;setStatus('Checking Google Play purchases…','busy');
       try{
-        await api('/subscription-request',{method:'POST',body:JSON.stringify({planId,billingCycle:cycle})});
-        toast('Plan request submitted');closeAdvanced();openSaasCenter();
-      }catch(err){alert(err.message);btn.disabled=false}
-    });
+        const result=await billing.restore(),purchases=(result.purchases||[]).filter(x=>x.state==='PURCHASED');
+        if(!purchases.length)throw new Error('No active Google Play subscription was found for this account.');
+        let activated=null;
+        for(const purchase of purchases){try{activated=await v180VerifyPlayPurchase(purchase);if(activated?.active)break}catch(error){if(purchase===purchases.at(-1))throw error}}
+        if(!activated?.active)throw new Error('No verified active subscription was found.');
+        setStatus(`${activated.planName||activated.planId} restored successfully.`,'ok');toast('Subscription restored');
+        setTimeout(()=>{closeAdvanced();location.reload()},900);
+      }catch(err){setStatus(err.message||'Purchase restore failed.','error');restore.disabled=false}
+    };
+    renderPlans();
   }catch(e){host.querySelector('main').innerHTML=`<div class="a43-error">${esc(e.message)}</div>`}
 }
 async function openTeamAccess(){
@@ -690,7 +774,7 @@ function decorate(){
 }
 new MutationObserver(()=>requestAnimationFrame(decorate)).observe(document.documentElement,{childList:true,subtree:true});applySettings(cachedSettings());decorate();hydrateSettings();
 window.addEventListener('online',()=>{decorate();navigator.serviceWorker?.controller?.postMessage({type:'SYNC_QUEUE'});toast('Online — offline changes syncing')});window.addEventListener('offline',decorate);
-if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())navigator.serviceWorker.register('/sw-v69.js?v=712').catch(()=>{});
+if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())navigator.serviceWorker.register('/sw-v69.js?v=180').catch(()=>{});
 
 document.addEventListener('ml-open-saas-v59',()=>openSaasCenter());
 

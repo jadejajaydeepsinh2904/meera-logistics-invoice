@@ -22,14 +22,37 @@ async function writeNativeBlob(blob,fileName,directory,folder){
 }
 
 async function saveBlob(blob,fileName){
+  let saved;
   try{
-    return {...await writeNativeBlob(blob,fileName,'DOCUMENTS','TransportBahi'),location:'Documents/TransportBahi'};
+    saved={...await writeNativeBlob(blob,fileName,'DOCUMENTS','TransportBahi'),location:'Documents/TransportBahi'};
   }catch(storageError){
     const cached=await writeNativeBlob(blob,fileName,'CACHE','TransportBahi');
     const Share=plugin('Share');
     if(!Share?.share)throw storageError;
     await Share.share({title:cached.fileName,files:[cached.uri],dialogTitle:'Save or share file'});
-    return {...cached,location:'Android share menu'};
+    saved={...cached,location:'Android share menu'};
+  }
+  await notifyDownload(saved,blob);
+  return saved;
+}
+
+async function notifyDownload(saved,blob){
+  const notifier=plugin('DownloadNotification');
+  if(!notifier?.notifyDownload)return false;
+  try{
+    const t=value=>window.TransportLanguage?.text?.(value)||value;
+    await notifier.notifyDownload({
+      uri:saved.uri,
+      path:saved.path,
+      fileName:saved.fileName,
+      mimeType:blob?.type||'',
+      title:t('Download complete'),
+      body:t('Tap to open the downloaded file')
+    });
+    return true;
+  }catch(error){
+    console.warn('Download notification unavailable',error);
+    return false;
   }
 }
 
@@ -76,6 +99,21 @@ async function shareText(title,text,url=''){
   }
   return false;
 }
+async function playBillingProducts(){
+  const billing=plugin('PlayBilling');
+  if(!billing?.getProducts)throw new Error('Google Play Billing is unavailable in this app build.');
+  return billing.getProducts();
+}
+async function purchasePlaySubscription(productId,basePlanId,obfuscatedAccountId){
+  const billing=plugin('PlayBilling');
+  if(!billing?.purchase)throw new Error('Google Play Billing is unavailable in this app build.');
+  return billing.purchase({productId,basePlanId,obfuscatedAccountId});
+}
+async function restorePlaySubscriptions(){
+  const billing=plugin('PlayBilling');
+  if(!billing?.restorePurchases)throw new Error('Google Play Billing is unavailable in this app build.');
+  return billing.restorePurchases();
+}
 async function nativeBack(){
   if(closeTopOverlay())return;
   const sidebar=document.getElementById('sidebar');
@@ -102,7 +140,12 @@ async function initializeAndroid(){
     shareText,
     saveBlob,
     shareBlob,
-    back:nativeBack
+    back:nativeBack,
+    billing:{
+      getProducts:playBillingProducts,
+      purchase:purchasePlaySubscription,
+      restore:restorePlaySubscriptions
+    }
   };
   try{
     const SystemBars=plugin('SystemBars');
@@ -132,4 +175,4 @@ async function initializeAndroid(){
 }
 initializeAndroid();
 
-export {isNative,externalUrl,shareText,nativeBack};
+export {isNative,externalUrl,shareText,nativeBack,playBillingProducts,purchasePlaySubscription,restorePlaySubscriptions};

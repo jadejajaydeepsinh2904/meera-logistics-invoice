@@ -1,0 +1,46 @@
+TransportBahi Web v1.8.0 - Changed Files Only
+==============================================
+
+PURPOSE
+- Launch pricing for faster customer acquisition.
+- Basic Rs.199/month or Rs.1,999/year.
+- Pro Rs.499/month or Rs.4,999/year.
+- Business Rs.999/month or Rs.9,999/year.
+- Monthly/Yearly plan selector, yearly savings and 14-day trial messaging.
+- Android Buy/Restore UI support.
+- Secure Google Android Publisher verification before entitlement.
+- Manual Request Plan fallback remains active while Play Console is pending.
+
+DEPLOY
+1. Back up the current Worker and public files.
+2. Replace the matching files from this package:
+   worker/src/index.js
+   public/index.html
+   public/sw-v69.js
+   public/src/app.js
+   public/src/advanced-v44.js
+   public/src/advanced-v44.css
+   public/src/android-v63.js
+3. Deploy the Cloudflare Worker and website.
+4. Open /?reset=v180 once, then reload normally.
+5. Confirm the dashboard badge displays v1.8.0.
+
+BEFORE LIVE GOOGLE PLAY PURCHASES
+- Create subscriptions transportbahi_basic, transportbahi_pro and
+  transportbahi_business in Play Console.
+- Create base plans monthly and yearly for each product.
+- Create 14-day trial offer free-trial-14d where required.
+- Configure Cloudflare Worker secret GOOGLE_PLAY_SERVICE_ACCOUNT_JSON.
+- Keep the service-account JSON only in the Worker secret; never in public or
+  Android files.
+- Test with a licensed tester through Play internal testing.
+
+SECURITY BEHAVIOUR
+- Client price/plan claims are not trusted.
+- Purchase token is verified with Google and mapped from Google's product ID and
+  base-plan ID.
+- Google's obfuscated account ID must match the signed-in TransportBahi company.
+- The server acknowledges verified active purchases.
+- Pending, expired, unknown or unverified purchases do not activate paid access.
+- Restore Purchase re-verifies the purchase on the server.
+- Scheduled Worker runs refresh verified renewals, cancellations and expiry.

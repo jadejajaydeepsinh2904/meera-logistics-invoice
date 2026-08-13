@@ -623,7 +623,7 @@ function v64MobileHeader(d,title){
     </div>
     <div class="v64-date-line ${isHome?'':'has-back'}">
       ${isHome?'':`<button type="button" class="v682-back" data-nav-back aria-label="Go back"><span aria-hidden="true">←</span> Back</button>`}
-      <span class="v682-date-title">${esc(v64TodayText())} · ${esc(title||'Dashboard')} <small class="v709-build-badge">v1.7.12</small></span>
+      <span class="v682-date-title">${esc(v64TodayText())} · ${esc(title||'Dashboard')} <small class="v709-build-badge">v1.8.0</small></span>
       <span class="v68-network-status" data-v68-network>● Online</span>
     </div>
     ${isHome?`<div class="v64-summary-strip">

@@ -24,6 +24,15 @@ let tenantColumnPromise=null;
 let saasFoundationPromise=null;
 let tenantUpgradePromise=null;
 let fleetV69Promise=null;
+let playBillingV180Promise=null;
+let googlePlayTokenV180={token:'',expiresAt:0};
+
+const PLAY_PACKAGE_V180='in.meeralogistics.transporterp';
+const PLAY_PRODUCTS_V180={
+  transportbahi_basic:{planId:'BASIC',planName:'Basic',monthly:'MONTHLY',yearly:'YEARLY'},
+  transportbahi_pro:{planId:'PRO',planName:'Pro',monthly:'MONTHLY',yearly:'YEARLY'},
+  transportbahi_business:{planId:'BUSINESS',planName:'Business',monthly:'MONTHLY',yearly:'YEARLY'}
+};
 
 async function sha256(text){
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(text)));
@@ -246,6 +255,35 @@ async function ensureSaasFoundation(env){
   return saasFoundationPromise;
 }
 
+async function ensurePlayBillingV180(env){
+  if(playBillingV180Promise)return playBillingV180Promise;
+  playBillingV180Promise=(async()=>{
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS play_subscription_purchases(
+      purchase_token TEXT PRIMARY KEY,company_id TEXT NOT NULL,product_id TEXT NOT NULL,
+      base_plan_id TEXT DEFAULT '',plan_id TEXT NOT NULL,billing_cycle TEXT DEFAULT 'MONTHLY',
+      order_id TEXT DEFAULT '',subscription_state TEXT DEFAULT '',acknowledgement_state TEXT DEFAULT '',
+      expiry_time TEXT DEFAULT '',auto_renewing INTEGER DEFAULT 0,token_hash TEXT DEFAULT '',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,last_verified_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`).run();
+    await safe(env,`CREATE INDEX IF NOT EXISTS idx_play_subscription_company_v180
+      ON play_subscription_purchases(company_id,last_verified_at)`);
+    const plans=[
+      ['BASIC',199,1999,'transportbahi_basic'],
+      ['PRO',499,4999,'transportbahi_pro'],
+      ['BUSINESS',999,9999,'transportbahi_business']
+    ];
+    for(const [id,monthly,yearly,product] of plans){
+      await run(env,`UPDATE saas_plans SET monthly_price=?,yearly_price=?,
+        play_product_id_monthly=?,play_product_id_yearly=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        monthly,yearly,product,product,id);
+    }
+    try{await run(env,`INSERT OR REPLACE INTO app_meta(key,value,updated_at)
+      VALUES('play_billing_v180','1',CURRENT_TIMESTAMP)`)}catch(_){ }
+    return true;
+  })().catch(error=>{playBillingV180Promise=null;throw error});
+  return playBillingV180Promise;
+}
+
 
 
 let subscriptionRequestsV61Promise=null;
@@ -358,6 +396,7 @@ async function platformDashboardV60(env){
 
 async function saasContext(env,user){
   await ensureSaasFoundation(env);
+  await ensurePlayBillingV180(env);
   await ensurePlatformV60(env);
   await ensureSubscriptionRequestsV61(env);
   const companyId=user?.company_id||DEFAULT_COMPANY_ID;
@@ -421,6 +460,137 @@ async function subscriptionAccess(env,user){
         ? `${daysRemaining??0} trial day(s) remaining`
         : `${s.plan_name||s.plan_id||'Plan'} active`)
   };
+}
+
+function playBillingErrorV180(message,status=502){
+  const error=new Error(message);error.status=status;return error;
+}
+function base64UrlBytesV180(bytes){
+  let binary='';
+  for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+  return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function base64UrlJsonV180(value){
+  return base64UrlBytesV180(new TextEncoder().encode(JSON.stringify(value)));
+}
+function pemPkcs8V180(pem){
+  const body=String(pem||'').replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s+/g,'');
+  if(!body)throw playBillingErrorV180('Google Play verification key is invalid.',503);
+  const binary=atob(body),bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  return bytes.buffer;
+}
+function playServiceAccountV180(env){
+  const raw=env?.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON;
+  if(!raw)throw playBillingErrorV180('Google Play verification is not configured yet. Use Request Plan until Play Console setup is complete.',503);
+  try{
+    const account=typeof raw==='string'?JSON.parse(raw):raw;
+    if(!account?.client_email||!account?.private_key)throw new Error('missing fields');
+    return account;
+  }catch(_){throw playBillingErrorV180('Google Play verification configuration is invalid. Contact TransportBahi support.',503)}
+}
+async function googlePlayAccessTokenV180(env){
+  if(googlePlayTokenV180.token&&googlePlayTokenV180.expiresAt>Date.now()+60000)return googlePlayTokenV180.token;
+  const account=playServiceAccountV180(env),now=Math.floor(Date.now()/1000);
+  const header=base64UrlJsonV180({alg:'RS256',typ:'JWT'});
+  const claims=base64UrlJsonV180({
+    iss:account.client_email,
+    scope:'https://www.googleapis.com/auth/androidpublisher',
+    aud:account.token_uri||'https://oauth2.googleapis.com/token',
+    iat:now,exp:now+3600
+  });
+  const unsigned=`${header}.${claims}`;
+  const key=await crypto.subtle.importKey('pkcs8',pemPkcs8V180(account.private_key),
+    {name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
+  const signature=await crypto.subtle.sign('RSASSA-PKCS1-v1_5',key,new TextEncoder().encode(unsigned));
+  const assertion=`${unsigned}.${base64UrlBytesV180(new Uint8Array(signature))}`;
+  const response=await fetch(account.token_uri||'https://oauth2.googleapis.com/token',{
+    method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion}).toString()
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.access_token)throw playBillingErrorV180('Google Play authorization failed. Please retry or contact support.',502);
+  googlePlayTokenV180={token:data.access_token,expiresAt:Date.now()+Math.max(300,Number(data.expires_in||3600))*1000};
+  return data.access_token;
+}
+async function googlePublisherRequestV180(env,url,options={}){
+  const token=await googlePlayAccessTokenV180(env);
+  const response=await fetch(url,{...options,headers:{authorization:`Bearer ${token}`,'content-type':'application/json',...(options.headers||{})}});
+  if(!response.ok){
+    if(response.status===401)googlePlayTokenV180={token:'',expiresAt:0};
+    throw playBillingErrorV180(`Google Play could not verify this subscription (${response.status}). Please retry.`,response.status===404?404:502);
+  }
+  if(response.status===204)return {};
+  return response.json().catch(()=>({}));
+}
+async function verifyPlaySubscriptionV180(env,user,body){
+  await ensurePlayBillingV180(env);
+  const companyId=companyIdOf(user),purchaseToken=clean(body.purchaseToken);
+  if(purchaseToken.length<20||purchaseToken.length>4096)throw playBillingErrorV180('Valid Google Play purchase token required.',400);
+  const existing=await first(env,`SELECT company_id FROM play_subscription_purchases WHERE purchase_token=?`,purchaseToken);
+  if(existing&&existing.company_id!==companyId)throw playBillingErrorV180('This Google Play purchase is already linked to another company.',409);
+
+  const packageName=clean(env.GOOGLE_PLAY_PACKAGE_NAME||PLAY_PACKAGE_V180);
+  if(packageName!==PLAY_PACKAGE_V180)throw playBillingErrorV180('Google Play package configuration does not match TransportBahi.',503);
+  const encodedPackage=encodeURIComponent(packageName),encodedToken=encodeURIComponent(purchaseToken);
+  const purchase=await googlePublisherRequestV180(env,
+    `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodedPackage}/purchases/subscriptionsv2/tokens/${encodedToken}`);
+  const expectedAccountId=await sha256(companyId);
+  const playAccountId=clean(purchase.externalAccountIdentifiers?.obfuscatedExternalAccountId).toLowerCase();
+  if(playAccountId!==expectedAccountId)throw playBillingErrorV180('This Google Play purchase belongs to a different TransportBahi company.',409);
+  const lineItems=(purchase.lineItems||[])
+    .filter(item=>PLAY_PRODUCTS_V180[item.productId])
+    .sort((a,b)=>Date.parse(b.expiryTime||0)-Date.parse(a.expiryTime||0));
+  const line=lineItems[0];
+  if(!line)throw playBillingErrorV180('This purchase is not a TransportBahi subscription.',400);
+  const productId=clean(line.productId),basePlanId=clean(line.offerDetails?.basePlanId).toLowerCase();
+  const config=PLAY_PRODUCTS_V180[productId],billingCycle=config?.[basePlanId];
+  if(!config||!billingCycle)throw playBillingErrorV180('Google Play returned an unknown TransportBahi base plan.',400);
+  if(body.productId&&clean(body.productId)!==productId)throw playBillingErrorV180('Google Play product does not match the selected plan.',409);
+  if(body.basePlanId&&clean(body.basePlanId).toLowerCase()!==basePlanId)throw playBillingErrorV180('Google Play billing cycle does not match the selected plan.',409);
+
+  const state=clean(purchase.subscriptionState).toUpperCase();
+  const expiryTime=clean(line.expiryTime),expiryMs=Date.parse(expiryTime||0),notExpired=Number.isFinite(expiryMs)&&expiryMs>Date.now();
+  const entitledStates=['SUBSCRIPTION_STATE_ACTIVE','SUBSCRIPTION_STATE_IN_GRACE_PERIOD','SUBSCRIPTION_STATE_CANCELED'];
+  const active=entitledStates.includes(state)&&notExpired;
+  const status=state==='SUBSCRIPTION_STATE_IN_GRACE_PERIOD'?'GRACE':
+    state==='SUBSCRIPTION_STATE_CANCELED'&&notExpired?'CANCELLED':
+    active?'ACTIVE':state==='SUBSCRIPTION_STATE_PENDING'?'PENDING':'EXPIRED';
+  const acknowledgementState=clean(purchase.acknowledgementState).toUpperCase();
+  let finalAcknowledgement=acknowledgementState;
+  if(active&&acknowledgementState==='ACKNOWLEDGEMENT_STATE_PENDING'){
+    const ackUrl=`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodedPackage}/purchases/subscriptions/${encodeURIComponent(productId)}/tokens/${encodedToken}:acknowledge`;
+    await googlePublisherRequestV180(env,ackUrl,{method:'POST',body:'{}'});
+    finalAcknowledgement='ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED';
+  }
+  const orderId=clean(purchase.latestSuccessfulOrderId),autoRenewing=line.autoRenewingPlan?.autoRenewEnabled?1:0;
+  const tokenHash=await sha256(purchaseToken);
+  await run(env,`INSERT INTO play_subscription_purchases(
+    purchase_token,company_id,product_id,base_plan_id,plan_id,billing_cycle,order_id,subscription_state,
+    acknowledgement_state,expiry_time,auto_renewing,token_hash,last_verified_at
+  ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+  ON CONFLICT(purchase_token) DO UPDATE SET product_id=excluded.product_id,base_plan_id=excluded.base_plan_id,
+    plan_id=excluded.plan_id,billing_cycle=excluded.billing_cycle,order_id=excluded.order_id,
+    subscription_state=excluded.subscription_state,acknowledgement_state=excluded.acknowledgement_state,
+    expiry_time=excluded.expiry_time,auto_renewing=excluded.auto_renewing,token_hash=excluded.token_hash,
+    last_verified_at=CURRENT_TIMESTAMP`,
+    purchaseToken,companyId,productId,basePlanId,config.planId,billingCycle,orderId,state,
+    finalAcknowledgement,expiryTime,autoRenewing,tokenHash);
+
+  const current=await first(env,`SELECT source,play_purchase_token FROM company_subscriptions WHERE company_id=?`,companyId);
+  if(active){
+    const periodStart=clean(purchase.startTime||new Date().toISOString()).slice(0,10),periodEnd=expiryTime.slice(0,10);
+    await run(env,`UPDATE company_subscriptions SET plan_id=?,status=?,source='GOOGLE_PLAY',
+      current_period_start=?,current_period_end=?,grace_ends_at=?,play_purchase_token=?,play_order_id=?,
+      auto_renewing=?,updated_at=CURRENT_TIMESTAMP WHERE company_id=?`,
+      config.planId,status,periodStart,periodEnd,status==='GRACE'?periodEnd:'',purchaseToken,orderId,autoRenewing,companyId);
+    await run(env,`UPDATE subscription_requests SET status='ACTIVATED',notes='Activated by verified Google Play purchase',
+      updated_at=CURRENT_TIMESTAMP WHERE company_id=? AND status='PENDING'`,companyId);
+  }else if(current?.source==='GOOGLE_PLAY'&&current?.play_purchase_token===purchaseToken){
+    await run(env,`UPDATE company_subscriptions SET status='EXPIRED',auto_renewing=0,updated_at=CURRENT_TIMESTAMP WHERE company_id=?`,companyId);
+  }
+  await audit(env,user,'VERIFY','play_subscription',tokenHash.slice(0,16),{productId,basePlanId,planId:config.planId,state,active,expiryTime});
+  return {ok:true,verified:true,active,status,planId:config.planId,planName:config.planName,billingCycle,expiryTime,autoRenewing:!!autoRenewing,acknowledged:finalAcknowledgement==='ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED'};
 }
 
 
@@ -2583,6 +2753,21 @@ async function runScheduledTasks(env,scheduledTime=Date.now()){
       await createMonthlyExport(env,prev.toISOString().slice(0,7),companyId);
     }
   }
+  // Refresh Google Play renewals/cancellations during the existing scheduled
+  // Worker run. Missing Play credentials never block business-data backups.
+  try{
+    await ensurePlayBillingV180(env);
+    const subscriptions=await all(env,`SELECT cs.company_id,cs.play_purchase_token
+      FROM company_subscriptions cs JOIN companies c ON c.id=cs.company_id
+      WHERE c.status='ACTIVE' AND cs.source='GOOGLE_PLAY' AND COALESCE(TRIM(cs.play_purchase_token),'')<>''
+      ORDER BY cs.updated_at LIMIT 100`);
+    for(const sub of subscriptions){
+      try{
+        await verifyPlaySubscriptionV180(env,{company_id:sub.company_id,username:'PLAY_SYNC',role:'OWNER'},
+          {purchaseToken:sub.play_purchase_token});
+      }catch(error){console.warn('PLAY_SUBSCRIPTION_SYNC_SKIPPED',{companyId:sub.company_id,error:String(error?.message||error)})}
+    }
+  }catch(error){console.warn('PLAY_BILLING_SCHEDULE_SKIPPED',{error:String(error?.message||error)})}
 }
 
 
@@ -2634,9 +2819,10 @@ export default {
       const resource=parts[0]||'';
       const id=decodeURIComponent(parts[1]||'');
 
-      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'Meera Logistics ERP API',version:'V69-Fleet-Driver-Excel'}),{headers:{...HEADERS,'cache-control':'public,max-age=15'}});
+      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'TransportBahi API',version:'V180-Play-Billing'}),{headers:{...HEADERS,'cache-control':'public,max-age=15'}});
       if(resource==='saas-plans'&&req.method==='GET'){
         await ensureDatabase(env);
+        await ensurePlayBillingV180(env);
         await ensureSubscriptionRequestsV61(env);
         const plans=await all(env,`SELECT id,plan_name,monthly_price,yearly_price,max_users,max_trips_month,max_invoices_month,max_storage_mb,features_json,play_product_id_monthly,play_product_id_yearly FROM saas_plans WHERE active=1 ORDER BY sort_order`);
         return json(plans.map(p=>({...p,features:JSON.parse(p.features_json||'{}'),features_json:undefined})));
@@ -2792,6 +2978,12 @@ export default {
       }
 
       if(resource==='subscription'&&req.method==='GET')return json(await subscriptionAccess(env,user));
+      if(resource==='play-subscription'&&req.method==='POST'&&id==='verify'){
+        if(!['OWNER','ADMIN'].includes(upper(user.role)))return json({error:'Owner/Admin permission required'},403);
+        const body=await requestBody(req);
+        const verified=await verifyPlaySubscriptionV180(env,user,body);
+        return json(verified);
+      }
       if(resource==='subscription-request'){
         await ensureSubscriptionRequestsV61(env);
         if(!['OWNER','ADMIN'].includes(upper(user.role)))return json({error:'Owner/Admin permission required'},403);
