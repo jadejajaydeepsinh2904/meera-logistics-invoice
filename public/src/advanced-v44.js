@@ -690,7 +690,7 @@ function decorate(){
 }
 new MutationObserver(()=>requestAnimationFrame(decorate)).observe(document.documentElement,{childList:true,subtree:true});applySettings(cachedSettings());decorate();hydrateSettings();
 window.addEventListener('online',()=>{decorate();navigator.serviceWorker?.controller?.postMessage({type:'SYNC_QUEUE'});toast('Online — offline changes syncing')});window.addEventListener('offline',decorate);
-if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())navigator.serviceWorker.register('/sw-v69.js?v=711').catch(()=>{});
+if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())navigator.serviceWorker.register('/sw-v69.js?v=712').catch(()=>{});
 
 document.addEventListener('ml-open-saas-v59',()=>openSaasCenter());
 

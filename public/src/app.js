@@ -15,17 +15,33 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
 const today=()=>new Date().toISOString().slice(0,10);
 
 function parseInvoiceNumber(value){
-  const text=String(value||'').trim();
+  const text=String(value||'').trim().normalize('NFKC');
   const m=text.match(/^(.*?)(\d+)\s*$/);
-  return m?{prefix:m[1],number:Number(m[2]),width:m[2].length,raw:text}:{prefix:text,number:-1,width:0,raw:text};
+  const rawPrefix=m?m[1]:text;
+  const series=rawPrefix.toUpperCase().replace(/[^A-Z0-9]+/g,'');
+  return m
+    ?{series,number:Number(m[2]),width:m[2].length,raw:text.toUpperCase(),hasNumber:true}
+    :{series,number:-1,width:0,raw:text.toUpperCase(),hasNumber:false};
 }
-function sortInvoicesSeries(items,desc=true){
+function sortNumberedRows(items,field,desc=true,dateField=''){
   return [...items].sort((a,b)=>{
-    const A=parseInvoiceNumber(a.invoice_no),B=parseInvoiceNumber(b.invoice_no);
-    if(A.prefix!==B.prefix)return A.prefix.localeCompare(B.prefix);
-    return desc?B.number-A.number:A.number-B.number;
+    const A=parseInvoiceNumber(a[field]),B=parseInvoiceNumber(b[field]);
+    if(A.hasNumber!==B.hasNumber)return A.hasNumber?-1:1;
+    const seriesOrder=A.series.localeCompare(B.series,undefined,{numeric:true,sensitivity:'base'});
+    if(seriesOrder)return seriesOrder;
+    if(A.number!==B.number)return desc?B.number-A.number:A.number-B.number;
+    const rawOrder=A.raw.localeCompare(B.raw,undefined,{numeric:true,sensitivity:'base'});
+    if(rawOrder)return rawOrder;
+    if(dateField){
+      const dateOrder=String(a[dateField]||'').localeCompare(String(b[dateField]||''));
+      if(dateOrder)return desc?-dateOrder:dateOrder;
+    }
+    const createdOrder=String(a.created_at||'').localeCompare(String(b.created_at||''));
+    if(createdOrder)return desc?-createdOrder:createdOrder;
+    return String(a.id||'').localeCompare(String(b.id||''),undefined,{numeric:true});
   });
 }
+function sortInvoicesSeries(items,desc=true){return sortNumberedRows(items,'invoice_no',desc,'invoice_date')}
 function invoiceTypeLabel(i){const type=i.invoice_type||'GST';return type==='NON_GST'?'NON-GST':type==='IGST'?'IGST':'GST'}
 function invoiceStatus(total,received){
   const t=Number(total||0),r=Number(received||0);
@@ -607,7 +623,7 @@ function v64MobileHeader(d,title){
     </div>
     <div class="v64-date-line ${isHome?'':'has-back'}">
       ${isHome?'':`<button type="button" class="v682-back" data-nav-back aria-label="Go back"><span aria-hidden="true">←</span> Back</button>`}
-      <span class="v682-date-title">${esc(v64TodayText())} · ${esc(title||'Dashboard')} <small class="v709-build-badge">v1.7.11</small></span>
+      <span class="v682-date-title">${esc(v64TodayText())} · ${esc(title||'Dashboard')} <small class="v709-build-badge">v1.7.12</small></span>
       <span class="v68-network-status" data-v68-network>● Online</span>
     </div>
     ${isHome?`<div class="v64-summary-strip">
@@ -870,7 +886,7 @@ function invoicesPanel(d){
 
 
 function pmBillsPanel(d){
-  const rows=filterRows(d.pmBills||[],['bill_no','bill_date','party_name','supplier_name']);
+  const rows=sortNumberedRows(filterRows(d.pmBills||[],['bill_no','bill_date','party_name','supplier_name']),'bill_no',true,'bill_date');
   return `<section class="panel active"><div class="card">
     <div class="section-title">
       <div><h2>PM Non-GST Bills</h2><small>Party, supplier, truck and profit history — GST વગર</small></div>
@@ -1900,7 +1916,7 @@ function tripForm(x={},afterSave=null){
 
         if(e.target.createInvoice.checked){
           const freshBeforeInvoice=await api('/bootstrap');
-          const sameNumber=freshBeforeInvoice.invoices.find(inv=>String(inv.invoice_no)===String(body.invoiceNo));
+          const sameNumber=freshBeforeInvoice.invoices.find(inv=>accountKey(inv.invoice_no)===accountKey(body.invoiceNo));
           const targetInvoice=linkedInvoice||sameNumber||null;
           const existingItems=(targetInvoice?.items||[]).filter(it=>String(it.trip_id||'')!==String(tripId));
           existingItems.push({

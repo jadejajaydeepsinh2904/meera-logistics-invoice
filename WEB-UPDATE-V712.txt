@@ -1,0 +1,41 @@
+TransportBahi Web v1.7.12 - Changed Files Only
+
+PURPOSE
+- Fix Route creation when the same Loading/Unloading pair already exists.
+- Stop an audit-log D1 failure from falsely reporting that a successful Route
+  or Invoice save failed.
+- Make new Invoice save resumable and duplicate-safe after a transient D1 error.
+- Replace raw D1 internal-reference messages with a safe retry message.
+- Update website/app cache to v1.7.11.
+- Keep the approved TransportBahi + MEERA LOGISTICS artwork without a white card.
+- Keep every old and new Invoice in strict invoice-number order even when the
+  stored format varies (for example ML - 126, ML-126 or ML 126).
+- Apply the same number-wise ordering to Party Khata, payment selection and PM
+  Non-GST Bill History.
+
+FILES TO COPY
+1. Copy the included public folder over the existing project's public folder.
+2. Copy worker/src/index.js over the existing worker/src/index.js.
+3. Commit/push the changed files to the existing GitHub/Vercel project.
+
+BACKEND DEPLOYMENT IS REQUIRED
+The Invoice and Route database fix is inside worker/src/index.js. A frontend-only
+Vercel deployment is not enough. From the existing worker folder run:
+
+  npm install
+  npx wrangler deploy
+
+The Worker upgrades the Invoice save-key column/index automatically. Do not
+delete or recreate the live D1 database.
+
+CACHE CHECK
+After deployment, open the web app once with:
+
+  /?reset=v712
+
+Then reload normally. The dashboard version badge must show v1.7.12.
+
+SUBSCRIPTION STATUS
+Trial, plans, usage limits, expiry/read-only and plan requests are included.
+Google Play Billing purchase activation is intentionally postponed until the
+Play Console account and products are available.

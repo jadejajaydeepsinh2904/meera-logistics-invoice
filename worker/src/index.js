@@ -1696,24 +1696,46 @@ async function upsertMasters(env,b,companyId=DEFAULT_COMPANY_ID){
     if(!exists)await run(env,`INSERT INTO routes(id,company_id,loading_point,unloading_point) VALUES(?,?,?,?)`,uid('RTE'),companyId,lp,up);
   }
 }
-function nextNumber(rows,defaultPrefix='ML - '){
-  let best={number:0,prefix:defaultPrefix,width:0};
-  for(const raw of rows){
-    const value=String(raw||'').trim();
-    const match=value.match(/^(.*?)(\d+)\s*$/);
-    if(!match)continue;
-    const number=Number(match[2]);
-    if(number>best.number){
-      best={
-        number,
-        prefix:match[1]||defaultPrefix,
-        width:match[2].length
-      };
-    }
+function numberedDocumentPartsV712(value){
+  const text=String(value||'').trim().normalize('NFKC');
+  const match=text.match(/^(.*?)(\d+)\s*$/);
+  const rawPrefix=match?match[1]:text;
+  return {
+    series:rawPrefix.toUpperCase().replace(/[^A-Z0-9]+/g,''),
+    number:match?Number(match[2]):-1,
+    width:match?match[2].length:0,
+    raw:text.toUpperCase(),
+    hasNumber:!!match
+  };
+}
+function compareNumberedDocumentsV712(a,b,field,desc=true,dateField=''){
+  const A=numberedDocumentPartsV712(a?.[field]),B=numberedDocumentPartsV712(b?.[field]);
+  if(A.hasNumber!==B.hasNumber)return A.hasNumber?-1:1;
+  const seriesOrder=A.series.localeCompare(B.series,undefined,{numeric:true,sensitivity:'base'});
+  if(seriesOrder)return seriesOrder;
+  if(A.number!==B.number)return desc?B.number-A.number:A.number-B.number;
+  const rawOrder=A.raw.localeCompare(B.raw,undefined,{numeric:true,sensitivity:'base'});
+  if(rawOrder)return rawOrder;
+  if(dateField){
+    const dateOrder=String(a?.[dateField]||'').localeCompare(String(b?.[dateField]||''));
+    if(dateOrder)return desc?-dateOrder:dateOrder;
   }
+  const createdOrder=String(a?.created_at||'').localeCompare(String(b?.created_at||''));
+  if(createdOrder)return desc?-createdOrder:createdOrder;
+  return String(a?.id||'').localeCompare(String(b?.id||''),undefined,{numeric:true});
+}
+function sortNumberedDocumentsV712(rows,field,desc=true,dateField=''){
+  return rows.sort((a,b)=>compareNumberedDocumentsV712(a,b,field,desc,dateField));
+}
+function nextNumber(rows,defaultPrefix='ML - '){
+  const wantedSeries=numberedDocumentPartsV712(defaultPrefix).series;
+  const parsed=rows.map(numberedDocumentPartsV712).filter(x=>x.hasNumber);
+  const matching=parsed.filter(x=>x.series===wantedSeries);
+  const candidates=matching.length?matching:parsed;
+  const best=candidates.reduce((current,x)=>x.number>current.number?x:current,{number:0,width:0});
   const next=best.number+1;
   const digits=best.width>1?String(next).padStart(best.width,'0'):String(next);
-  return `${best.prefix}${digits}`;
+  return `${defaultPrefix}${digits}`;
 }
 function pathParts(path){ return path.replace(/^\/api\/?/,'').split('/').filter(Boolean); }
 
@@ -1747,6 +1769,12 @@ async function bootstrap(env,user){
     all(env,`SELECT * FROM driver_ledger_entries WHERE company_id=? ORDER BY entry_date DESC,created_at DESC`,companyId),
     all(env,`SELECT * FROM truck_expenses WHERE company_id=? ORDER BY expense_date DESC,created_at DESC`,companyId)
   ]);
+
+  // V71.2: old bills imported later and newly-created bills share one strict
+  // number-wise order. Spacing and punctuation variants such as ML - 126,
+  // ML-126 and ML 126 are treated as the same invoice series.
+  sortNumberedDocumentsV712(invoices,'invoice_no',true,'invoice_date');
+  sortNumberedDocumentsV712(pmBills,'bill_no',true,'bill_date');
 
   const itemsByInvoice={};
   for(const it of invoiceItems)(itemsByInvoice[it.invoice_id]??=[]).push(it);
@@ -1866,7 +1894,7 @@ async function bootstrap(env,user){
   const gstPrefix=company.invoice_prefix||'ML';
   const nonGstPrefix=company.non_gst_prefix||'JAY';
   return {
-    version:'V69-Fleet-Driver-Excel',
+    version:'V71.2-Invoice-Number-Order',
     user:{...user,permissions:permissionsForRole(user.role),platform_admin:platformAdmin},saas,parties,partyPayments,trucks,routes,materials,trips,invoices,invoiceItems,
     pmBills,pmBillItems,truckEntries,supplierPayments,supplierAccounts,expenses,documents,audits,partyLedger,supplierLedger,issues,accountingAudit,
     drivers,driverEntries,truckExpenses,
@@ -2025,7 +2053,9 @@ async function advancedExportPayload(env,companyId=DEFAULT_COMPANY_ID){
   for(const [name,config] of Object.entries(ADVANCED_EXPORT_TABLES)){
     try{sheets[name]=await advancedRows(env,config,companyId)}catch(_){sheets[name]=[]}
   }
-  return {version:'V69',format:'MEERA_BACKUP_V2',companyId,exportedAt:new Date().toISOString(),capabilities:{atomicRestore:true,lockedPartyAllocations:true,driverKhata:true,truckExpenses:true,documentMetadata:true,documentContentComplete:false},sheets};
+  sortNumberedDocumentsV712(sheets.Invoices||[],'invoice_no',true,'invoice_date');
+  sortNumberedDocumentsV712(sheets.PMBills||[],'bill_no',true,'bill_date');
+  return {version:'V71.2',format:'MEERA_BACKUP_V2',companyId,exportedAt:new Date().toISOString(),capabilities:{atomicRestore:true,lockedPartyAllocations:true,driverKhata:true,truckExpenses:true,documentMetadata:true,documentContentComplete:false},sheets};
 }
 async function createBackupSnapshot(env,type='SCHEDULED',periodKey='',companyId=DEFAULT_COMPANY_ID){
   const payload=await advancedExportPayload(env,companyId);
@@ -3283,6 +3313,9 @@ export default {
               invoiceId=previous.id;
               resumed=true;
             }else{
+              const logicalDuplicate=(await all(env,`SELECT id,invoice_no FROM invoices WHERE company_id=?`,companyId))
+                .find(row=>accountKey(row.invoice_no)===accountKey(b.invoiceNo));
+              if(logicalDuplicate)return json({error:'Invoice number already exists'},409);
               invoiceId=uid('INV');
               try{
                 await run(env,`INSERT INTO invoices(
@@ -3308,6 +3341,9 @@ export default {
             }
           }
           if(req.method==='PUT'||resumed){
+            const logicalDuplicate=(await all(env,`SELECT id,invoice_no FROM invoices WHERE company_id=?`,companyId))
+              .find(row=>String(row.id)!==String(invoiceId)&&accountKey(row.invoice_no)===accountKey(b.invoiceNo));
+            if(logicalDuplicate)return json({error:'Invoice number already exists'},409);
             await run(env,`UPDATE invoices SET
               invoice_no=?,invoice_type=?,invoice_date=?,party_name=?,party_address=?,party_gst=?,
               lr_no=?,material=?,loading_date=?,sgst=?,cgst=?,diesel=?,munshi=?,subtotal=?,
