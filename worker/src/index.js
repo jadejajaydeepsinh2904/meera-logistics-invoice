@@ -29,9 +29,26 @@ async function sha256(text){
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(text)));
   return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
+const d1ErrorText = error => String(error?.message || error || '');
+function isD1TransientError(error){
+  return /D1_ERROR:\s*internal error|internal error;\s*reference|network connection lost|connection (?:closed|reset)|database is locked|storage timeout|temporarily unavailable|overloaded|queued for too long/i.test(d1ErrorText(error));
+}
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+async function retryD1Read(operation,attempts=3){
+  let lastError;
+  for(let attempt=1;attempt<=attempts;attempt++){
+    try{return await operation()}
+    catch(error){
+      lastError=error;
+      if(!isD1TransientError(error)||attempt===attempts)throw error;
+      await wait(40*attempt);
+    }
+  }
+  throw lastError;
+}
 async function run(env, sql, ...args){ return env.DB.prepare(sql).bind(...args).run(); }
-async function all(env, sql, ...args){ return (await env.DB.prepare(sql).bind(...args).all()).results; }
-async function first(env, sql, ...args){ return env.DB.prepare(sql).bind(...args).first(); }
+async function all(env, sql, ...args){ return retryD1Read(async()=>(await env.DB.prepare(sql).bind(...args).all()).results); }
+async function first(env, sql, ...args){ return retryD1Read(()=>env.DB.prepare(sql).bind(...args).first()); }
 async function safe(env, sql){
   try{ await env.DB.prepare(sql).run(); }catch(e){
     const msg = String(e?.message || e);
@@ -870,6 +887,12 @@ async function ensureAccountingSchemaV665(env){
   if(accountingSchemaV665Promise)return accountingSchemaV665Promise;
   accountingSchemaV665Promise=(async()=>{
     await ensureAccountingV58(env);
+    // V70.11: the client save key makes Invoice creation resumable after an
+    // ambiguous D1 response (the write may have committed before the error).
+    await safe(env,`ALTER TABLE invoices ADD COLUMN client_request_id TEXT DEFAULT ''`);
+    await safe(env,`CREATE UNIQUE INDEX IF NOT EXISTS idx_invoice_request_v711
+      ON invoices(company_id,client_request_id)
+      WHERE COALESCE(TRIM(client_request_id),'')<>''`);
     await env.DB.prepare(`CREATE TABLE IF NOT EXISTS party_payment_allocations(
       id TEXT PRIMARY KEY,company_id TEXT NOT NULL,payment_id TEXT NOT NULL,invoice_id TEXT NOT NULL,
       amount REAL NOT NULL DEFAULT 0,allocation_mode TEXT DEFAULT 'FIFO_LOCKED',
@@ -1638,8 +1661,21 @@ async function requestBody(req){
   return {};
 }
 async function audit(env,user,action,entity,id,payload={}){
-  await run(env,`INSERT INTO audit_logs(id,company_id,user_id,action,entity,entity_id,payload) VALUES(?,?,?,?,?,?,?)`,
-    uid('AUD'),companyIdOf(user),user?.id||null,action,entity,id,JSON.stringify(payload));
+  // Audit is secondary to the business write. A transient D1 audit failure must
+  // never tell the user that a successfully-created Invoice/Route failed.
+  const auditId=uid('AUD'),args=[auditId,companyIdOf(user),user?.id||null,action,entity,id,JSON.stringify(payload)];
+  for(let attempt=1;attempt<=2;attempt++){
+    try{
+      await run(env,`INSERT INTO audit_logs(id,company_id,user_id,action,entity,entity_id,payload) VALUES(?,?,?,?,?,?,?)`,...args);
+      return true;
+    }catch(error){
+      if(/UNIQUE|constraint/i.test(d1ErrorText(error)))return true;
+      if(isD1TransientError(error)&&attempt<2){await wait(50*attempt);continue}
+      console.warn('AUDIT_WRITE_SKIPPED',{action,entity,id,error:d1ErrorText(error)});
+      return false;
+    }
+  }
+  return false;
 }
 async function upsertMasters(env,b,companyId=DEFAULT_COMPANY_ID){
   if(b.partyName){
@@ -3237,23 +3273,41 @@ export default {
           const gstAmount=invoiceType==='NON_GST'?0:round2(subtotal*(sgst+cgst)/100);
           const total=round2(subtotal+gstAmount);
           let invoiceId=id;
+          const clientRequestId=clean(b.clientRequestId).slice(0,120);
+          let resumed=false;
 
           if(req.method==='POST'){
-            invoiceId=uid('INV');
-            try{
-              await run(env,`INSERT INTO invoices(
-                id,company_id,invoice_no,invoice_type,invoice_date,party_name,party_address,party_gst,
-                lr_no,material,loading_date,sgst,cgst,diesel,munshi,subtotal,gst_amount,total,comments
-              ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                invoiceId,companyId,clean(b.invoiceNo),invoiceType,b.invoiceDate,upper(b.partyName),b.partyAddress||'',
-                upper(b.partyGst),b.lrNo||'',upper(b.material),invoiceLoadingDate||'',
-                sgst,cgst,num(b.diesel),num(b.munshi),subtotal,gstAmount,total,b.comments||''
-              );
-            }catch(e){
-              if(/UNIQUE/i.test(String(e.message)))return json({error:'Invoice number already exists'},409);
-              throw e
+            const previous=clientRequestId?await first(env,`SELECT id FROM invoices
+              WHERE company_id=? AND client_request_id=? LIMIT 1`,companyId,clientRequestId):null;
+            if(previous){
+              invoiceId=previous.id;
+              resumed=true;
+            }else{
+              invoiceId=uid('INV');
+              try{
+                await run(env,`INSERT INTO invoices(
+                  id,company_id,invoice_no,invoice_type,invoice_date,party_name,party_address,party_gst,
+                  lr_no,material,loading_date,sgst,cgst,diesel,munshi,subtotal,gst_amount,total,comments,client_request_id
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                  invoiceId,companyId,clean(b.invoiceNo),invoiceType,b.invoiceDate,upper(b.partyName),b.partyAddress||'',
+                  upper(b.partyGst),b.lrNo||'',upper(b.material),invoiceLoadingDate||'',
+                  sgst,cgst,num(b.diesel),num(b.munshi),subtotal,gstAmount,total,b.comments||'',clientRequestId
+                );
+              }catch(error){
+                // A D1 internal error can arrive after the INSERT committed.
+                // Recover by the stable client save key instead of duplicating.
+                if(clientRequestId&&(isD1TransientError(error)||/UNIQUE|constraint/i.test(d1ErrorText(error)))){
+                  const committed=await first(env,`SELECT id FROM invoices
+                    WHERE company_id=? AND client_request_id=? LIMIT 1`,companyId,clientRequestId);
+                  if(committed){invoiceId=committed.id;resumed=true}
+                  else if(/UNIQUE|constraint/i.test(d1ErrorText(error)))return json({error:'Invoice number already exists'},409);
+                  else throw error;
+                }else if(/UNIQUE|constraint/i.test(d1ErrorText(error)))return json({error:'Invoice number already exists'},409);
+                else throw error;
+              }
             }
-          }else{
+          }
+          if(req.method==='PUT'||resumed){
             await run(env,`UPDATE invoices SET
               invoice_no=?,invoice_type=?,invoice_date=?,party_name=?,party_address=?,party_gst=?,
               lr_no=?,material=?,loading_date=?,sgst=?,cgst=?,diesel=?,munshi=?,subtotal=?,
@@ -3264,7 +3318,7 @@ export default {
             );
           }
 
-          const oldItems=await all(env,`SELECT id,trip_id FROM invoice_items WHERE invoice_id=? AND company_id=?`,invoiceId,companyId);
+          const oldInvoiceTrips=await all(env,`SELECT id FROM trips WHERE invoice_id=? AND company_id=?`,invoiceId,companyId);
           const usedTripIds=new Set();
           await run(env,`DELETE FROM invoice_items WHERE invoice_id=? AND company_id=?`,invoiceId,companyId);
 
@@ -3378,16 +3432,16 @@ export default {
           }
 
           // Remove trips whose truck lines were removed from the invoice.
-          for(const old of oldItems){
-            if(old.trip_id && !usedTripIds.has(String(old.trip_id))){
-              await run(env,`DELETE FROM truck_payments WHERE trip_id=? AND company_id=?`,old.trip_id,companyId);
-              await run(env,`DELETE FROM supplier_payments WHERE trip_id=? AND company_id=?`,old.trip_id,companyId);
-              await run(env,`DELETE FROM trips WHERE id=? AND company_id=?`,old.trip_id,companyId);
+          for(const oldTrip of oldInvoiceTrips){
+            if(oldTrip.id && !usedTripIds.has(String(oldTrip.id))){
+              await run(env,`DELETE FROM truck_payments WHERE trip_id=? AND company_id=?`,oldTrip.id,companyId);
+              await run(env,`DELETE FROM supplier_payments WHERE trip_id=? AND company_id=?`,oldTrip.id,companyId);
+              await run(env,`DELETE FROM trips WHERE id=? AND company_id=?`,oldTrip.id,companyId);
             }
           }
 
           await audit(env,user,req.method==='POST'?'CREATE':'UPDATE','invoice',invoiceId,b);
-          return json({ok:true,id:invoiceId,total});
+          return json({ok:true,id:invoiceId,total,resumed});
         }
 
         if(req.method==='DELETE'&&id){
@@ -3568,8 +3622,34 @@ export default {
       if(resource==='routes'){
         if(req.method==='POST'||(req.method==='PUT'&&id)){
           const b=await requestBody(req);
-          if(req.method==='POST'){const newId=uid('RTE');await run(env,`INSERT INTO routes(id,company_id,loading_point,unloading_point) VALUES(?,?,?,?)`,newId,companyId,upper(b.loadingPoint),upper(b.unloadingPoint));await audit(env,user,'CREATE','route',newId,b);return json({ok:true,id:newId})}
-          await run(env,`UPDATE routes SET loading_point=?,unloading_point=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,upper(b.loadingPoint),upper(b.unloadingPoint),id,companyId);await audit(env,user,'UPDATE','route',id,b);return json({ok:true});
+          const loadingPoint=upper(b.loadingPoint),unloadingPoint=upper(b.unloadingPoint);
+          if(!loadingPoint||!unloadingPoint)return json({error:'Loading Point and Unloading Point are required'},400);
+          if(req.method==='POST'){
+            // Route creation is intentionally idempotent. Retrying the same
+            // route after a D1/audit failure selects the existing record.
+            const existing=await first(env,`SELECT id FROM routes
+              WHERE company_id=? AND loading_point=? AND unloading_point=? LIMIT 1`,companyId,loadingPoint,unloadingPoint);
+            if(existing)return json({ok:true,id:existing.id,existing:true,message:'Route already exists and is selected.'});
+            const newId=uid('RTE');
+            try{
+              await run(env,`INSERT INTO routes(id,company_id,loading_point,unloading_point) VALUES(?,?,?,?)`,newId,companyId,loadingPoint,unloadingPoint);
+            }catch(error){
+              if(/UNIQUE|constraint/i.test(d1ErrorText(error))||isD1TransientError(error)){
+                const committed=await first(env,`SELECT id FROM routes
+                  WHERE company_id=? AND loading_point=? AND unloading_point=? LIMIT 1`,companyId,loadingPoint,unloadingPoint);
+                if(committed)return json({ok:true,id:committed.id,existing:true,message:'Route already exists and is selected.'});
+              }
+              throw error;
+            }
+            await audit(env,user,'CREATE','route',newId,b);
+            return json({ok:true,id:newId,existing:false});
+          }
+          const duplicate=await first(env,`SELECT id FROM routes
+            WHERE company_id=? AND loading_point=? AND unloading_point=? AND id<>? LIMIT 1`,companyId,loadingPoint,unloadingPoint,id);
+          if(duplicate)return json({error:'This route already exists.'},409);
+          await run(env,`UPDATE routes SET loading_point=?,unloading_point=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND company_id=?`,loadingPoint,unloadingPoint,id,companyId);
+          await audit(env,user,'UPDATE','route',id,b);
+          return json({ok:true,id});
         }
         if(req.method==='DELETE'&&id){await run(env,`DELETE FROM routes WHERE id=? AND company_id=?`,id,companyId);await audit(env,user,'DELETE','route',id,{});return json({ok:true})}
       }
@@ -3653,6 +3733,10 @@ export default {
 
       return json({error:'Not found'},404);
     }catch(e){
+      if(isD1TransientError(e))return json({
+        error:'Temporary database connection problem. Please tap Save again; TransportBahi will safely continue the same save.',
+        retryable:true
+      },503);
       return json({error:String(e?.message||e)},Number(e?.status)||500);
     }
   },

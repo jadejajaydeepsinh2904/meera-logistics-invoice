@@ -1,6 +1,6 @@
-const CACHE='transportbahi-v700-shell';
-const API_CACHE='transportbahi-v700-api';
-const SHELL=['/','/index.html','/manifest.webmanifest','/src/styles.css?v=700','/src/invoice-v36.css?v=54','/src/party-ledger-v40.css?v=40','/src/supplier-ledger-v41.css?v=44','/src/advanced-v44.css?v=700','/src/app.js?v=700','/src/fleet-v69.js?v=700','/src/fleet-v69.css?v=690','/vendor/xlsx.full.min.js?v=690','/src/invoice-v36.js?v=671','/src/party-ledger-v40.js?v=671','/src/supplier-ledger-v41.js?v=671','/src/advanced-v44.js?v=700','/src/android-v63.js?v=700','/src/language-v683.js?v=700','/src/language-v683.css?v=685','/assets/meera-logo.png','/assets/transportbahi-icon-192.png','/assets/transportbahi-icon-512.png','/assets/transportbahi-web-logo.png','/assets/transportbahi-favicon-32.png','/src/mobile-v64.css?v=670','/src/desktop-v66.css?v=664','/src/mobile-v68.css?v=685'];
+const CACHE='transportbahi-v711-shell';
+const API_CACHE='transportbahi-v711-api';
+const SHELL=['/','/index.html','/manifest.webmanifest','/src/styles.css?v=700','/src/invoice-v36.css?v=705','/src/party-ledger-v40.css?v=40','/src/supplier-ledger-v41.css?v=44','/src/advanced-v44.css?v=700','/src/app.js?v=711','/src/fleet-v69.js?v=703','/src/invoice-import-v691.js?v=691','/src/fleet-v69.css?v=691','/src/branding-v703.css?v=711','/vendor/xlsx.full.min.js?v=690','/src/invoice-v36.js?v=705','/src/invoice-pdf-v39.js?v=691','/src/party-ledger-v40.js?v=671','/src/supplier-ledger-v41.js?v=671','/src/advanced-v44.js?v=700','/src/android-v63.js?v=700','/src/language-v683.js?v=700','/src/language-v683.css?v=692','/assets/meera-logo.png','/assets/transportbahi-icon-192.png','/assets/transportbahi-icon-512.png','/assets/transportbahi-app-icon.png','/assets/transportbahi-web-logo.png','/assets/transportbahi-dark-logo.png','/assets/transportbahi-light-logo.png','/assets/transportbahi-favicon-32.png','/src/mobile-v64.css?v=705','/src/desktop-v66.css?v=664','/src/mobile-v68.css?v=702'];
 const DB='transport-offline-v664',STORE='queue';
 function openDb(){return new Promise((resolve,reject)=>{const r=indexedDB.open(DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(STORE))r.result.createObjectStore(STORE,{keyPath:'id',autoIncrement:true})};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 async function queueRequest(req){const db=await openDb();const headers={};req.headers.forEach((v,k)=>headers[k]=v);const body=await req.clone().text();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).add({url:req.url,method:req.method,headers,body,createdAt:Date.now()});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
@@ -17,6 +17,9 @@ self.addEventListener('fetch',e=>{
     }
     if(url.pathname.includes('/api/bootstrap')||url.pathname.includes('/api/advanced-data')||url.pathname.includes('/api/system-health')||url.pathname.includes('/api/settings')){
       e.respondWith((async()=>{const cache=await caches.open(API_CACHE);try{const res=await fetch(req);if(res.ok)cache.put(req,res.clone());return res}catch{const cached=await cache.match(req);return cached||new Response(JSON.stringify({error:'Offline data not available'}),{status:503,headers:{'content-type':'application/json'}})}})());return;
+    }
+    if(url.origin===self.location.origin&&['script','style'].includes(req.destination)){
+      e.respondWith((async()=>{const cache=await caches.open(CACHE);try{const res=await fetch(req,{cache:'no-store'});if(res.ok)cache.put(req,res.clone());return res}catch{return (await cache.match(req))||new Response('Offline asset unavailable',{status:503})}})());return;
     }
     if(url.origin===self.location.origin){e.respondWith(caches.match(req).then(cached=>cached||fetch(req).then(res=>{const copy=res.clone();caches.open(CACHE).then(c=>c.put(req,copy));return res}).catch(()=>caches.match('/index.html'))));return}
   }

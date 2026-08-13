@@ -1,0 +1,194 @@
+.v703-login-wordmark{
+  width:min(100%,320px)!important;
+  height:auto!important;
+  max-height:104px;
+  margin:0 auto 14px;
+  border-radius:12px!important;
+  object-fit:contain;
+}
+
+.sidebar .brand.v703-sidebar-brand{
+  display:block;
+  padding:7px 4px 18px!important;
+}
+.v703-sidebar-wordmark{
+  display:block;
+  width:100%;
+  height:auto;
+  max-height:74px;
+  padding:5px 7px;
+  border-radius:12px;
+  background:#fff;
+  object-fit:contain;
+}
+
+/* V70.6 Android-only drawer fix: compact brand on the navy sidebar. */
+.sidebar .brand.v706-sidebar-brand{
+  display:flex!important;
+  align-items:center!important;
+  gap:10px!important;
+  padding:5px 4px 15px!important;
+  margin:0 0 12px!important;
+  border-bottom:1px solid rgba(255,255,255,.10)!important;
+  background:transparent!important;
+}
+.v706-sidebar-icon{
+  display:block;
+  width:46px;
+  height:46px;
+  flex:0 0 46px;
+  border-radius:12px;
+  object-fit:cover;
+  background:transparent;
+  box-shadow:0 5px 14px #06152d55,0 0 0 1px #ffffff24;
+}
+.v706-sidebar-copy{min-width:0;display:grid;gap:4px}
+.v706-sidebar-copy>b{
+  display:block;
+  margin:0;
+  color:#fff!important;
+  font-family:Arial,sans-serif!important;
+  font-size:18px!important;
+  font-weight:900!important;
+  letter-spacing:-.035em!important;
+  line-height:1!important;
+  text-transform:none!important;
+  white-space:nowrap;
+}
+.v706-sidebar-copy>b em{color:#ff7a1a;font-style:normal}
+.v706-sidebar-copy>small{
+  display:block;
+  color:#f2b34e!important;
+  font-size:8px!important;
+  font-weight:900;
+  letter-spacing:.10em;
+  line-height:1.1;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+
+.v704-mobile-brand{
+  display:flex!important;
+  align-items:center!important;
+  gap:9px!important;
+  flex:1 1 auto;
+  max-width:calc(100% - 106px)!important;
+}
+.v704-mobile-icon{
+  display:block;
+  width:46px;
+  height:46px;
+  flex:0 0 46px;
+  border-radius:12px;
+  object-fit:cover;
+  box-shadow:0 5px 14px #06152d55,0 0 0 1px #ffffff24;
+}
+.v704-mobile-brand-copy{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.v704-mobile-brand-copy>b{
+  display:block;
+  margin:0;
+  overflow:hidden;
+  color:#fff;
+  font-family:Arial,sans-serif!important;
+  font-size:clamp(16px,4.55vw,19px)!important;
+  font-weight:900!important;
+  letter-spacing:-.035em!important;
+  line-height:1!important;
+  text-overflow:ellipsis;
+  text-transform:none!important;
+  white-space:nowrap;
+}
+.v704-mobile-brand-copy>b em{
+  color:#ff7a1a;
+  font-style:normal;
+}
+.v704-mobile-brand-copy>small{
+  display:block;
+  max-width:100%;
+  overflow:hidden;
+  color:#f2b34e!important;
+  font-size:9px!important;
+  font-weight:900;
+  letter-spacing:.09em;
+  line-height:1.15;
+  text-overflow:ellipsis;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+
+@media (max-width:390px){
+  .v704-mobile-brand{gap:8px!important;max-width:calc(100% - 100px)!important}
+  .v704-mobile-icon{width:42px;height:42px;flex-basis:42px;border-radius:11px}
+  .v704-mobile-brand-copy>b{font-size:16px!important}
+  .v704-mobile-brand-copy>small{font-size:8px!important;letter-spacing:.06em}
+}
+
+/* V70.10: approved graphic wordmark on navy, without a white card. */
+.v707-mobile-brand{
+  display:flex!important;
+  align-items:center!important;
+  flex:1 1 auto;
+  max-width:calc(100% - 104px)!important;
+}
+.v707-mobile-wordmark{
+  display:block;
+  width:min(220px,100%);
+  height:auto;
+  max-height:72px;
+  padding:0;
+  border-radius:0;
+  background:transparent;
+  object-fit:contain;
+  object-position:left center;
+  box-shadow:none;
+}
+.sidebar .brand.v707-sidebar-brand{
+  display:block!important;
+  padding:2px 4px 14px!important;
+  margin:0 0 12px!important;
+  border-bottom:1px solid rgba(255,255,255,.10)!important;
+  background:transparent!important;
+}
+.v707-sidebar-wordmark{
+  display:block;
+  width:100%;
+  height:auto;
+  max-height:78px;
+  padding:0;
+  border-radius:0;
+  background:transparent;
+  object-fit:contain;
+  object-position:left center;
+  box-shadow:none;
+}
+@media (max-width:390px){
+  .v707-mobile-wordmark{width:min(205px,100%);max-height:68px}
+}
+
+/* V70.8: keep drawer content below the phone status bar and above bottom nav. */
+@media (max-width:850px){
+  .sidebar,
+  .sidebar.open{
+    padding-top:calc(max(var(--v68-safe-top, 28px), 28px) + 14px)!important;
+    padding-bottom:calc(max(var(--v68-safe-bottom, 10px), 10px) + 24px)!important;
+    z-index:1200!important;
+  }
+}
+
+.v709-build-badge{
+  display:inline-block;
+  margin-left:4px;
+  padding:2px 5px;
+  border:1px solid rgba(255,255,255,.24);
+  border-radius:999px;
+  color:#f2b34e!important;
+  font-size:7px!important;
+  font-weight:900;
+  letter-spacing:.04em;
+  line-height:1;
+  vertical-align:middle;
+}
