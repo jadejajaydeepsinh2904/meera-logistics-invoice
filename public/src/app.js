@@ -301,8 +301,11 @@ async function quickAddMaster(type,target,parentHost){
       <div class="form-actions"><button type="button" class="btn light" data-cancel>Cancel</button><button class="btn primary">Add Route</button></div>
     </form>`,{small:true,onMount:h=>{
       h.querySelector('[data-cancel]').onclick=()=>h.remove();
-      h.querySelector('#quickRouteForm').onsubmit=async e=>{
+      const routeForm=h.querySelector('#quickRouteForm');
+      routeForm.onsubmit=async e=>{
         e.preventDefault();const body=formDataObject(e.target),btn=e.submitter;
+        if(routeForm.dataset.saving==='1')return;
+        routeForm.dataset.saving='1';
         try{setBusy(btn,true);const res=await api('/routes',{method:'POST',body:JSON.stringify(body)});
           const item={id:res.id,loading_point:norm(body.loadingPoint),unloading_point:norm(body.unloadingPoint)};
           const existingIndex=d.routes.findIndex(route=>norm(route.loading_point)===item.loading_point&&norm(route.unloading_point)===item.unloading_point);
@@ -313,7 +316,7 @@ async function quickAddMaster(type,target,parentHost){
           addOptionAndSelect(target,type==='route-loading'?item.loading_point:item.unloading_point);
           if(res.existing)toast(res.message||'Route already exists and is selected.');
           h.remove();
-        }catch(err){alert(err.message)}finally{setBusy(btn,false)}
+        }catch(err){alert(err.message)}finally{delete routeForm.dataset.saving;setBusy(btn,false)}
       };
     }});return;
   }
@@ -375,6 +378,12 @@ async function mutate(path,method,body,button){
   catch(e){alert(e.message);return false}
   finally{setBusy(button,false)}
 }
+async function syncMobileNotificationsV181({prompt=true}={}){
+  const alerts=window.TransportNative?.notifications,authToken=token();
+  if(!alerts||!authToken)return {enabled:false};
+  try{return prompt?await alerts.enable(authToken):await alerts.sync(authToken)}
+  catch(error){console.warn('Mobile notification sync unavailable',error);return {enabled:false,error:error?.message||String(error)}}
+}
 function loginView(message=''){
   state.panel='dashboard';
   state.search='';
@@ -399,7 +408,7 @@ function loginView(message=''){
     e.preventDefault();const btn=e.submitter;
     if(btn?.type==='button')return;
     setBusy(btn,true,'Logging in...');
-    try{const res=await api('/login',{method:'POST',body:JSON.stringify(formDataObject(e.target))});setToken(res.token);await loadData({background:true})}
+    try{const res=await api('/login',{method:'POST',body:JSON.stringify(formDataObject(e.target))});setToken(res.token);await loadData({background:true});await syncMobileNotificationsV181()}
     catch(err){loginView(err.message)}
   };
   document.querySelector('[data-v59-create-company]').onclick=openCompanyRegistration;
@@ -422,7 +431,7 @@ async function loadData({background=false}={}){
     if(state.data){
       if(!background)alert(e.message);
     }else{
-      clearToken();clearCache();loginView(e.message);
+      await window.TransportNative?.notifications?.disable?.().catch(()=>{});clearToken();clearCache();loginView(e.message);
     }
   }finally{state.loading=false}
 }
@@ -481,8 +490,8 @@ function openCompanyRegistration(){
       ${field('Password','password','','password','minlength="6" required autocomplete="new-password"')}
       <label class="span2 v59-consent"><input type="checkbox" required> <span>I understand the trial is limited by plan usage and becomes read-only after expiry until subscription is renewed.</span></label>
       <div class="span2 v59-trial-summary"><b>Free Trial includes</b><span>1 User · 50 Trips/month · 25 Invoices/month · Ledgers · Reports · Documents · Excel</span></div>
-      <div class="form-actions span2"><button type="button" class="btn light" data-v59-close2>Cancel</button><button class="btn primary">Create & Start Trial</button></div>
     </form>
+    <div class="form-actions v59-register-actions"><button type="button" class="btn light" data-v59-close2>Cancel</button><button type="submit" form="v59RegisterForm" class="btn primary">Confirm & Save</button></div>
   </div>`;
   document.body.appendChild(host);
   host.querySelector('[data-v59-close]').onclick=()=>host.remove();
@@ -495,9 +504,10 @@ function openCompanyRegistration(){
       host.remove();
       clearCache();
       await loadData({background:true});
+      await syncMobileNotificationsV181();
       alert(`Welcome! Your 14-day trial is active until ${result.trialEndsAt}.`);
     }catch(error){alert(error.message||'Unable to create company')}
-    finally{setBusy(button,false,'Create & Start Trial')}
+    finally{setBusy(button,false,'Confirm & Save')}
   };
 }
 
@@ -623,7 +633,7 @@ function v64MobileHeader(d,title){
     </div>
     <div class="v64-date-line ${isHome?'':'has-back'}">
       ${isHome?'':`<button type="button" class="v682-back" data-nav-back aria-label="Go back"><span aria-hidden="true">←</span> Back</button>`}
-      <span class="v682-date-title">${esc(v64TodayText())} · ${esc(title||'Dashboard')} <small class="v709-build-badge">v1.8.0</small></span>
+      <span class="v682-date-title">${esc(v64TodayText())} · ${esc(title||'Dashboard')} <small class="v709-build-badge">v1.8.3</small></span>
       <span class="v68-network-status" data-v68-network>● Online</span>
     </div>
     ${isHome?`<div class="v64-summary-strip">
@@ -734,7 +744,7 @@ function wireCommon(){
     if(truck)return navigatePanel('trucks',{search:truck.truck_no.toLowerCase()});
     alert('No matching invoice, trip, party, supplier or truck found.');
   };
-  document.getElementById('logoutBtn').onclick=async()=>{try{await api('/logout',{method:'POST'})}catch{}clearToken();clearCache();loginView()};
+  document.getElementById('logoutBtn').onclick=async()=>{try{await api('/logout',{method:'POST'})}catch{}try{await window.TransportNative?.notifications?.disable?.()}catch{}clearToken();clearCache();loginView()};
   document.getElementById('backupBtn').onclick=async()=>download(`meera-logistics-backup-${today()}.json`,JSON.stringify(await api('/export'),null,2));
   document.querySelectorAll('[data-search]').forEach((input,index)=>input.oninput=()=>{
     const typed=input.value;
@@ -2451,7 +2461,14 @@ function truckForm(x={}){
 function routeForm(x={}){
   x=x||{};
   const edit=!!x.id,host=modal(edit?'Edit Route':'Add Route',`<form class="form-grid" id="routeForm">${field('Loading Point','loadingPoint',x.loading_point||'','text','required')}${field('Unloading Point','unloadingPoint',x.unloading_point||'','text','required')}<div class="form-actions"><button type="button" class="btn light" data-close-form>Cancel</button><button class="btn primary">Save Route</button></div></form>`,{small:true,onMount:host=>{
-    host.querySelector('[data-close-form]').onclick=()=>host.remove();host.querySelector('#routeForm').onsubmit=async e=>{e.preventDefault();if(await mutate('/routes'+(edit?'/'+x.id:''),edit?'PUT':'POST',formDataObject(e.target),e.submitter))host.remove()}
+    const form=host.querySelector('#routeForm');
+    host.querySelector('[data-close-form]').onclick=()=>host.remove();form.onsubmit=async e=>{
+      e.preventDefault();
+      if(form.dataset.saving==='1')return;
+      form.dataset.saving='1';
+      try{if(await mutate('/routes'+(edit?'/'+x.id:''),edit?'PUT':'POST',formDataObject(e.target),e.submitter))host.remove()}
+      finally{delete form.dataset.saving}
+    }
   }});
 }
 function materialForm(){

@@ -1,4 +1,4 @@
-import {api,apiBlob} from './core/api.js';
+import {api,apiBlob,token} from './core/api.js';
 
 const A43={overlay:null,data:null,bootstrap:null,month:new Date().toISOString().slice(0,7)};
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
@@ -651,7 +651,10 @@ function renderNotificationsV672(host,feed,{refreshing=false}={}){
   if(!host)return;
   const rows=Array.isArray(feed?.items)?feed.items:[];
   const actions=host.querySelector('.a43-head-actions');
-  if(actions&&!actions.querySelector('[data-v62-enable-alerts]'))actions.insertAdjacentHTML('afterbegin','<button data-v62-enable-alerts>Enable Browser Alerts</button>');
+  const nativeAlerts=window.TransportNative?.notifications;
+  if(actions&&!actions.querySelector('[data-v62-enable-alerts]'))actions.insertAdjacentHTML('afterbegin',nativeAlerts
+    ?'<button data-v181-test-alert>Test Notification</button><button data-v62-enable-alerts>Enable Mobile Notifications</button>'
+    :'<button data-v62-enable-alerts>Enable Browser Alerts</button>');
   const main=host.querySelector('main');
   if(!main)return;
   main.innerHTML=`
@@ -670,15 +673,42 @@ function renderNotificationsV672(host,feed,{refreshing=false}={}){
         <span><b>${esc(x.title)}</b><small>${esc(x.text)}</small></span><em>Open ›</em>
       </button>`).join(''):'<div class="a43-empty">No current alerts.</div>'}</div>`;
   const enable=host.querySelector('[data-v62-enable-alerts]');if(enable)enable.onclick=enableBrowserAlertsV62;
+  const test=host.querySelector('[data-v181-test-alert]');if(test)test.onclick=testMobileAlertV181;
   host.querySelectorAll('[data-v62-notification]').forEach(btn=>btn.onclick=()=>v62OpenNotification(rows[Number(btn.dataset.v62Notification)]));
 }
 async function enableBrowserAlertsV62(){
+  const nativeAlerts=window.TransportNative?.notifications;
+  if(nativeAlerts){
+    try{
+      const result=await nativeAlerts.enable(token());
+      if(result?.enabled)return toast('Mobile notifications enabled');
+      alert('Notification permission allow કરો. પછી Test Notification દબાવો.');
+      await nativeAlerts.openSettings?.();
+    }catch(error){alert(error.message||'Mobile notifications could not be enabled.')}
+    return;
+  }
   if(!('Notification'in window))return alert('Browser notification support available nathi.');
   const permission=await Notification.requestPermission();
   if(permission==='granted')toast('Browser alerts enabled');
   else alert('Notification permission allow thayu nathi.');
 }
+async function testMobileAlertV181(){
+  const nativeAlerts=window.TransportNative?.notifications;
+  if(!nativeAlerts)return enableBrowserAlertsV62();
+  try{
+    let status=await nativeAlerts.status();
+    if(!status?.enabled)status=await nativeAlerts.enable(token());
+    if(!status?.enabled){alert('Phone Settingsમાં TransportBahi notifications Allow કરો.');await nativeAlerts.openSettings?.();return}
+    const result=await nativeAlerts.test();
+    if(result?.shown)toast('Test notification sent');
+    else alert('Notification permission allow થયેલ નથી.');
+  }catch(error){alert(error.message||'Test notification failed.')}
+}
 async function showUrgentBrowserAlertV62(feed){
+  if(window.TransportNative?.notifications){
+    window.TransportNative.notifications.sync(token()).catch(()=>{});
+    return;
+  }
   if(!('Notification'in window)||Notification.permission!=='granted'||!feed?.urgent)return;
   const key=`ml_v62_alert_${new Date().toISOString().slice(0,10)}`;
   if(localStorage.getItem(key))return;
@@ -774,8 +804,15 @@ function decorate(){
 }
 new MutationObserver(()=>requestAnimationFrame(decorate)).observe(document.documentElement,{childList:true,subtree:true});applySettings(cachedSettings());decorate();hydrateSettings();
 window.addEventListener('online',()=>{decorate();navigator.serviceWorker?.controller?.postMessage({type:'SYNC_QUEUE'});toast('Online — offline changes syncing')});window.addEventListener('offline',decorate);
-if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())navigator.serviceWorker.register('/sw-v69.js?v=180').catch(()=>{});
+if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())navigator.serviceWorker.register('/sw-v69.js?v=183').catch(()=>{});
 
 document.addEventListener('ml-open-saas-v59',()=>openSaasCenter());
 
-document.addEventListener('ml-open-notifications-v64',()=>openNotificationsV62());
+document.addEventListener('ml-open-notifications-v64',()=>{
+  localStorage.removeItem('ml_open_mobile_alerts_v181');
+  if(token())openNotificationsV62();
+});
+if(localStorage.getItem('ml_open_mobile_alerts_v181')==='1'){
+  localStorage.removeItem('ml_open_mobile_alerts_v181');
+  setTimeout(()=>{if(token())openNotificationsV62()},500);
+}

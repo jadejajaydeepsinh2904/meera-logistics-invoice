@@ -1,0 +1,27 @@
+TransportBahi Web v1.8.3 - Changed Files Only
+==============================================
+
+PURPOSE
+- Replace the global route uniqueness rule with company-wise route uniqueness.
+- Allow different customer accounts to use the same Loading + Unloading route.
+- Return the existing route on a repeated save instead of a raw D1 constraint error.
+- Prevent accidental double-submit from Add New Route.
+- Retain the v1.8.2 registration scroll/save fix and all earlier features.
+
+DEPLOY
+1. Back up the current Worker and public files.
+2. Replace and deploy worker/src/index.js FIRST. The Worker performs the safe D1 route migration.
+3. Replace and deploy the matching public files.
+4. Open /?reset=v183 once, then reload normally.
+5. Confirm the dashboard badge displays v1.8.3.
+6. In two different company accounts, save the same route pair; both must succeed.
+7. Save the same route again in one company; the existing route must be selected.
+
+IMPORTANT
+- Installing this mobile fix as an Android update requires v1.8.3 (version code 26).
+- The Worker deployment is mandatory; installing only the APK does not change the D1 route schema.
+- Native phone notifications continue to use the Android build.
+- The web update alone cannot create Android background notifications.
+- Android checks alerts about every 15 minutes when the app is closed and a
+  network is available. Android may adjust the exact timing for battery health.
+- If a user Force Stops the app, they must open it once to resume background work.

@@ -2,6 +2,7 @@
 const isNative=()=>!!window.Capacitor?.isNativePlatform?.() || !!window.Capacitor?.getPlatform?.() && window.Capacitor.getPlatform()==='android';
 const plugin=name=>window.Capacitor?.Plugins?.[name]||null;
 const safeFileName=value=>String(value||'Transport-ERP-file').replace(/[\\/:*?"<>|]+/g,'-').replace(/\s+/g,' ').trim();
+const ALERTS_API='https://meera-logistics-invoice.jadejajaydeepsinhk007.workers.dev/api/notifications';
 
 function blobToBase64(blob){
   return new Promise((resolve,reject)=>{
@@ -114,6 +115,30 @@ async function restorePlaySubscriptions(){
   if(!billing?.restorePurchases)throw new Error('Google Play Billing is unavailable in this app build.');
   return billing.restorePurchases();
 }
+async function enableAppNotifications(authToken){
+  const alerts=plugin('AppNotifications');
+  if(!alerts?.enable)throw new Error('Mobile notifications are unavailable in this app build.');
+  return alerts.enable({authToken:String(authToken||''),apiUrl:ALERTS_API});
+}
+async function syncAppNotifications(authToken){
+  const alerts=plugin('AppNotifications');
+  if(!alerts?.syncNow)return {enabled:false};
+  return alerts.syncNow({authToken:String(authToken||''),apiUrl:ALERTS_API});
+}
+async function testAppNotification(){
+  const alerts=plugin('AppNotifications');
+  if(!alerts?.test)throw new Error('Mobile notifications are unavailable in this app build.');
+  return alerts.test();
+}
+async function appNotificationStatus(){
+  return plugin('AppNotifications')?.getStatus?.()||{enabled:false,permission:'unavailable'};
+}
+async function disableAppNotifications(){
+  return plugin('AppNotifications')?.disable?.()||{enabled:false};
+}
+async function openAppNotificationSettings(){
+  return plugin('AppNotifications')?.openSettings?.();
+}
 async function nativeBack(){
   if(closeTopOverlay())return;
   const sidebar=document.getElementById('sidebar');
@@ -145,8 +170,18 @@ async function initializeAndroid(){
       getProducts:playBillingProducts,
       purchase:purchasePlaySubscription,
       restore:restorePlaySubscriptions
+    },
+    notifications:{
+      enable:enableAppNotifications,
+      sync:syncAppNotifications,
+      test:testAppNotification,
+      status:appNotificationStatus,
+      disable:disableAppNotifications,
+      openSettings:openAppNotificationSettings
     }
   };
+  const savedToken=localStorage.getItem('ml_token')||'';
+  if(savedToken)enableAppNotifications(savedToken).catch(error=>console.warn('Mobile alerts unavailable',error));
   try{
     const SystemBars=plugin('SystemBars');
     if(SystemBars?.setStyle)await SystemBars.setStyle({style:'DARK'});
@@ -155,7 +190,12 @@ async function initializeAndroid(){
   try{
     const App=plugin('App');
     App?.addListener?.('backButton',nativeBack);
-    App?.addListener?.('appStateChange',({isActive})=>{if(isActive)window.dispatchEvent(new Event('online'))});
+    App?.addListener?.('appStateChange',({isActive})=>{
+      if(!isActive)return;
+      window.dispatchEvent(new Event('online'));
+      const authToken=localStorage.getItem('ml_token')||'';
+      if(authToken)syncAppNotifications(authToken).catch(()=>{});
+    });
   }catch{}
   try{
     const Network=plugin('Network');
@@ -175,4 +215,4 @@ async function initializeAndroid(){
 }
 initializeAndroid();
 
-export {isNative,externalUrl,shareText,nativeBack,playBillingProducts,purchasePlaySubscription,restorePlaySubscriptions};
+export {isNative,externalUrl,shareText,nativeBack,playBillingProducts,purchasePlaySubscription,restorePlaySubscriptions,enableAppNotifications,syncAppNotifications,testAppNotification,appNotificationStatus,disableAppNotifications,openAppNotificationSettings};

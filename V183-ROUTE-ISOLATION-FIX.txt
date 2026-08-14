@@ -1,0 +1,17 @@
+TransportBahi v1.8.3 - Route Company Isolation Fix
+==================================================
+
+ROOT CAUSE
+The legacy routes table enforced UNIQUE(loading_point, unloading_point).
+That constraint was global, so a route saved by one company prevented another
+company from saving the same Loading + Unloading pair.
+
+FIX
+- The Worker migrates routes to UNIQUE(company_id, loading_point, unloading_point).
+- Existing route rows keep their id, company_id, points and timestamps.
+- Route POST is idempotent: a retry returns the existing route for that company.
+- Automatic route upsert uses INSERT OR IGNORE.
+- Add New Route and Route Master forms ignore a second submit while saving.
+
+DEPLOYMENT REQUIREMENT
+Deploy worker/src/index.js before the public files. Open /?reset=v183 once.

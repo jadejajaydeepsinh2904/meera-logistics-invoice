@@ -25,6 +25,7 @@ let saasFoundationPromise=null;
 let tenantUpgradePromise=null;
 let fleetV69Promise=null;
 let playBillingV180Promise=null;
+let routeTenantUpgradePromiseV183=null;
 let googlePlayTokenV180={token:'',expiresAt:0};
 
 const PLAY_PACKAGE_V180='in.meeralogistics.transporterp';
@@ -962,6 +963,60 @@ async function ensureTenantIsolation(env){
   for(const table of TENANT_TABLES)await addTenantColumn(env,table);
 }
 
+async function ensureRouteTenantUniqueV183(env){
+  if(routeTenantUpgradePromiseV183)return routeTenantUpgradePromiseV183;
+  routeTenantUpgradePromiseV183=(async()=>{
+    await safe(env,`ALTER TABLE routes ADD COLUMN company_id TEXT DEFAULT '${DEFAULT_COMPANY_ID}'`);
+    await safe(env,`UPDATE routes SET company_id='${DEFAULT_COMPANY_ID}' WHERE company_id IS NULL OR TRIM(company_id)=''`);
+
+    const marker=await first(env,`SELECT value FROM app_meta WHERE key='route_tenant_unique_v183'`);
+    const schema=await first(env,`SELECT sql FROM sqlite_master WHERE type='table' AND name='routes'`);
+    if(!schema?.sql)throw new Error('Routes table is unavailable during company-isolation upgrade.');
+
+    const tenantUnique=/UNIQUE\s*\(\s*company_id\s*,\s*loading_point\s*,\s*unloading_point\s*\)/i.test(String(schema.sql));
+    if(marker?.value!=='1'||!tenantUnique){
+      if(!tenantUnique){
+        // Legacy builds used UNIQUE(loading_point, unloading_point), which made
+        // one company's route block the same route in every other company.
+        // D1 batch is atomic, so the original table is restored if any step fails.
+        const legacy=`routes_v182_legacy_${Date.now().toString().slice(-8)}`;
+        await env.DB.batch([
+          env.DB.prepare(`ALTER TABLE routes RENAME TO ${legacy}`),
+          env.DB.prepare(`CREATE TABLE routes(
+            id TEXT PRIMARY KEY,
+            company_id TEXT NOT NULL DEFAULT '${DEFAULT_COMPANY_ID}',
+            loading_point TEXT NOT NULL,
+            unloading_point TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(company_id,loading_point,unloading_point)
+          )`),
+          env.DB.prepare(`INSERT OR IGNORE INTO routes(id,company_id,loading_point,unloading_point,created_at,updated_at)
+            SELECT id,COALESCE(NULLIF(TRIM(company_id),''),'${DEFAULT_COMPANY_ID}'),loading_point,unloading_point,
+              COALESCE(NULLIF(created_at,''),CURRENT_TIMESTAMP),COALESCE(NULLIF(updated_at,''),CURRENT_TIMESTAMP)
+            FROM ${legacy} ORDER BY created_at,id`),
+          env.DB.prepare(`DROP TABLE ${legacy}`)
+        ]);
+      }
+
+      await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_route_company
+        ON routes(company_id,loading_point,unloading_point)`).run();
+      await env.DB.prepare(`CREATE TRIGGER IF NOT EXISTS trg_routes_ai AFTER INSERT ON routes
+        WHEN NEW.created_at IS NULL OR NEW.created_at='' BEGIN
+          UPDATE routes SET created_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id;
+        END`).run();
+      await env.DB.prepare(`CREATE TRIGGER IF NOT EXISTS trg_routes_au AFTER UPDATE ON routes
+        WHEN NEW.updated_at=OLD.updated_at BEGIN
+          UPDATE routes SET updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id;
+        END`).run();
+      await run(env,`INSERT OR REPLACE INTO app_meta(key,value,updated_at)
+        VALUES('route_tenant_unique_v183','1',CURRENT_TIMESTAMP)`);
+    }
+    return true;
+  })().finally(()=>{routeTenantUpgradePromiseV183=null});
+  return routeTenantUpgradePromiseV183;
+}
+
 async function backfillPartyMaster(env){
   // Older databases may already contain Party rows with blank GST/address.
   // Use the latest available invoice values to complete the Party Master.
@@ -1602,7 +1657,11 @@ async function ensureDatabase(env){
   initPromise=(async()=>{
     try{
       const ready=await first(env,`SELECT value FROM app_meta WHERE key='schema_version'`);
-      if(ready?.value==='53'){await ensurePlatformV60(env);return true;}
+      if(ready?.value==='53'){
+        await ensurePlatformV60(env);
+        await ensureRouteTenantUniqueV183(env);
+        return true;
+      }
     }catch(_){}
 
     try{
@@ -1613,6 +1672,7 @@ async function ensureDatabase(env){
         await healTenantColumns(env);
         await run(env,`INSERT OR REPLACE INTO app_meta(key,value,updated_at) VALUES('schema_version','53',CURRENT_TIMESTAMP)`);
         await ensurePlatformV60(env);
+        await ensureRouteTenantUniqueV183(env);
         return true;
       }
     }catch(error){
@@ -1627,7 +1687,7 @@ async function ensureDatabase(env){
       `CREATE TABLE IF NOT EXISTS party_accounts(id TEXT PRIMARY KEY,ledger_no TEXT UNIQUE,party_name TEXT UNIQUE NOT NULL,address TEXT DEFAULT '',gst_no TEXT DEFAULT '',mobile TEXT DEFAULT '',email TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS party_payments(id TEXT PRIMARY KEY,receipt_no TEXT,trip_id TEXT DEFAULT '',party_name TEXT NOT NULL,payment_date TEXT NOT NULL,amount REAL NOT NULL,payment_mode TEXT,reference TEXT,notes TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS trucks(id TEXT PRIMARY KEY,truck_no TEXT UNIQUE NOT NULL,owner_name TEXT,owner_mobile TEXT DEFAULT '',bank_details TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
-      `CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY,loading_point TEXT NOT NULL,unloading_point TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
+      `CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY,company_id TEXT NOT NULL DEFAULT '${DEFAULT_COMPANY_ID}',loading_point TEXT NOT NULL,unloading_point TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP,UNIQUE(company_id,loading_point,unloading_point))`,
       `CREATE TABLE IF NOT EXISTS materials(id TEXT PRIMARY KEY,material_name TEXT UNIQUE NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS trips(id TEXT PRIMARY KEY,trip_no TEXT DEFAULT NULL,invoice_id TEXT DEFAULT '',invoice_item_id TEXT DEFAULT '',trip_date TEXT,party_name TEXT,truck_no TEXT,driver_name TEXT DEFAULT '',driver_mobile TEXT DEFAULT '',material TEXT,loading_point TEXT,unloading_point TEXT,weight REAL DEFAULT 0,rate REAL DEFAULT 0,status TEXT DEFAULT 'BOOKED',notes TEXT DEFAULT '',pod_file_name TEXT DEFAULT '',pod_data TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS invoices(id TEXT PRIMARY KEY,invoice_no TEXT UNIQUE NOT NULL,invoice_type TEXT DEFAULT 'GST',invoice_date TEXT,party_name TEXT,party_address TEXT DEFAULT '',party_gst TEXT DEFAULT '',lr_no TEXT DEFAULT '',material TEXT DEFAULT '',loading_date TEXT DEFAULT '',sgst REAL DEFAULT 9,cgst REAL DEFAULT 9,diesel REAL DEFAULT 0,munshi REAL DEFAULT 0,subtotal REAL DEFAULT 0,gst_amount REAL DEFAULT 0,total REAL DEFAULT 0,comments TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,updated_at TEXT DEFAULT CURRENT_TIMESTAMP)`,
@@ -1805,6 +1865,7 @@ async function ensureDatabase(env){
     await backfillPartyMaster(env);
     await ensureSaasFoundation(env);
     await healTenantColumns(env);
+    await ensureRouteTenantUniqueV183(env);
     await ensureSupplierAccounts(env,DEFAULT_COMPANY_ID);
     await repairTripSeriesAndInvoiceLinks(env);
     await safe(env,`DROP INDEX IF EXISTS idx_trip_no`);
@@ -1862,8 +1923,7 @@ async function upsertMasters(env,b,companyId=DEFAULT_COMPANY_ID){
   }
   if(b.loadingPoint&&b.unloadingPoint){
     const lp=upper(b.loadingPoint),up=upper(b.unloadingPoint);
-    const exists=await first(env,`SELECT id FROM routes WHERE company_id=? AND loading_point=? AND unloading_point=?`,companyId,lp,up);
-    if(!exists)await run(env,`INSERT INTO routes(id,company_id,loading_point,unloading_point) VALUES(?,?,?,?)`,uid('RTE'),companyId,lp,up);
+    await run(env,`INSERT OR IGNORE INTO routes(id,company_id,loading_point,unloading_point) VALUES(?,?,?,?)`,uid('RTE'),companyId,lp,up);
   }
 }
 function numberedDocumentPartsV712(value){
@@ -2819,7 +2879,7 @@ export default {
       const resource=parts[0]||'';
       const id=decodeURIComponent(parts[1]||'');
 
-      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'TransportBahi API',version:'V180-Play-Billing'}),{headers:{...HEADERS,'cache-control':'public,max-age=15'}});
+      if(resource==='health')return new Response(JSON.stringify({ok:true,service:'TransportBahi API',version:'V183-Route-Tenant-Isolation'}),{headers:{...HEADERS,'cache-control':'public,max-age=15'}});
       if(resource==='saas-plans'&&req.method==='GET'){
         await ensureDatabase(env);
         await ensurePlayBillingV180(env);

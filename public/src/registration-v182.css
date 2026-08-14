@@ -1,0 +1,108 @@
+/* v1.8.2: keep company registration usable in mobile browsers and Android WebView. */
+.v59-register-modal{
+  width:min(820px,96vw);
+  max-height:94vh;
+  display:flex!important;
+  flex-direction:column;
+  overflow:hidden!important;
+}
+.v59-register-modal>header{
+  flex:0 0 auto;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px 16px;
+  border-bottom:1px solid #ffffff20;
+  background:linear-gradient(135deg,#10284c,#193b69);
+  color:#fff;
+}
+.v59-register-modal>header>div{display:grid;gap:4px;min-width:0}
+.v59-register-modal>header b{font-size:19px;line-height:1.2;overflow-wrap:anywhere}
+.v59-register-modal>header small{font-size:11px!important;line-height:1.35;color:#c6d5e8!important}
+.v59-register-modal>header button{
+  width:42px;
+  height:42px;
+  flex:0 0 42px;
+  border:1px solid #ffffff38;
+  border-radius:11px;
+  background:#ffffff14;
+  color:#fff;
+  font-size:23px;
+  line-height:1;
+}
+.v59-register-modal>form{
+  flex:1 1 auto;
+  min-height:0;
+  padding:16px;
+  overflow-x:hidden;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  touch-action:pan-y;
+}
+.v59-register-modal>form .field{scroll-margin-block:12px}
+.v59-register-actions{
+  flex:0 0 auto;
+  width:100%;
+  margin:0!important;
+  padding:12px 16px;
+  border-top:1px solid var(--line,#dce4ee);
+  background:#fff;
+  display:flex!important;
+  justify-content:flex-end!important;
+  gap:9px!important;
+  grid-column:auto!important;
+  box-shadow:0 -8px 20px #10284c0d;
+}
+.v59-register-actions .btn.primary{min-width:190px}
+
+@media(max-width:850px){
+  .v59-register-bg{
+    padding:max(8px,var(--v68-safe-top,env(safe-area-inset-top,0px))) 8px max(8px,var(--v68-safe-bottom,env(safe-area-inset-bottom,0px)))!important;
+    overflow:hidden!important;
+    place-items:center!important;
+  }
+  .v59-register-modal{
+    width:100%!important;
+    max-width:100%!important;
+    height:calc(100dvh - var(--v68-safe-top,env(safe-area-inset-top,0px)) - var(--v68-safe-bottom,env(safe-area-inset-bottom,0px)) - 16px);
+    max-height:calc(100dvh - var(--v68-safe-top,env(safe-area-inset-top,0px)) - var(--v68-safe-bottom,env(safe-area-inset-bottom,0px)) - 16px)!important;
+    border-radius:17px!important;
+  }
+  .v59-register-modal>header{padding:12px 13px}
+  .v59-register-modal>header b{font-size:18px}
+  .v59-register-modal>form{
+    width:100%;
+    min-height:0;
+    padding:12px!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:12px!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    scroll-padding-block:12px;
+  }
+  .v59-register-modal>form .span2{grid-column:auto!important}
+  .v59-register-actions{
+    width:100%!important;
+    padding:10px 12px calc(10px + var(--v68-safe-bottom,env(safe-area-inset-bottom,0px)))!important;
+    display:grid!important;
+    grid-template-columns:minmax(96px,.75fr) minmax(0,1.25fr)!important;
+    justify-content:stretch!important;
+  }
+  .v59-register-actions .btn{
+    width:100%!important;
+    min-width:0!important;
+    min-height:48px!important;
+    padding:9px 8px!important;
+    white-space:normal;
+    line-height:1.2;
+  }
+}
+
+@media(max-width:390px){
+  .v59-register-modal>.v59-register-actions{
+    grid-template-columns:minmax(92px,.72fr) minmax(0,1.28fr)!important;
+  }
+}
