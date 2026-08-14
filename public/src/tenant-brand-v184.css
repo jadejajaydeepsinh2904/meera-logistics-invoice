@@ -1,0 +1,49 @@
+.v184-login-brand{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:13px;
+  margin:0 auto 22px;
+}
+.v184-login-brand>img{
+  display:block;
+  width:68px;
+  height:68px;
+  flex:0 0 68px;
+  border-radius:17px;
+  object-fit:cover;
+  box-shadow:0 8px 22px #10284c2e,0 0 0 1px #10284c14;
+}
+.v184-login-brand-copy{
+  min-width:0;
+  display:grid;
+  gap:5px;
+  text-align:left;
+}
+.v184-login-brand-copy>b{
+  color:#10284c;
+  font:900 29px/1 Arial,sans-serif;
+  letter-spacing:-.04em;
+  white-space:nowrap;
+}
+.v184-login-brand-copy>b em{color:#f46d18;font-style:normal}
+.v184-login-brand-copy>small{
+  color:#a96412;
+  font:900 10px/1.2 Arial,sans-serif;
+  letter-spacing:.10em;
+  text-transform:uppercase;
+}
+.sidebar .v706-sidebar-copy{overflow:hidden}
+.v184-tenant-name{
+  display:block;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+@media (max-width:390px){
+  .v184-login-brand{gap:10px}
+  .v184-login-brand>img{width:58px;height:58px;flex-basis:58px;border-radius:15px}
+  .v184-login-brand-copy>b{font-size:25px}
+  .v184-login-brand-copy>small{font-size:9px}
+}

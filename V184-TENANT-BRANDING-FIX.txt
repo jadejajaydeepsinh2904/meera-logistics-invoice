@@ -1,0 +1,8 @@
+TransportBahi v1.8.4 - Account-wise Branding Fix
+=================================================
+
+The old navigation wordmark contained the fixed words "MEERA LOGISTICS" inside
+the PNG. v1.8.4 uses the neutral TransportBahi app icon and reads company_name
+from the signed-in account. The login page stays neutral until authentication.
+
+No business data or database rows are changed by this public branding update.

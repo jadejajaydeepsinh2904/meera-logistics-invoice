@@ -12,6 +12,7 @@ const writeCache=data=>{try{localStorage.setItem(CACHE_KEY,JSON.stringify({saved
 const clearCache=()=>{try{localStorage.removeItem(CACHE_KEY)}catch{}};
 const money=n=>'₹'+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const tenantCompanyName=(data=state.data)=>String(data?.saas?.company?.company_name||'TRANSPORT COMPANY').trim()||'TRANSPORT COMPANY';
 const today=()=>new Date().toISOString().slice(0,10);
 
 function parseInvoiceNumber(value){
@@ -388,13 +389,17 @@ function loginView(message=''){
   state.panel='dashboard';
   state.search='';
   panelTrail.length=0;
+  document.title='TransportBahi – Trip, Bill & Khata';
   app.innerHTML=`<div class="login-shell">
     <div class="login-art"><h1>Trip થી<br>Profit સુધી.</h1><p>Trips, invoices, party khata, supplier khata, payments, documents અને profit — બધું TransportBahiમાં.</p>
       <div class="v59-login-points"><span>✓ 14-day Free Trial</span><span>✓ Your company data stays isolated</span><span>✓ No card required for trial</span></div>
     </div>
     <div class="login-side">
       <form class="login-card" id="loginForm">
-        <img class="login-logo v703-login-wordmark" src="/assets/transportbahi-light-logo.png" alt="TransportBahi · Meera Logistics"><p>Trip થી Profit સુધી</p>
+        <div class="v184-login-brand" aria-label="TransportBahi">
+          <img src="/assets/transportbahi-app-icon.png" alt="">
+          <div class="v184-login-brand-copy"><b>Transport<em>Bahi</em></b><small>Trip થી Profit સુધી</small></div>
+        </div>
         ${message?`<div class="error-box">${esc(message)}</div>`:''}
         <label class="field"><span>Username</span><input name="username" autocomplete="username" required></label>
         <label class="field" style="margin-top:12px"><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label>
@@ -620,20 +625,21 @@ function v64TripPaymentState(d,t){
     :{label:'PENDING',paid:false,pending:Number(x.pending||0)};
 }
 function v64MobileHeader(d,title){
-  const company=esc(d.saas?.company?.company_name||'TRANSPORT COMPANY');
+  const company=esc(tenantCompanyName(d));
   const todayTrips=v64TodayTrips(d);
   const todayFreight=todayTrips.reduce((a,t)=>a+v64TripAmount(t),0);
   const isHome=state.panel==='dashboard';
   return `<header class="v64-mobile-header no-print">
     <div class="v64-brand-row">
-      <div class="v64-mobile-brand v707-mobile-brand">
-        <img class="v707-mobile-wordmark" src="/assets/transportbahi-dark-logo.png" alt="TransportBahi · Meera Logistics">
+      <div class="v64-mobile-brand v704-mobile-brand">
+        <img class="v704-mobile-icon" src="/assets/transportbahi-app-icon.png" alt="">
+        <div class="v704-mobile-brand-copy"><b>Transport<em>Bahi</em></b><small class="v184-tenant-name" title="${company}">${company}</small></div>
       </div>
       <div class="v683-header-actions"><button type="button" class="v683-language-button v683-mobile-language" data-language-open data-language-label aria-label="Choose App Language">${window.TransportLanguage?.buttonLabel?.()||'🌐 EN'}</button><button type="button" class="v64-bell" data-v64-alerts aria-label="Alerts">🔔<span></span></button></div>
     </div>
     <div class="v64-date-line ${isHome?'':'has-back'}">
       ${isHome?'':`<button type="button" class="v682-back" data-nav-back aria-label="Go back"><span aria-hidden="true">←</span> Back</button>`}
-      <span class="v682-date-title">${esc(v64TodayText())} · ${esc(title||'Dashboard')} <small class="v709-build-badge">v1.8.3</small></span>
+      <span class="v682-date-title">${esc(v64TodayText())} · ${esc(title||'Dashboard')} <small class="v709-build-badge">v1.8.4</small></span>
       <span class="v68-network-status" data-v68-network>● Online</span>
     </div>
     ${isHome?`<div class="v64-summary-strip">
@@ -654,6 +660,9 @@ function v64BottomNav(){
 }
 function render(){
   const d=state.data;
+  const rawCompanyName=tenantCompanyName(d);
+  const companyName=esc(rawCompanyName);
+  document.title=`${rawCompanyName} · TransportBahi`;
   // Share the already-loaded dashboard snapshot with lightweight app features.
   // Notifications can render from this immediately instead of blocking on a
   // second network request.
@@ -662,8 +671,9 @@ function render(){
   const titles={dashboard:'Dashboard',trips:'Trip History',invoices:'Invoice History',parties:'Party Khata',partyPayments:'Party Payments',suppliers:'Supplier Khata',truckEntries:'Truck / Supplier Entries',supplierPayments:'Supplier Payments',trucks:'Truck & Document',drivers:'Driver Khata',myTrucks:'My Trucks',truckExpenses:'Truck Expenses',invoiceImport:'Excel Invoice Import',masters:'Master',forms:'Forms',expenses:'Office Expenses',reports:'Reports & Audit',khata:'Khata'};
   app.innerHTML=`<div class="erp">
     <aside class="sidebar" id="sidebar">
-      <div class="brand v707-sidebar-brand">
-        <img class="v707-sidebar-wordmark" src="/assets/transportbahi-dark-logo.png" alt="TransportBahi · Meera Logistics">
+      <div class="brand v706-sidebar-brand">
+        <img class="v706-sidebar-icon" src="/assets/transportbahi-app-icon.png" alt="">
+        <div class="v706-sidebar-copy"><b>Transport<em>Bahi</em></b><small class="v184-tenant-name" title="${companyName}">${companyName}</small></div>
       </div>
       <div class="nav-group-title">Dashboard</div><div class="nav">${navButton('dashboard','Dashboard')}${navButton('trips','Trip History')}${navButton('invoices','Invoice History')}</div>
       <div class="nav-group-title">Account</div><div class="nav">${navButton('parties','Party Khata')}${navButton('suppliers','Supplier Khata')}${navButton('drivers','Driver Khata')}</div>
@@ -672,7 +682,7 @@ function render(){
     <main class="main">
       ${v64MobileHeader(d,titles[state.panel])}
       ${subscriptionBannerV59(d)}
-      <div class="topbar no-print"><div style="display:flex;gap:9px;align-items:center"><button class="btn light mobile-menu" id="menuBtn">☰</button>${state.panel==='dashboard'?'':`<button type="button" class="btn light v682-desktop-back" data-nav-back>← Back</button>`}<div class="top-title"><h1>${titles[state.panel]}</h1><p>Live online data · ${esc(d.saas?.company?.company_name||'MEERA LOGISTICS')} · ${esc(d.user.username)} (${esc(d.saas?.role||d.user.role||'')}) · ${esc(d.saas?.subscription?.plan_name||'')}</p></div></div>
+      <div class="topbar no-print"><div style="display:flex;gap:9px;align-items:center"><button class="btn light mobile-menu" id="menuBtn">☰</button>${state.panel==='dashboard'?'':`<button type="button" class="btn light v682-desktop-back" data-nav-back>← Back</button>`}<div class="top-title"><h1>${titles[state.panel]}</h1><p>Live online data · ${companyName} · ${esc(d.user.username)} (${esc(d.saas?.role||d.user.role||'')}) · ${esc(d.saas?.subscription?.plan_name||'')}</p></div></div>
       <div class="top-actions"><button type="button" class="v683-language-button" data-language-open data-language-label aria-label="Choose App Language">🌐 Language</button><button class="btn light" id="refreshBtn">Refresh</button><button class="btn soft" id="backupBtn">Backup</button><button class="btn light" id="logoutBtn">Logout</button></div></div>
       ${panelHtml()}
       ${v64BottomNav()}

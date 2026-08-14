@@ -1,0 +1,23 @@
+TransportBahi Web v1.8.4 - Changed Files Only
+==============================================
+
+PURPOSE
+- Remove the fixed MEERA LOGISTICS wordmark from shared account navigation.
+- Keep the TransportBahi icon and show each signed-in account's registered
+  company name below it.
+- Keep the login screen company-neutral.
+- Retain the v1.8.3 company-wise route isolation fix.
+
+DEPLOY
+1. Back up the current Worker and public files.
+2. If the v1.8.3 Worker was never deployed, replace and deploy worker/src/index.js
+   first so the route isolation migration runs.
+3. Replace and deploy the matching public files.
+4. Open /?reset=v184 once, then reload normally.
+5. Confirm the dashboard badge displays v1.8.4.
+6. Test one Meera account and one different company account. Each must show its
+   own registered company name below TransportBahi.
+
+ANDROID
+The Android update is v1.8.4 with versionCode 27. Web files alone do not update
+an already-installed APK.

@@ -4,7 +4,7 @@
   <script>
   (async()=>{
     const q=new URLSearchParams(location.search);
-    if(['v665','v666','v667','v670','v690','v691','v692','v703','v704','v705','v708','v709','v710','v711','v712','v180','v181','v182','v183'].includes(q.get('reset'))){
+    if(['v665','v666','v667','v670','v690','v691','v692','v703','v704','v705','v708','v709','v710','v711','v712','v180','v181','v182','v183','v184'].includes(q.get('reset'))){
       try{
         if('serviceWorker' in navigator){
           for(const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
@@ -42,6 +42,7 @@
   <link rel="stylesheet" href="/src/language-v683.css?v=692">
   <link rel="stylesheet" href="/src/fleet-v69.css?v=691">
   <link rel="stylesheet" href="/src/branding-v703.css?v=711">
+  <link rel="stylesheet" href="/src/tenant-brand-v184.css?v=184">
   <link rel="stylesheet" href="/src/registration-v182.css?v=182">
   <title>TransportBahi – Trip, Bill & Khata</title>
 </head>
@@ -60,11 +61,11 @@
     root.innerHTML=`<main style="min-height:100dvh;display:grid;place-items:center;padding:24px;background:#efeae0;color:#1b2a4a;font-family:Arial,sans-serif"><section style="width:min(520px,100%);background:#fbf9f4;border:1px solid #dbd2be;border-radius:16px;padding:22px;box-shadow:0 12px 35px #1b2a4a16"><h2 style="margin:0 0 10px">TransportBahi could not start</h2><p style="line-height:1.5;margin:0 0 12px">Android project is missing one or more web files. Open the latest FULL PROJECT folder and run <b>npm run android:sync</b> again.</p>${detail?`<small style="display:block;color:#8b3a2e;word-break:break-word">${detail.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}</small>`:''}</section></main>`;
   },6000);
   </script>
-  <script type="module" src="/src/app.js?v=183"></script>
+  <script type="module" src="/src/app.js?v=184"></script>
   <script type="module" src="/src/invoice-v36.js?v=705"></script>
   <script type="module" src="/src/party-ledger-v40.js?v=671"></script>
   <script type="module" src="/src/supplier-ledger-v41.js?v=671"></script>
-  <script type="module" src="/src/advanced-v44.js?v=183"></script>
+  <script type="module" src="/src/advanced-v44.js?v=184"></script>
   <script type="module" src="/src/android-v63.js?v=181"></script>
 </body>
 </html>
