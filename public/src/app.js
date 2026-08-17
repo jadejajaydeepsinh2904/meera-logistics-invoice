@@ -1372,7 +1372,7 @@ function handleAction(action,id){
   if(action==='run-accounting-audit')return runAccountingAuditV58();
   if(action==='resolve-audit')return resolveAuditIssue(id);
   if(action==='new-trip'||action==='edit-trip')return tripForm(action==='edit-trip'?(find('trip',id)||{}):{});
-  if(action==='view-trip')return universalTripScreen(find('trip',id));
+  if(action==='view-trip')return universalTripScreen(find('trip',id)); if(action==='view-pod')return viewTripPod(find('trip',id));
   if(action==='view-trip-lr')return tripLrView(find('trip',id));
   if(action==='view-linked-invoice')return viewInvoice(find('invoice',id));
   if(action==='trip-create-invoice'){const t=find('trip',id);return invoiceForm({},t||{});}
@@ -1661,6 +1661,11 @@ function universalTripScreen(trip){
           <button data-action="view-trip-lr" data-id="${esc(trip.id)}">
             <span>🧾</span><div><b>Online Bilty / LR</b><small>View LR with complete trip details</small></div><i>›</i>
           </button>
+          ${trip.pod_data
+            ? `<button data-action="view-pod" data-id="${esc(trip.id)}">
+                <span>👁️</span><div><b>View POD</b><small>${esc(trip.pod_file_name||'View uploaded POD')}</small></div><i>›</i>
+              </button>`
+            : ''}
           <button data-action="edit-trip" data-id="${esc(trip.id)}">
             <span>📝</span><div><b>POD Challan</b><small>${trip.pod_file_name?esc(trip.pod_file_name):'Add POD image'}</small></div><i>›</i>
           </button>
@@ -1676,6 +1681,44 @@ function universalTripScreen(trip){
         handleAction(btn.dataset.action,btn.dataset.id);
       });
     }});
+}
+
+
+async function viewTripPod(trip){
+  if(!trip)return;
+  let files=[];
+  try{
+    if(trip.pod_data){
+      const parsed=typeof trip.pod_data==='string'?JSON.parse(trip.pod_data):trip.pod_data;
+      files=Array.isArray(parsed)?parsed:(parsed?[parsed]:[]);
+    }
+  }catch(e){
+    files=[];
+  }
+  if(!files.length){
+    alert('POD is not available for this trip.');
+    return;
+  }
+  const body=files.map((file,i)=>{
+    const name=file?.name||`POD ${i+1}`;
+    const data=file?.data||file?.url||'';
+    if(!data)return '';
+    const isPdf=/^data:application\/pdf/i.test(data)||/\.pdf$/i.test(name);
+    return `<div style="margin-bottom:18px;padding:12px;border:1px solid #e5e7eb;border-radius:12px;background:#fff">
+      <div style="font-weight:700;margin-bottom:10px">POD ${i+1} · ${esc(name)}</div>
+      ${isPdf
+        ? `<iframe src="${esc(data)}" title="${esc(name)}" style="width:100%;height:65vh;border:0;border-radius:8px"></iframe>`
+        : `<img src="${esc(data)}" alt="${esc(name)}" style="display:block;max-width:100%;max-height:70vh;margin:auto;border-radius:8px;object-fit:contain">`}
+    </div>`;
+  }).join('');
+  modal(`${trip.trip_no||trip.id} · POD`,`
+    <div>
+      <div style="margin-bottom:12px;color:#64748b">
+        <b>${esc(trip.truck_no||'-')}</b> · ${esc(trip.loading_point||'-')} → ${esc(trip.unloading_point||'-')}
+      </div>
+      ${body}
+    </div>
+  `);
 }
 
 
